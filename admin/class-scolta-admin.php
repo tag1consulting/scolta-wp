@@ -1,0 +1,718 @@
+<?php
+/**
+ * Scolta admin settings page.
+ *
+ * WordPress's Settings API handles nonce verification, option serialization,
+ * and form rendering. Everything in a single serialized option (scolta_settings).
+ *
+ * API key is NOT stored in the database. It comes from environment variables
+ * or wp-config.php constants. The admin shows status indicators for the key
+ * source but never provides an input field for it.
+ */
+
+defined('ABSPATH') || exit;
+
+class Scolta_Admin {
+
+    /**
+     * Hook into WordPress admin.
+     */
+    public static function init(): void {
+        add_action('admin_menu', [self::class, 'add_settings_page']);
+        add_action('admin_init', [self::class, 'register_settings']);
+        add_action('admin_notices', [self::class, 'maybe_show_setup_notice']);
+
+        // AJAX handler for removing legacy DB key.
+        add_action('wp_ajax_scolta_remove_db_key', [self::class, 'ajax_remove_db_key']);
+    }
+
+    /**
+     * Add the settings page under Settings > Scolta.
+     */
+    public static function add_settings_page(): void {
+        add_options_page(
+            __('Scolta AI Search', 'scolta'),
+            __('Scolta', 'scolta'),
+            'manage_options',
+            'scolta',
+            [self::class, 'render_settings_page']
+        );
+    }
+
+    /**
+     * Register all settings, sections, and fields.
+     */
+    public static function register_settings(): void {
+        register_setting('scolta_settings_group', 'scolta_settings', [
+            'sanitize_callback' => [self::class, 'sanitize_settings'],
+            'default'           => [],
+        ]);
+
+        // --- Section: AI Provider ---
+        add_settings_section('scolta_ai_section', __('AI Provider', 'scolta'), [self::class, 'render_ai_section'], 'scolta');
+
+        // Only show manual AI config fields when WP AI Client SDK is NOT available.
+        if (!class_exists('\WordPress\AI\Client')) {
+            add_settings_field('ai_provider', __('Provider', 'scolta'), [self::class, 'render_ai_provider_field'], 'scolta', 'scolta_ai_section');
+            add_settings_field('ai_api_key_status', __('API Key', 'scolta'), [self::class, 'render_api_key_status_field'], 'scolta', 'scolta_ai_section');
+            add_settings_field('ai_model', __('Model', 'scolta'), [self::class, 'render_ai_model_field'], 'scolta', 'scolta_ai_section');
+            add_settings_field('ai_base_url', __('Base URL', 'scolta'), [self::class, 'render_ai_base_url_field'], 'scolta', 'scolta_ai_section');
+        }
+
+        add_settings_field('ai_expand_query', __('AI Query Expansion', 'scolta'), [self::class, 'render_ai_expand_field'], 'scolta', 'scolta_ai_section');
+        add_settings_field('ai_summarize', __('AI Summarization', 'scolta'), [self::class, 'render_ai_summarize_field'], 'scolta', 'scolta_ai_section');
+        add_settings_field('max_follow_ups', __('Max Follow-ups', 'scolta'), [self::class, 'render_max_followups_field'], 'scolta', 'scolta_ai_section');
+
+        // --- Section: Content ---
+        add_settings_section('scolta_content_section', __('Content', 'scolta'), [self::class, 'render_content_section'], 'scolta');
+        add_settings_field('post_types', __('Post Types', 'scolta'), [self::class, 'render_post_types_field'], 'scolta', 'scolta_content_section');
+        add_settings_field('site_name', __('Site Name', 'scolta'), [self::class, 'render_site_name_field'], 'scolta', 'scolta_content_section');
+        add_settings_field('site_description', __('Site Description', 'scolta'), [self::class, 'render_site_description_field'], 'scolta', 'scolta_content_section');
+
+        // --- Section: Pagefind ---
+        add_settings_section('scolta_pagefind_section', __('Pagefind', 'scolta'), [self::class, 'render_pagefind_section'], 'scolta');
+        add_settings_field('pagefind_binary', __('Binary Path', 'scolta'), [self::class, 'render_pagefind_binary_field'], 'scolta', 'scolta_pagefind_section');
+        add_settings_field('build_dir', __('Build Directory', 'scolta'), [self::class, 'render_build_dir_field'], 'scolta', 'scolta_pagefind_section');
+        add_settings_field('output_dir', __('Output Directory', 'scolta'), [self::class, 'render_output_dir_field'], 'scolta', 'scolta_pagefind_section');
+        add_settings_field('auto_rebuild', __('Auto Rebuild', 'scolta'), [self::class, 'render_auto_rebuild_field'], 'scolta', 'scolta_pagefind_section');
+
+        // --- Section: Scoring ---
+        add_settings_section('scolta_scoring_section', __('Scoring', 'scolta'), [self::class, 'render_scoring_section'], 'scolta');
+        add_settings_field('title_match_boost', __('Title Match Boost', 'scolta'), [self::class, 'render_title_boost_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('title_all_terms_multiplier', __('Title All-Terms Multiplier', 'scolta'), [self::class, 'render_title_all_terms_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('content_match_boost', __('Content Match Boost', 'scolta'), [self::class, 'render_content_boost_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_boost_max', __('Recency Boost', 'scolta'), [self::class, 'render_recency_boost_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_half_life_days', __('Recency Half-life (days)', 'scolta'), [self::class, 'render_recency_halflife_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_penalty_after_days', __('Recency Penalty After (days)', 'scolta'), [self::class, 'render_recency_penalty_days_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_max_penalty', __('Recency Max Penalty', 'scolta'), [self::class, 'render_recency_max_penalty_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('expand_primary_weight', __('Expand Primary Weight', 'scolta'), [self::class, 'render_expand_weight_field'], 'scolta', 'scolta_scoring_section');
+
+        // --- Section: Display ---
+        add_settings_section('scolta_display_section', __('Display', 'scolta'), [self::class, 'render_display_section'], 'scolta');
+        add_settings_field('excerpt_length', __('Excerpt Length', 'scolta'), [self::class, 'render_excerpt_length_field'], 'scolta', 'scolta_display_section');
+        add_settings_field('results_per_page', __('Results Per Page', 'scolta'), [self::class, 'render_results_per_page_field'], 'scolta', 'scolta_display_section');
+        add_settings_field('max_pagefind_results', __('Max Pagefind Results', 'scolta'), [self::class, 'render_max_pagefind_results_field'], 'scolta', 'scolta_display_section');
+        add_settings_field('ai_summary_top_n', __('AI Summary Top N', 'scolta'), [self::class, 'render_ai_summary_top_n_field'], 'scolta', 'scolta_display_section');
+        add_settings_field('ai_summary_max_chars', __('AI Summary Max Chars', 'scolta'), [self::class, 'render_ai_summary_max_chars_field'], 'scolta', 'scolta_display_section');
+
+        // --- Section: Cache ---
+        add_settings_section('scolta_cache_section', __('Cache', 'scolta'), [self::class, 'render_cache_section'], 'scolta');
+        add_settings_field('cache_ttl', __('Query Expansion Cache Duration', 'scolta'), [self::class, 'render_cache_ttl_field'], 'scolta', 'scolta_cache_section');
+
+        // --- Section: Custom Prompts (Advanced) ---
+        add_settings_section('scolta_prompts_section', __('Custom Prompts (Advanced)', 'scolta'), [self::class, 'render_prompts_section'], 'scolta');
+        add_settings_field('prompt_expand_query', __('Expand Query Prompt', 'scolta'), [self::class, 'render_prompt_expand_field'], 'scolta', 'scolta_prompts_section');
+        add_settings_field('prompt_summarize', __('Summarize Prompt', 'scolta'), [self::class, 'render_prompt_summarize_field'], 'scolta', 'scolta_prompts_section');
+        add_settings_field('prompt_follow_up', __('Follow-up Prompt', 'scolta'), [self::class, 'render_prompt_followup_field'], 'scolta', 'scolta_prompts_section');
+    }
+
+    // -----------------------------------------------------------------
+    // Section descriptions
+    // -----------------------------------------------------------------
+
+    public static function render_ai_section(): void {
+        if (class_exists('\WordPress\AI\Client')) {
+            echo '<p class="description">';
+            echo wp_kses_post(sprintf(
+                __('AI is configured through the <a href="%s">WordPress AI Client SDK</a>. Scolta will use your configured AI provider automatically.', 'scolta'),
+                esc_url(admin_url('options-general.php?page=ai-connectors'))
+            ));
+            echo '</p>';
+        } else {
+            echo '<p class="description">' . esc_html__('Configure the AI provider for query expansion, summarization, and follow-up conversations.', 'scolta') . '</p>';
+        }
+    }
+
+    public static function render_content_section(): void {
+        echo '<p class="description">' . esc_html__('Choose which content types to index and how your site is identified in search results.', 'scolta') . '</p>';
+    }
+
+    public static function render_pagefind_section(): void {
+        echo '<p class="description">' . esc_html__('Pagefind builds a static search index from your exported content.', 'scolta') . '</p>';
+    }
+
+    public static function render_scoring_section(): void {
+        echo '<p class="description">' . esc_html__('Fine-tune how search results are ranked. Defaults work well for most sites.', 'scolta') . '</p>';
+    }
+
+    public static function render_display_section(): void {
+        echo '<p class="description">' . esc_html__('Control the search results display and AI summarization context.', 'scolta') . '</p>';
+    }
+
+    public static function render_cache_section(): void {
+        echo '<p class="description">' . esc_html__('AI query expansion results are cached to reduce API calls.', 'scolta') . '</p>';
+    }
+
+    public static function render_prompts_section(): void {
+        echo '<p class="description">' . esc_html__('Override the built-in AI system prompts. Leave empty to use the defaults.', 'scolta') . '</p>';
+    }
+
+    // -----------------------------------------------------------------
+    // Field renderers
+    // -----------------------------------------------------------------
+
+    private static function get_setting(string $key, mixed $default = ''): mixed {
+        $settings = get_option('scolta_settings', []);
+        return $settings[$key] ?? $default;
+    }
+
+    public static function render_ai_provider_field(): void {
+        $value = self::get_setting('ai_provider', 'anthropic');
+        ?>
+        <select name="scolta_settings[ai_provider]" id="scolta_ai_provider">
+            <option value="anthropic" <?php selected($value, 'anthropic'); ?>><?php esc_html_e('Anthropic (Claude)', 'scolta'); ?></option>
+            <option value="openai" <?php selected($value, 'openai'); ?>><?php esc_html_e('OpenAI', 'scolta'); ?></option>
+        </select>
+        <?php
+    }
+
+    /**
+     * Render API key status (read-only — no input field).
+     */
+    public static function render_api_key_status_field(): void {
+        $source = Scolta_Ai_Service::get_api_key_source();
+
+        switch ($source) {
+            case 'env':
+                echo '<div class="notice notice-success inline"><p>';
+                echo esc_html__('API key loaded from SCOLTA_API_KEY environment variable.', 'scolta');
+                echo '</p></div>';
+                break;
+
+            case 'constant':
+                echo '<div class="notice notice-info inline"><p>';
+                echo esc_html__('API key loaded from SCOLTA_API_KEY constant in wp-config.php.', 'scolta');
+                echo '</p><p class="description">';
+                echo esc_html__('For production hosting, consider using an environment variable instead.', 'scolta');
+                echo '</p></div>';
+                break;
+
+            case 'database':
+                echo '<div class="notice notice-error inline"><p>';
+                echo '<strong>' . esc_html__('Security warning:', 'scolta') . '</strong> ';
+                echo esc_html__('API key is stored in the database, which is insecure. Migrate it to an environment variable by setting SCOLTA_API_KEY on your hosting platform, then remove the key from the database.', 'scolta');
+                echo '</p><p>';
+                echo '<button type="button" class="button" id="scolta-remove-db-key">';
+                echo esc_html__('Remove key from database', 'scolta');
+                echo '</button>';
+                echo '<span id="scolta-remove-db-key-status"></span>';
+                wp_nonce_field('scolta_remove_db_key', 'scolta_remove_db_key_nonce');
+                echo '</p></div>';
+                echo '<script>
+                    document.getElementById("scolta-remove-db-key")?.addEventListener("click", function() {
+                        if (!confirm("' . esc_js(__('Remove the API key from the database? Make sure you have set the SCOLTA_API_KEY environment variable first.', 'scolta')) . '")) return;
+                        var data = new FormData();
+                        data.append("action", "scolta_remove_db_key");
+                        data.append("_wpnonce", document.getElementById("scolta_remove_db_key_nonce").value);
+                        fetch(ajaxurl, { method: "POST", body: data })
+                            .then(function(r) { return r.json(); })
+                            .then(function(d) {
+                                document.getElementById("scolta-remove-db-key-status").textContent = d.success ? " Removed." : " Failed.";
+                                if (d.success) location.reload();
+                            });
+                    });
+                </script>';
+                break;
+
+            default:
+                echo '<div class="notice notice-error inline"><p>';
+                echo esc_html__('No API key configured. Set the SCOLTA_API_KEY environment variable on your hosting platform.', 'scolta');
+                echo '</p><p class="description">';
+                printf(
+                    esc_html__('For local development, add %s to your wp-config.php.', 'scolta'),
+                    '<code>putenv(\'SCOLTA_API_KEY=sk-...\');</code>'
+                );
+                echo '</p></div>';
+                break;
+        }
+    }
+
+    public static function render_ai_model_field(): void {
+        $value = self::get_setting('ai_model', 'claude-sonnet-4-5-20250929');
+        ?>
+        <input type="text" name="scolta_settings[ai_model]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Model identifier. e.g., claude-sonnet-4-5-20250929 or gpt-4o', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_ai_base_url_field(): void {
+        $value = self::get_setting('ai_base_url', '');
+        ?>
+        <input type="text" name="scolta_settings[ai_base_url]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Override the default API endpoint. Leave empty for the provider default.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_ai_expand_field(): void {
+        $value = self::get_setting('ai_expand_query', true);
+        ?>
+        <label>
+            <input type="checkbox" name="scolta_settings[ai_expand_query]" value="1" <?php checked($value); ?> />
+            <?php esc_html_e('Use AI to expand search queries into related terms', 'scolta'); ?>
+        </label>
+        <?php
+    }
+
+    public static function render_ai_summarize_field(): void {
+        $value = self::get_setting('ai_summarize', true);
+        ?>
+        <label>
+            <input type="checkbox" name="scolta_settings[ai_summarize]" value="1" <?php checked($value); ?> />
+            <?php esc_html_e('Generate AI summaries of search results', 'scolta'); ?>
+        </label>
+        <?php
+    }
+
+    public static function render_max_followups_field(): void {
+        $value = self::get_setting('max_follow_ups', 3);
+        ?>
+        <input type="number" name="scolta_settings[max_follow_ups]" value="<?php echo esc_attr($value); ?>" min="0" max="10" step="1" class="small-text" />
+        <p class="description"><?php esc_html_e('Maximum conversational follow-up messages per search session. 0 to disable.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_post_types_field(): void {
+        $selected = self::get_setting('post_types', ['post', 'page']);
+        if (!is_array($selected)) {
+            $selected = ['post', 'page'];
+        }
+        $post_types = get_post_types(['public' => true], 'objects');
+        foreach ($post_types as $pt) {
+            if ($pt->name === 'attachment') {
+                continue;
+            }
+            ?>
+            <label style="display: block; margin-bottom: 4px;">
+                <input type="checkbox" name="scolta_settings[post_types][]" value="<?php echo esc_attr($pt->name); ?>" <?php checked(in_array($pt->name, $selected, true)); ?> />
+                <?php echo esc_html($pt->labels->name); ?> <code>(<?php echo esc_html($pt->name); ?>)</code>
+            </label>
+            <?php
+        }
+        ?>
+        <p class="description"><?php esc_html_e('Content types to include in the search index.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_site_name_field(): void {
+        $value = self::get_setting('site_name', get_bloginfo('name'));
+        ?>
+        <input type="text" name="scolta_settings[site_name]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Used in AI prompts and search result attribution. Defaults to your site title.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_site_description_field(): void {
+        $value = self::get_setting('site_description', 'website');
+        ?>
+        <input type="text" name="scolta_settings[site_description]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Brief description for AI context. e.g., "technology blog" or "university research portal"', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_pagefind_binary_field(): void {
+        $value = self::get_setting('pagefind_binary', 'pagefind');
+        ?>
+        <input type="text" name="scolta_settings[pagefind_binary]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+        <p class="description"><?php printf(esc_html__('Path to the Pagefind binary. Run "%s" to download it.', 'scolta'), 'wp scolta download-pagefind'); ?></p>
+        <?php
+    }
+
+    public static function render_build_dir_field(): void {
+        $value = self::get_setting('build_dir', WP_CONTENT_DIR . '/scolta-build');
+        ?>
+        <input type="text" name="scolta_settings[build_dir]" value="<?php echo esc_attr($value); ?>" class="large-text" />
+        <p class="description"><?php esc_html_e('Where exported HTML files are written. Should be outside the web root.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_output_dir_field(): void {
+        $value = self::get_setting('output_dir', ABSPATH . 'scolta-pagefind');
+        ?>
+        <input type="text" name="scolta_settings[output_dir]" value="<?php echo esc_attr($value); ?>" class="large-text" />
+        <p class="description"><?php esc_html_e('Directory for the Pagefind index. Must be web-accessible.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_auto_rebuild_field(): void {
+        $value = self::get_setting('auto_rebuild', true);
+        ?>
+        <label>
+            <input type="checkbox" name="scolta_settings[auto_rebuild]" value="1" <?php checked($value); ?> />
+            <?php esc_html_e('Automatically rebuild the Pagefind index when content is exported via WP-CLI', 'scolta'); ?>
+        </label>
+        <?php
+    }
+
+    // -- Scoring fields --
+
+    public static function render_title_boost_field(): void {
+        $value = self::get_setting('title_match_boost', 1.0);
+        ?>
+        <input type="number" name="scolta_settings[title_match_boost]" value="<?php echo esc_attr($value); ?>" min="0" max="10" step="0.1" class="small-text" />
+        <p class="description"><?php esc_html_e('Bonus for search terms in the title. Default: 1.0', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_title_all_terms_field(): void {
+        $value = self::get_setting('title_all_terms_multiplier', 1.5);
+        ?>
+        <input type="number" name="scolta_settings[title_all_terms_multiplier]" value="<?php echo esc_attr($value); ?>" min="0" max="10" step="0.1" class="small-text" />
+        <p class="description"><?php esc_html_e('Extra boost when ALL search terms appear in the title. Default: 1.5', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_content_boost_field(): void {
+        $value = self::get_setting('content_match_boost', 0.4);
+        ?>
+        <input type="number" name="scolta_settings[content_match_boost]" value="<?php echo esc_attr($value); ?>" min="0" max="10" step="0.1" class="small-text" />
+        <p class="description"><?php esc_html_e('Bonus for search terms in the body content. Default: 0.4', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_boost_field(): void {
+        $value = self::get_setting('recency_boost_max', 0.5);
+        ?>
+        <input type="number" name="scolta_settings[recency_boost_max]" value="<?php echo esc_attr($value); ?>" min="0" max="5" step="0.1" class="small-text" />
+        <p class="description"><?php esc_html_e('Maximum boost for recent content. Default: 0.5', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_halflife_field(): void {
+        $value = self::get_setting('recency_half_life_days', 365);
+        ?>
+        <input type="number" name="scolta_settings[recency_half_life_days]" value="<?php echo esc_attr($value); ?>" min="1" max="3650" step="1" class="small-text" />
+        <p class="description"><?php esc_html_e('Days until the recency boost decays to half. Default: 365', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_penalty_days_field(): void {
+        $value = self::get_setting('recency_penalty_after_days', 1825);
+        ?>
+        <input type="number" name="scolta_settings[recency_penalty_after_days]" value="<?php echo esc_attr($value); ?>" min="0" max="7300" step="1" class="small-text" />
+        <p class="description"><?php esc_html_e('Content older than this gets a negative adjustment. Default: 1825 (5 years)', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_max_penalty_field(): void {
+        $value = self::get_setting('recency_max_penalty', 0.3);
+        ?>
+        <input type="number" name="scolta_settings[recency_max_penalty]" value="<?php echo esc_attr($value); ?>" min="0" max="1" step="0.1" class="small-text" />
+        <p class="description"><?php esc_html_e('Maximum penalty for very old content. Default: 0.3', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_expand_weight_field(): void {
+        $value = self::get_setting('expand_primary_weight', 0.7);
+        ?>
+        <input type="number" name="scolta_settings[expand_primary_weight]" value="<?php echo esc_attr($value); ?>" min="0" max="1" step="0.05" class="small-text" />
+        <p class="description"><?php esc_html_e('Weight for the primary expanded term (subsequent terms decay). Default: 0.7', 'scolta'); ?></p>
+        <?php
+    }
+
+    // -- Display fields --
+
+    public static function render_excerpt_length_field(): void {
+        $value = self::get_setting('excerpt_length', 300);
+        ?>
+        <input type="number" name="scolta_settings[excerpt_length]" value="<?php echo esc_attr($value); ?>" min="50" max="1000" step="50" class="small-text" />
+        <p class="description"><?php esc_html_e('Characters shown in result excerpts. Default: 300', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_results_per_page_field(): void {
+        $value = self::get_setting('results_per_page', 10);
+        ?>
+        <input type="number" name="scolta_settings[results_per_page]" value="<?php echo esc_attr($value); ?>" min="5" max="100" step="5" class="small-text" />
+        <p class="description"><?php esc_html_e('Results shown before "show more". Default: 10', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_max_pagefind_results_field(): void {
+        $value = self::get_setting('max_pagefind_results', 50);
+        ?>
+        <input type="number" name="scolta_settings[max_pagefind_results]" value="<?php echo esc_attr($value); ?>" min="10" max="500" step="10" class="small-text" />
+        <p class="description"><?php esc_html_e('Maximum results fetched from Pagefind before scoring. Default: 50', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_ai_summary_top_n_field(): void {
+        $value = self::get_setting('ai_summary_top_n', 5);
+        ?>
+        <input type="number" name="scolta_settings[ai_summary_top_n]" value="<?php echo esc_attr($value); ?>" min="1" max="20" step="1" class="small-text" />
+        <p class="description"><?php esc_html_e('Number of top results sent to AI for summarization. Default: 5', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_ai_summary_max_chars_field(): void {
+        $value = self::get_setting('ai_summary_max_chars', 2000);
+        ?>
+        <input type="number" name="scolta_settings[ai_summary_max_chars]" value="<?php echo esc_attr($value); ?>" min="500" max="10000" step="500" class="small-text" />
+        <p class="description"><?php esc_html_e('Maximum characters per result excerpt sent to AI. Default: 2000', 'scolta'); ?></p>
+        <?php
+    }
+
+    // -- Cache field --
+
+    public static function render_cache_ttl_field(): void {
+        $value = self::get_setting('cache_ttl', 2592000);
+        ?>
+        <input type="number" name="scolta_settings[cache_ttl]" value="<?php echo esc_attr($value); ?>" min="0" max="7776000" step="1" class="regular-text" />
+        <p class="description"><?php
+            esc_html_e('Seconds. 0 = disabled. Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days, default).', 'scolta');
+        ?></p>
+        <?php
+    }
+
+    // -- Prompt override fields --
+
+    public static function render_prompt_expand_field(): void {
+        $value = self::get_setting('prompt_expand_query', '');
+        ?>
+        <textarea name="scolta_settings[prompt_expand_query]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the query expansion system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_prompt_summarize_field(): void {
+        $value = self::get_setting('prompt_summarize', '');
+        ?>
+        <textarea name="scolta_settings[prompt_summarize]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the summarization system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_prompt_followup_field(): void {
+        $value = self::get_setting('prompt_follow_up', '');
+        ?>
+        <textarea name="scolta_settings[prompt_follow_up]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the follow-up system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <?php
+    }
+
+    // -----------------------------------------------------------------
+    // Sanitization
+    // -----------------------------------------------------------------
+
+    /**
+     * Sanitize all settings before WordPress saves them.
+     *
+     * API key is NEVER saved to the database from this form.
+     */
+    public static function sanitize_settings(array $input): array {
+        $clean = [];
+        $existing = get_option('scolta_settings', []);
+
+        // AI provider.
+        $clean['ai_provider'] = in_array($input['ai_provider'] ?? '', ['anthropic', 'openai'], true)
+            ? $input['ai_provider']
+            : 'anthropic';
+
+        // Model.
+        $clean['ai_model'] = sanitize_text_field($input['ai_model'] ?? 'claude-sonnet-4-5-20250929');
+        $clean['ai_base_url'] = sanitize_text_field($input['ai_base_url'] ?? '');
+
+        // AI feature toggles.
+        $clean['ai_expand_query'] = !empty($input['ai_expand_query']);
+        $clean['ai_summarize'] = !empty($input['ai_summarize']);
+        $clean['max_follow_ups'] = max(0, min(10, (int) ($input['max_follow_ups'] ?? 3)));
+
+        // Content settings.
+        $post_types = $input['post_types'] ?? ['post', 'page'];
+        $clean['post_types'] = array_map('sanitize_key', (array) $post_types);
+        $clean['site_name'] = sanitize_text_field($input['site_name'] ?? get_bloginfo('name'));
+        $clean['site_description'] = sanitize_text_field($input['site_description'] ?? 'website');
+
+        // Pagefind paths.
+        $clean['pagefind_binary'] = sanitize_text_field($input['pagefind_binary'] ?? 'pagefind');
+        $clean['build_dir'] = wp_normalize_path($input['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build');
+        $clean['output_dir'] = wp_normalize_path($input['output_dir'] ?? ABSPATH . 'scolta-pagefind');
+        $clean['auto_rebuild'] = !empty($input['auto_rebuild']);
+
+        // Scoring — all 8 fields.
+        $clean['title_match_boost'] = max(0.0, min(10.0, (float) ($input['title_match_boost'] ?? 1.0)));
+        $clean['title_all_terms_multiplier'] = max(0.0, min(10.0, (float) ($input['title_all_terms_multiplier'] ?? 1.5)));
+        $clean['content_match_boost'] = max(0.0, min(10.0, (float) ($input['content_match_boost'] ?? 0.4)));
+        $clean['recency_boost_max'] = max(0.0, min(5.0, (float) ($input['recency_boost_max'] ?? 0.5)));
+        $clean['recency_half_life_days'] = max(1, min(3650, (int) ($input['recency_half_life_days'] ?? 365)));
+        $clean['recency_penalty_after_days'] = max(0, min(7300, (int) ($input['recency_penalty_after_days'] ?? 1825)));
+        $clean['recency_max_penalty'] = max(0.0, min(1.0, (float) ($input['recency_max_penalty'] ?? 0.3)));
+        $clean['expand_primary_weight'] = max(0.0, min(1.0, (float) ($input['expand_primary_weight'] ?? 0.7)));
+
+        // Display — all 5 fields.
+        $clean['excerpt_length'] = max(50, min(1000, (int) ($input['excerpt_length'] ?? 300)));
+        $clean['results_per_page'] = max(5, min(100, (int) ($input['results_per_page'] ?? 10)));
+        $clean['max_pagefind_results'] = max(10, min(500, (int) ($input['max_pagefind_results'] ?? 50)));
+        $clean['ai_summary_top_n'] = max(1, min(20, (int) ($input['ai_summary_top_n'] ?? 5)));
+        $clean['ai_summary_max_chars'] = max(500, min(10000, (int) ($input['ai_summary_max_chars'] ?? 2000)));
+
+        // Cache.
+        $clean['cache_ttl'] = max(0, min(7776000, (int) ($input['cache_ttl'] ?? 2592000)));
+
+        // Prompt overrides.
+        $clean['prompt_expand_query'] = mb_substr(sanitize_textarea_field($input['prompt_expand_query'] ?? ''), 0, 5000);
+        $clean['prompt_summarize'] = mb_substr(sanitize_textarea_field($input['prompt_summarize'] ?? ''), 0, 5000);
+        $clean['prompt_follow_up'] = mb_substr(sanitize_textarea_field($input['prompt_follow_up'] ?? ''), 0, 5000);
+
+        // Preserve internal settings not exposed in the form.
+        $clean['search_page_path'] = $existing['search_page_path'] ?? '/scolta-search';
+        $clean['pagefind_index_path'] = $existing['pagefind_index_path'] ?? '/scolta-pagefind';
+
+        // Preserve legacy API key if it exists (for backward compat until user removes it).
+        if (!empty($existing['ai_api_key'])) {
+            $clean['ai_api_key'] = $existing['ai_api_key'];
+        }
+
+        return $clean;
+    }
+
+    // -----------------------------------------------------------------
+    // AJAX: remove legacy DB key
+    // -----------------------------------------------------------------
+
+    public static function ajax_remove_db_key(): void {
+        check_ajax_referer('scolta_remove_db_key');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Insufficient permissions');
+        }
+
+        $settings = get_option('scolta_settings', []);
+        unset($settings['ai_api_key']);
+        update_option('scolta_settings', $settings);
+
+        wp_send_json_success('API key removed from database');
+    }
+
+    // -----------------------------------------------------------------
+    // Page renderer
+    // -----------------------------------------------------------------
+
+    public static function render_settings_page(): void {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        settings_errors('scolta_settings');
+        ?>
+        <div class="wrap">
+            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('scolta_settings_group');
+                do_settings_sections('scolta');
+                submit_button(__('Save Settings', 'scolta'));
+                ?>
+            </form>
+
+            <hr />
+
+            <h2><?php esc_html_e('Quick Start', 'scolta'); ?></h2>
+            <ol>
+                <li><?php printf(esc_html__('Build the search index: %s', 'scolta'), '<code>wp scolta build</code>'); ?></li>
+                <li><?php printf(esc_html__('Add the search UI to any page: %s', 'scolta'), '<code>[scolta_search]</code>'); ?></li>
+                <li><?php printf(esc_html__('Check status: %s', 'scolta'), '<code>wp scolta status</code>'); ?></li>
+            </ol>
+
+            <?php self::render_status_summary(); ?>
+        </div>
+        <?php
+    }
+
+    private static function render_status_summary(): void {
+        $settings = get_option('scolta_settings', []);
+        $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
+        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+
+        echo '<h2>' . esc_html__('Index Status', 'scolta') . '</h2>';
+        echo '<table class="widefat striped" style="max-width: 600px;">';
+
+        // Tracker.
+        if (\Scolta_Tracker::table_exists()) {
+            $pending = \Scolta_Tracker::get_pending_count();
+            echo '<tr><td>' . esc_html__('Pending changes', 'scolta') . '</td>';
+            echo '<td>' . esc_html($pending) . '</td></tr>';
+        } else {
+            echo '<tr><td>' . esc_html__('Tracker', 'scolta') . '</td>';
+            echo '<td><span style="color: #d63638;">' . esc_html__('Table missing — deactivate and reactivate the plugin', 'scolta') . '</span></td></tr>';
+        }
+
+        // Build directory.
+        if (is_dir($build_dir)) {
+            $html_count = count(glob($build_dir . '/*.html') ?: []);
+            echo '<tr><td>' . esc_html__('Exported HTML files', 'scolta') . '</td>';
+            echo '<td>' . esc_html($html_count) . '</td></tr>';
+        } else {
+            echo '<tr><td>' . esc_html__('Build directory', 'scolta') . '</td>';
+            echo '<td>' . esc_html__('Not created yet', 'scolta') . '</td></tr>';
+        }
+
+        // Pagefind index.
+        $index_file = $output_dir . '/pagefind.js';
+        if (file_exists($index_file)) {
+            $mtime = filemtime($index_file);
+            $fragment_count = count(glob($output_dir . '/fragment/*') ?: []);
+            echo '<tr><td>' . esc_html__('Index fragments', 'scolta') . '</td>';
+            echo '<td>' . esc_html($fragment_count) . '</td></tr>';
+            echo '<tr><td>' . esc_html__('Last built', 'scolta') . '</td>';
+            echo '<td>' . esc_html($mtime ? wp_date('Y-m-d H:i:s', $mtime) : __('Unknown', 'scolta')) . '</td></tr>';
+        } else {
+            echo '<tr><td>' . esc_html__('Pagefind index', 'scolta') . '</td>';
+            echo '<td>' . esc_html__('Not built yet — run: wp scolta build', 'scolta') . '</td></tr>';
+        }
+
+        // AI provider.
+        if (class_exists('\WordPress\AI\Client')) {
+            echo '<tr><td>' . esc_html__('AI Provider', 'scolta') . '</td>';
+            echo '<td>' . esc_html__('WordPress AI Client SDK (WP 7.0+)', 'scolta') . '</td></tr>';
+        } else {
+            $provider = $settings['ai_provider'] ?? 'anthropic';
+            $source = Scolta_Ai_Service::get_api_key_source();
+            echo '<tr><td>' . esc_html__('AI Provider', 'scolta') . '</td>';
+            echo '<td>' . esc_html(ucfirst($provider));
+            if ($source === 'none') {
+                echo ' <span style="color: #d63638;">(' . esc_html__('no API key', 'scolta') . ')</span>';
+            } elseif ($source === 'database') {
+                echo ' <span style="color: #dba617;">(' . esc_html__('key in DB — migrate to env var', 'scolta') . ')</span>';
+            }
+            echo '</td></tr>';
+        }
+
+        echo '</table>';
+    }
+
+    /**
+     * Show a dismissible notice if the plugin needs configuration.
+     */
+    public static function maybe_show_setup_notice(): void {
+        $screen = get_current_screen();
+        if (!$screen || !in_array($screen->id, ['plugins', 'settings_page_scolta'], true)) {
+            return;
+        }
+
+        if (class_exists('\WordPress\AI\Client')) {
+            return;
+        }
+
+        $source = Scolta_Ai_Service::get_api_key_source();
+        if ($source === 'none') {
+            echo '<div class="notice notice-warning is-dismissible">';
+            echo '<p>' . wp_kses_post(sprintf(
+                __('<strong>Scolta AI Search</strong> needs an API key for AI features. Set the %s environment variable, or <a href="%s">view setup instructions</a>.', 'scolta'),
+                '<code>SCOLTA_API_KEY</code>',
+                esc_url(admin_url('options-general.php?page=scolta'))
+            )) . '</p>';
+            echo '</div>';
+        } elseif ($source === 'database') {
+            echo '<div class="notice notice-warning is-dismissible">';
+            echo '<p>' . wp_kses_post(sprintf(
+                __('<strong>Scolta AI Search:</strong> Your API key is stored in the database, which is insecure. <a href="%s">Migrate to an environment variable</a>.', 'scolta'),
+                esc_url(admin_url('options-general.php?page=scolta'))
+            )) . '</p>';
+            echo '</div>';
+        }
+    }
+}
+
+// Initialize admin hooks.
+Scolta_Admin::init();
