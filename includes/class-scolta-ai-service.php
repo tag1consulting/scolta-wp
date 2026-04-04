@@ -4,7 +4,7 @@
  *
  * Dual-path AI provider support:
  *   - WP 7.0+: Detects and uses the WordPress AI Client SDK (native, multi-provider)
- *   - WP 6.x:  Falls back to scolta-core's built-in AiClient (Anthropic + OpenAI)
+ *   - WP 6.x:  Falls back to scolta-php's built-in AiClient (Anthropic + OpenAI)
  *
  * API key resolution (in priority order):
  *   1. SCOLTA_API_KEY environment variable (production-safe)
@@ -111,7 +111,7 @@ class Scolta_Ai_Service {
      * Send a single-turn AI message.
      *
      * Tries WP AI Client SDK first (if available and configured), then
-     * falls back to scolta-core's built-in AiClient.
+     * falls back to scolta-php's built-in AiClient.
      */
     public function message(string $system_prompt, string $user_message, int $max_tokens = 512): string {
         // Path 1: WordPress AI Client SDK (WP 7.0+).
@@ -126,7 +126,7 @@ class Scolta_Ai_Service {
             }
         }
 
-        // Path 2: Built-in AiClient from scolta-core.
+        // Path 2: Built-in AiClient from scolta-php.
         return $this->get_client()->message($system_prompt, $user_message, $max_tokens);
     }
 

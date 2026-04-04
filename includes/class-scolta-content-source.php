@@ -2,7 +2,7 @@
 /**
  * WordPress content source for Scolta indexing.
  *
- * Implements ContentSourceInterface from scolta-core for cross-platform
+ * Implements ContentSourceInterface from scolta-php for cross-platform
  * consistency. WordPress-internal code uses snake_case methods (WP convention);
  * the interface requires camelCase. Both are available — the camelCase methods
  * delegate to their snake_case counterparts.

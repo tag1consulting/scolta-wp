@@ -45,11 +45,11 @@ class Scolta_Shortcode {
         $pagefind_url = self::dir_to_url($output_dir);
 
         // Enqueue the shared scolta.js from the Composer package.
-        $scolta_js_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta/assets/js/scolta.js';
+        $scolta_js_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/js/scolta.js';
         if (file_exists($scolta_js_path)) {
             wp_enqueue_script(
                 'scolta-search',
-                SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta/assets/js/scolta.js',
+                SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta-php/assets/js/scolta.js',
                 [],
                 SCOLTA_VERSION,
                 true // Load in footer.

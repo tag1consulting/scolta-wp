@@ -21,7 +21,7 @@ define('SCOLTA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCOLTA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCOLTA_PLUGIN_FILE', __FILE__);
 
-// Composer autoloader (scolta-core).
+// Composer autoloader (scolta-php).
 $autoloader = SCOLTA_PLUGIN_DIR . 'vendor/autoload.php';
 if (file_exists($autoloader)) {
     require_once $autoloader;
