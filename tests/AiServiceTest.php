@@ -1,0 +1,159 @@
+<?php
+
+declare(strict_types=1);
+
+use Yoast\PHPUnitPolyfills\TestCases\TestCase;
+use Tag1\Scolta\Config\ScoltaConfig;
+
+/**
+ * Tests for Scolta_Ai_Service — config creation and prompt resolution.
+ */
+class AiServiceTest extends TestCase {
+
+    protected function set_up(): void {
+        $GLOBALS['wp_options'] = [];
+        // Clear environment for deterministic tests.
+        putenv('SCOLTA_API_KEY');
+        unset($_ENV['SCOLTA_API_KEY'], $_SERVER['SCOLTA_API_KEY']);
+    }
+
+    private function createService(array $settings = []): Scolta_Ai_Service {
+        $defaults = [
+            'ai_provider' => 'anthropic',
+            'ai_model' => 'claude-sonnet-4-5-20250929',
+            'ai_base_url' => '',
+            'ai_api_key' => 'test-key',
+            'site_name' => 'Test Site',
+            'site_description' => 'test website',
+            'max_follow_ups' => 3,
+            'ai_expand_query' => true,
+            'ai_summarize' => true,
+            'cache_ttl' => 2592000,
+            'title_match_boost' => 1.0,
+            'title_all_terms_multiplier' => 1.5,
+            'content_match_boost' => 0.4,
+            'recency_boost_max' => 0.5,
+            'recency_half_life_days' => 365,
+            'recency_penalty_after_days' => 1825,
+            'recency_max_penalty' => 0.3,
+            'expand_primary_weight' => 0.7,
+            'excerpt_length' => 300,
+            'results_per_page' => 10,
+            'max_pagefind_results' => 50,
+            'ai_summary_top_n' => 5,
+            'ai_summary_max_chars' => 2000,
+            'prompt_expand_query' => '',
+            'prompt_summarize' => '',
+            'prompt_follow_up' => '',
+        ];
+
+        $config = ScoltaConfig::fromArray(array_merge($defaults, $settings));
+        return new Scolta_Ai_Service($config);
+    }
+
+    // -------------------------------------------------------------------
+    // Config creation
+    // -------------------------------------------------------------------
+
+    public function test_get_config_returns_scolta_config(): void {
+        $service = $this->createService();
+        $config = $service->get_config();
+        $this->assertInstanceOf(ScoltaConfig::class, $config);
+    }
+
+    public function test_config_maps_provider(): void {
+        $service = $this->createService(['ai_provider' => 'openai']);
+        $this->assertEquals('openai', $service->get_config()->aiProvider);
+    }
+
+    public function test_config_maps_model(): void {
+        $service = $this->createService(['ai_model' => 'gpt-4']);
+        $this->assertEquals('gpt-4', $service->get_config()->aiModel);
+    }
+
+    public function test_config_maps_site_name(): void {
+        $service = $this->createService(['site_name' => 'My WP Site']);
+        $this->assertEquals('My WP Site', $service->get_config()->siteName);
+    }
+
+    // -------------------------------------------------------------------
+    // API key detection
+    // -------------------------------------------------------------------
+
+    public function test_api_key_from_env(): void {
+        putenv('SCOLTA_API_KEY=env-key-123');
+        $this->assertEquals('env-key-123', Scolta_Ai_Service::get_api_key());
+        $this->assertEquals('env', Scolta_Ai_Service::get_api_key_source());
+        putenv('SCOLTA_API_KEY');
+    }
+
+    public function test_api_key_source_none_when_empty(): void {
+        $this->assertEquals('', Scolta_Ai_Service::get_api_key());
+        $this->assertEquals('none', Scolta_Ai_Service::get_api_key_source());
+    }
+
+    public function test_api_key_from_constant(): void {
+        if (!defined('SCOLTA_API_KEY')) {
+            define('SCOLTA_API_KEY', 'const-key-456');
+        }
+        // The constant path only fires if env is empty.
+        putenv('SCOLTA_API_KEY');
+        $key = Scolta_Ai_Service::get_api_key();
+        $source = Scolta_Ai_Service::get_api_key_source();
+        $this->assertEquals('const-key-456', $key);
+        $this->assertEquals('constant', $source);
+    }
+
+    // -------------------------------------------------------------------
+    // Prompt resolution
+    // -------------------------------------------------------------------
+
+    public function test_get_expand_prompt_returns_default(): void {
+        $service = $this->createService();
+        try {
+            $prompt = $service->get_expand_prompt();
+            $this->assertStringContainsString('Test Site', $prompt);
+        } catch (\RuntimeException $e) {
+            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
+        }
+    }
+
+    public function test_get_expand_prompt_uses_custom_override(): void {
+        $service = $this->createService([
+            'prompt_expand_query' => 'Custom prompt for {SITE_NAME}',
+        ]);
+        // When custom is set, it's used as-is (no WASM delegation).
+        $prompt = $service->get_expand_prompt();
+        $this->assertEquals('Custom prompt for {SITE_NAME}', $prompt);
+    }
+
+    public function test_get_summarize_prompt_returns_default(): void {
+        $service = $this->createService();
+        try {
+            $prompt = $service->get_summarize_prompt();
+            $this->assertStringContainsString('Test Site', $prompt);
+        } catch (\RuntimeException $e) {
+            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
+        }
+    }
+
+    public function test_get_follow_up_prompt_returns_default(): void {
+        $service = $this->createService();
+        try {
+            $prompt = $service->get_follow_up_prompt();
+            $this->assertStringContainsString('Test Site', $prompt);
+        } catch (\RuntimeException $e) {
+            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // WP AI SDK detection
+    // -------------------------------------------------------------------
+
+    public function test_has_wp_ai_sdk_returns_false(): void {
+        // The stub environment has no WP AI Client SDK.
+        $service = $this->createService();
+        $this->assertFalse($service->has_wp_ai_sdk());
+    }
+}
