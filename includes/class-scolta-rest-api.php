@@ -46,10 +46,14 @@ class Scolta_Rest_Api {
                     'required'          => true,
                     'type'              => 'string',
                     'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => function ($value) {
+                        return is_string($value) && strlen($value) > 0 && strlen($value) <= 500;
+                    },
                 ],
                 'context' => [
                     'required'          => true,
                     'type'              => 'string',
+                    'sanitize_callback' => 'wp_kses_post',
                     'validate_callback' => function ($value) {
                         return is_string($value) && strlen($value) > 0 && strlen($value) <= 50000;
                     },
@@ -65,6 +69,17 @@ class Scolta_Rest_Api {
                 'messages' => [
                     'required'          => true,
                     'type'              => 'array',
+                    'sanitize_callback' => function ($value) {
+                        if (!is_array($value)) {
+                            return [];
+                        }
+                        return array_map(function ($msg) {
+                            return [
+                                'role'    => sanitize_text_field($msg['role'] ?? ''),
+                                'content' => wp_kses_post($msg['content'] ?? ''),
+                            ];
+                        }, $value);
+                    },
                     'validate_callback' => function ($value) {
                         if (!is_array($value) || empty($value)) {
                             return false;
