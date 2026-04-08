@@ -146,12 +146,16 @@ vendor/
 
 ## Testing
 
+**Unit tests** (fast, no WordPress required — 247 tests):
+
 ```bash
-# Unit tests (no WordPress bootstrap required)
 cd packages/scolta-wp
 ./vendor/bin/phpunit
+```
 
-# Integration tests (requires DDEV with WordPress installed)
+**Integration tests** (requires DDEV — 34 tests):
+
+```bash
 cd test-wordpress-7
 ddev wp eval-file tests/integration-test.php
 ```
