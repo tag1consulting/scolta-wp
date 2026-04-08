@@ -57,6 +57,14 @@ class Scolta_CLI {
      * @subcommand build
      */
     public function build(array $args, array $assoc_args): void {
+        try {
+            $this->do_build($args, $assoc_args);
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    private function do_build(array $args, array $assoc_args): void {
         $incremental = \WP_CLI\Utils\get_flag_value($assoc_args, 'incremental', false);
         $skip_pagefind = \WP_CLI\Utils\get_flag_value($assoc_args, 'skip-pagefind', false);
 
@@ -155,13 +163,17 @@ class Scolta_CLI {
      * @subcommand rebuild-index
      */
     public function rebuild_index(array $args, array $assoc_args): void {
-        $settings = get_option('scolta_settings', []);
-        $binary = $settings['pagefind_binary'] ?? 'pagefind';
-        $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        try {
+            $settings = get_option('scolta_settings', []);
+            $binary = $settings['pagefind_binary'] ?? 'pagefind';
+            $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
+            $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
 
-        \WP_CLI::log('Rebuilding Pagefind index from existing HTML files...');
-        $this->run_pagefind($binary, $build_dir, $output_dir);
+            \WP_CLI::log('Rebuilding Pagefind index from existing HTML files...');
+            $this->run_pagefind($binary, $build_dir, $output_dir);
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
     }
 
     /**
@@ -173,6 +185,14 @@ class Scolta_CLI {
      * @subcommand status
      */
     public function status(array $args, array $assoc_args): void {
+        try {
+            $this->do_status();
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    private function do_status(): void {
         $settings = get_option('scolta_settings', []);
         $post_types = $settings['post_types'] ?? ['post', 'page'];
         $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
@@ -263,6 +283,14 @@ class Scolta_CLI {
      * @subcommand download-pagefind
      */
     public function download_pagefind(array $args, array $assoc_args): void {
+        try {
+            $this->do_download_pagefind();
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    private function do_download_pagefind(): void {
         $settings = get_option('scolta_settings', []);
         $target_dir = WP_CONTENT_DIR . '/scolta-bin';
 

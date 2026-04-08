@@ -147,6 +147,6 @@ class Scolta_Tracker {
     public static function table_exists(): bool {
         global $wpdb;
         $table = $wpdb->prefix . self::TABLE;
-        return $wpdb->get_var("SHOW TABLES LIKE '{$table}'") === $table;
+        return $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) === $table;
     }
 }
