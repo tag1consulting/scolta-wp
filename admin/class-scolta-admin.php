@@ -467,26 +467,47 @@ class Scolta_Admin {
 
     public static function render_prompt_expand_field(): void {
         $value = self::get_setting('prompt_expand_query', '');
+        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY);
         ?>
-        <textarea name="scolta_settings[prompt_expand_query]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the query expansion system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <textarea name="scolta_settings[prompt_expand_query]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the query expansion system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
         <?php
     }
 
     public static function render_prompt_summarize_field(): void {
         $value = self::get_setting('prompt_summarize', '');
+        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::SUMMARIZE);
         ?>
-        <textarea name="scolta_settings[prompt_summarize]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the summarization system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <textarea name="scolta_settings[prompt_summarize]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the summarization system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
         <?php
     }
 
     public static function render_prompt_followup_field(): void {
         $value = self::get_setting('prompt_follow_up', '');
+        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::FOLLOW_UP);
         ?>
-        <textarea name="scolta_settings[prompt_follow_up]" rows="4" class="large-text"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the follow-up system prompt. Leave empty for the default.', 'scolta'); ?></p>
+        <textarea name="scolta_settings[prompt_follow_up]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php esc_html_e('Override the follow-up system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
         <?php
+    }
+
+    /**
+     * Get the default prompt template text for use as a placeholder.
+     *
+     * Returns the raw template with {SITE_NAME} and {SITE_DESCRIPTION}
+     * placeholders intact, so the admin can see the structure.
+     * Returns empty string if WASM is unavailable.
+     *
+     * @param string $name Prompt template name constant.
+     * @return string The template text, or empty on failure.
+     */
+    private static function get_default_prompt(string $name): string {
+        try {
+            return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($name);
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     // -----------------------------------------------------------------
