@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="Scolta WordPress">
+  <description>WordPress coding standards for Scolta plugin</description>
+  <arg name="extensions" value="php"/>
+  <arg name="colors"/>
+  <arg value="sp"/>
+
+  <file>includes</file>
+  <file>cli</file>
+  <file>admin</file>
+  <file>scolta.php</file>
+
+  <rule ref="WordPress-Extra"/>
+
+  <config name="minimum_supported_wp_version" value="6.0"/>
+  <config name="text_domain" value="scolta"/>
+
+  <!-- Allow long lines in tests -->
+  <rule ref="Generic.Files.LineLength">
+    <exclude-pattern>tests/*</exclude-pattern>
+  </rule>
+</ruleset>
