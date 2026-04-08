@@ -466,45 +466,92 @@ class Scolta_Admin {
     // -- Prompt override fields --
 
     public static function render_prompt_expand_field(): void {
-        $value = self::get_setting('prompt_expand_query', '');
-        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY);
-        ?>
-        <textarea name="scolta_settings[prompt_expand_query]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the query expansion system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
-        <?php
+        $value = self::get_effective_prompt('prompt_expand_query', \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY);
+        $is_default = empty(self::get_setting('prompt_expand_query', ''));
+        self::render_prompt_field('prompt_expand_query', $value, $is_default,
+            __('Edit the query expansion system prompt. Clear the field and save to reset to the default.', 'scolta'));
     }
 
     public static function render_prompt_summarize_field(): void {
-        $value = self::get_setting('prompt_summarize', '');
-        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::SUMMARIZE);
-        ?>
-        <textarea name="scolta_settings[prompt_summarize]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the summarization system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
-        <?php
+        $value = self::get_effective_prompt('prompt_summarize', \Tag1\Scolta\Prompt\DefaultPrompts::SUMMARIZE);
+        $is_default = empty(self::get_setting('prompt_summarize', ''));
+        self::render_prompt_field('prompt_summarize', $value, $is_default,
+            __('Edit the summarization system prompt. Clear the field and save to reset to the default.', 'scolta'));
     }
 
     public static function render_prompt_followup_field(): void {
-        $value = self::get_setting('prompt_follow_up', '');
-        $placeholder = self::get_default_prompt(\Tag1\Scolta\Prompt\DefaultPrompts::FOLLOW_UP);
+        $value = self::get_effective_prompt('prompt_follow_up', \Tag1\Scolta\Prompt\DefaultPrompts::FOLLOW_UP);
+        $is_default = empty(self::get_setting('prompt_follow_up', ''));
+        self::render_prompt_field('prompt_follow_up', $value, $is_default,
+            __('Edit the follow-up system prompt. Clear the field and save to reset to the default.', 'scolta'));
+    }
+
+    /**
+     * Render a prompt textarea with reset button.
+     *
+     * @param string $key     Settings key.
+     * @param string $value   Current effective prompt text (custom or default).
+     * @param bool   $is_default Whether the current value is the built-in default.
+     * @param string $description Help text.
+     */
+    private static function render_prompt_field(string $key, string $value, bool $is_default, string $description): void {
+        $default_text = self::get_default_prompt_template($key);
+        $badge = $is_default
+            ? '<span style="color:#888;font-style:italic;margin-left:0.5em;">' . esc_html__('(default)', 'scolta') . '</span>'
+            : '<span style="color:#0073aa;font-weight:600;margin-left:0.5em;">' . esc_html__('(customized)', 'scolta') . '</span>';
         ?>
-        <textarea name="scolta_settings[prompt_follow_up]" rows="6" class="large-text" placeholder="<?php echo esc_attr($placeholder); ?>"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description"><?php esc_html_e('Override the follow-up system prompt. Leave empty for the default. Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
+        <div>
+            <?php echo $badge; ?>
+            <?php if (!$is_default): ?>
+                <button type="button" class="button-link" style="margin-left:0.5em;color:#b32d2e;" onclick="
+                    var ta = this.closest('div').querySelector('textarea');
+                    ta.value = ta.dataset.defaultPrompt;
+                    ta.dataset.cleared = '1';
+                    this.closest('div').querySelector('.scolta-badge').innerHTML = '<?php echo esc_js('<span style=&quot;color:#888;font-style:italic;&quot;>' . esc_html__('(default)', 'scolta') . '</span>'); ?>';
+                    this.remove();
+                "><?php esc_html_e('Reset to default', 'scolta'); ?></button>
+            <?php endif; ?>
+        </div>
+        <textarea name="scolta_settings[<?php echo esc_attr($key); ?>]" rows="8" class="large-text" data-default-prompt="<?php echo esc_attr($default_text); ?>"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description"><?php echo esc_html($description); ?> <?php esc_html_e('Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta'); ?></p>
         <?php
     }
 
     /**
-     * Get the default prompt template text for use as a placeholder.
+     * Get the effective prompt: saved custom value, or the built-in default.
+     *
+     * @param string $setting_key The settings key (e.g., 'prompt_expand_query').
+     * @param string $template_name The DefaultPrompts constant.
+     * @return string The prompt text to display.
+     */
+    private static function get_effective_prompt(string $setting_key, string $template_name): string {
+        $saved = self::get_setting($setting_key, '');
+        if (!empty($saved)) {
+            return $saved;
+        }
+        return self::get_default_prompt_template($template_name);
+    }
+
+    /**
+     * Get the default prompt template text.
      *
      * Returns the raw template with {SITE_NAME} and {SITE_DESCRIPTION}
-     * placeholders intact, so the admin can see the structure.
-     * Returns empty string if WASM is unavailable.
+     * placeholders intact. Returns empty string if WASM is unavailable.
      *
-     * @param string $name Prompt template name constant.
+     * @param string $name Prompt template name constant or settings key.
      * @return string The template text, or empty on failure.
      */
-    private static function get_default_prompt(string $name): string {
+    private static function get_default_prompt_template(string $name): string {
+        // Map settings keys to template names.
+        $map = [
+            'prompt_expand_query' => \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY,
+            'prompt_summarize' => \Tag1\Scolta\Prompt\DefaultPrompts::SUMMARIZE,
+            'prompt_follow_up' => \Tag1\Scolta\Prompt\DefaultPrompts::FOLLOW_UP,
+        ];
+        $template_name = $map[$name] ?? $name;
+
         try {
-            return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($name);
+            return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($template_name);
         } catch (\Throwable $e) {
             return '';
         }
@@ -569,10 +616,11 @@ class Scolta_Admin {
         // Cache.
         $clean['cache_ttl'] = max(0, min(7776000, (int) ($input['cache_ttl'] ?? 2592000)));
 
-        // Prompt overrides.
-        $clean['prompt_expand_query'] = mb_substr(sanitize_textarea_field($input['prompt_expand_query'] ?? ''), 0, 5000);
-        $clean['prompt_summarize'] = mb_substr(sanitize_textarea_field($input['prompt_summarize'] ?? ''), 0, 5000);
-        $clean['prompt_follow_up'] = mb_substr(sanitize_textarea_field($input['prompt_follow_up'] ?? ''), 0, 5000);
+        // Prompt overrides — store empty string if the value matches the
+        // built-in default, so we don't persist a copy of the default text.
+        $clean['prompt_expand_query'] = self::sanitize_prompt($input['prompt_expand_query'] ?? '', 'prompt_expand_query');
+        $clean['prompt_summarize'] = self::sanitize_prompt($input['prompt_summarize'] ?? '', 'prompt_summarize');
+        $clean['prompt_follow_up'] = self::sanitize_prompt($input['prompt_follow_up'] ?? '', 'prompt_follow_up');
 
         // Preserve internal settings not exposed in the form.
         $clean['search_page_path'] = $existing['search_page_path'] ?? '/scolta-search';
@@ -584,6 +632,25 @@ class Scolta_Admin {
         }
 
         return $clean;
+    }
+
+    /**
+     * Sanitize a prompt field value.
+     *
+     * If the submitted text matches the built-in default, store empty
+     * string so the prompt automatically picks up future default changes.
+     *
+     * @param string $value     The submitted prompt text.
+     * @param string $key       The settings key (e.g., 'prompt_expand_query').
+     * @return string Sanitized value, or empty if it matches the default.
+     */
+    private static function sanitize_prompt(string $value, string $key): string {
+        $sanitized = mb_substr(sanitize_textarea_field($value), 0, 5000);
+        $default = self::get_default_prompt_template($key);
+        if ($default !== '' && trim($sanitized) === trim($default)) {
+            return '';
+        }
+        return $sanitized;
     }
 
     // -----------------------------------------------------------------
