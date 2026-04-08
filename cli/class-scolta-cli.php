@@ -275,6 +275,35 @@ class Scolta_CLI {
     }
 
     /**
+     * Clear all Scolta caches.
+     *
+     * Increments the generation counter to invalidate all cached AI
+     * responses (expansion, summarization) and deletes any stale
+     * transients with the old prefix.
+     *
+     * @subcommand clear-cache
+     */
+    public function clear_cache(array $args, array $assoc_args): void {
+        try {
+            $generation = (int) get_option('scolta_generation', 0);
+            update_option('scolta_generation', $generation + 1);
+
+            // Also clean up any stale transients from old generations.
+            global $wpdb;
+            $deleted = $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+                    '%_transient_scolta_%'
+                )
+            );
+
+            \WP_CLI::success("Scolta caches cleared (generation counter incremented, {$deleted} transients deleted).");
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    /**
      * Download the Pagefind binary for the current platform.
      *
      * For hosts without npm/Node.js — downloads the pre-built binary
