@@ -397,6 +397,9 @@ class Scolta_CLI {
 
         if ($success) {
             $fragment_count = count(glob($output_dir . '/fragment/*') ?: []);
+            // Increment generation counter to invalidate cached expansions/summaries.
+            $generation = (int) get_option('scolta_generation', 0);
+            update_option('scolta_generation', $generation + 1);
             \WP_CLI::success("Pagefind index built: {$html_count} files, {$fragment_count} fragments.");
         } else {
             \WP_CLI::error("Pagefind build failed.\n{$output}");

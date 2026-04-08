@@ -112,8 +112,9 @@ class Scolta_Rest_Api {
         $ai = Scolta_Ai_Service::from_options();
         $config = $ai->get_config();
 
-        // WordPress transient cache (uses object cache if available).
-        $cache_key = 'scolta_expand_' . md5(strtolower($query));
+        // WordPress transient cache with generation counter for rebuild invalidation.
+        $generation = (int) get_option('scolta_generation', 0);
+        $cache_key = 'scolta_expand_' . $generation . '_' . hash('sha256', strtolower($query));
         if ($config->cacheTtl > 0) {
             $cached = get_transient($cache_key);
             if ($cached !== false) {
