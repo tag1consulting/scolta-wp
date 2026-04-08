@@ -166,6 +166,70 @@ class Scolta_CLI {
     }
 
     /**
+     * Export content as HTML files for Pagefind indexing.
+     *
+     * Runs only the content export step — does not build the Pagefind index.
+     * Useful for inspecting exported HTML.
+     *
+     * ## OPTIONS
+     *
+     * [--incremental]
+     * : Only process content that changed since the last build.
+     *
+     * @subcommand export
+     */
+    public function export(array $args, array $assoc_args): void {
+        try {
+            $incremental = \WP_CLI\Utils\get_flag_value($assoc_args, 'incremental', false);
+            $settings = get_option('scolta_settings', []);
+            $config = ScoltaConfig::fromArray($settings);
+            $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
+            $post_types = $settings['post_types'] ?? ['post', 'page'];
+
+            $source = new \Scolta_Content_Source($config);
+            $exporter = new ContentExporter($build_dir);
+
+            if ($incremental) {
+                $pending = \Scolta_Tracker::get_pending_count();
+                if ($pending === 0) {
+                    \WP_CLI::success('No changes pending. Nothing to export.');
+                    return;
+                }
+                \WP_CLI::log("Processing {$pending} tracked changes...");
+            } else {
+                $count = \Scolta_Tracker::mark_all_for_reindex();
+                \WP_CLI::log("Marked {$count} items for export.");
+                $exporter->prepareOutputDir();
+            }
+
+            $deleted_ids = $source->get_deleted_ids();
+            foreach ($deleted_ids as $id) {
+                $filepath = rtrim($build_dir, '/') . '/' . $id . '.html';
+                if (file_exists($filepath)) {
+                    unlink($filepath);
+                }
+            }
+
+            $items = $incremental
+                ? $source->get_changed_content()
+                : $source->get_published_content($post_types);
+
+            $exported = 0;
+            $skipped = 0;
+            foreach ($items as $item) {
+                $exporter->export($item) ? $exported++ : $skipped++;
+            }
+
+            \WP_CLI::log("  Exported: {$exported}, Skipped: {$skipped}");
+            \WP_CLI::log("  Output directory: {$build_dir}");
+            \Scolta_Tracker::clear();
+            \WP_CLI::success('Export complete.');
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    /**
      * Rebuild the Pagefind index from existing HTML files.
      *
      * Skips the content export step — useful when you've edited the
