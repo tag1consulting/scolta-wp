@@ -200,4 +200,41 @@ class RestApiHandlerTest extends TestCase {
             $this->assertEquals('scolta/v1', $route['namespace']);
         }
     }
+
+    // -------------------------------------------------------------------
+    // Health endpoint
+    // -------------------------------------------------------------------
+
+    public function test_health_handler_exists(): void {
+        $this->assertTrue(
+            method_exists('Scolta_Rest_Api', 'handle_health'),
+            'handle_health method should exist'
+        );
+    }
+
+    public function test_health_handler_accepts_rest_request(): void {
+        $ref = new \ReflectionMethod('Scolta_Rest_Api', 'handle_health');
+        $params = $ref->getParameters();
+        $this->assertGreaterThanOrEqual(1, count($params));
+        $type = $params[0]->getType();
+        $this->assertNotNull($type);
+        $this->assertStringContainsString('WP_REST_Request', (string) $type);
+    }
+
+    public function test_health_route_registered(): void {
+        Scolta_Rest_Api::register_routes();
+        $routes = $GLOBALS['scolta_registered_routes'] ?? [];
+        $healthRoutes = array_filter($routes, fn($r) => str_contains($r['route'], 'health'));
+        $this->assertNotEmpty($healthRoutes, 'Health route should be registered');
+    }
+
+    public function test_health_route_uses_get_method(): void {
+        $content = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-rest-api.php');
+        // The health route should be registered with GET method.
+        $this->assertMatchesRegularExpression(
+            "/register_rest_route.*health.*'methods'.*'GET'/s",
+            $content,
+            'Health endpoint should use GET method'
+        );
+    }
 }
