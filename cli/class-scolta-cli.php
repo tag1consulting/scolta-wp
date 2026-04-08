@@ -26,6 +26,7 @@
 
 defined('ABSPATH') || exit;
 
+use Tag1\Scolta\Binary\PagefindBinary;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Export\ContentExporter;
 
@@ -73,7 +74,6 @@ class Scolta_CLI {
         $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
         $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
         $post_types = $settings['post_types'] ?? ['post', 'page'];
-        $binary = $settings['pagefind_binary'] ?? 'pagefind';
 
         $source = new \Scolta_Content_Source($config);
         $exporter = new ContentExporter($build_dir);
@@ -151,6 +151,17 @@ class Scolta_CLI {
         }
 
         \WP_CLI::log('Step 3: Building Pagefind index...');
+        $resolver = new PagefindBinary(
+            configuredPath: $settings['pagefind_binary'] ?? null,
+            projectDir: ABSPATH,
+        );
+        $binary = $resolver->resolve();
+        if ($binary === null) {
+            $status = $resolver->status();
+            \WP_CLI::error($status['message']);
+            return;
+        }
+        \WP_CLI::log("Using Pagefind: {$binary} (resolved via {$resolver->resolvedVia()})");
         $this->run_pagefind($binary, $build_dir, $output_dir);
     }
 
@@ -165,9 +176,18 @@ class Scolta_CLI {
     public function rebuild_index(array $args, array $assoc_args): void {
         try {
             $settings = get_option('scolta_settings', []);
-            $binary = $settings['pagefind_binary'] ?? 'pagefind';
             $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
             $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+
+            $resolver = new PagefindBinary(
+                configuredPath: $settings['pagefind_binary'] ?? null,
+                projectDir: ABSPATH,
+            );
+            $binary = $resolver->resolve();
+            if ($binary === null) {
+                \WP_CLI::error($resolver->status()['message']);
+                return;
+            }
 
             \WP_CLI::log('Rebuilding Pagefind index from existing HTML files...');
             $this->run_pagefind($binary, $build_dir, $output_dir);
@@ -197,7 +217,6 @@ class Scolta_CLI {
         $post_types = $settings['post_types'] ?? ['post', 'page'];
         $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
         $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
-        $binary = $settings['pagefind_binary'] ?? 'pagefind';
 
         // Tracker status.
         \WP_CLI::log('--- Tracker ---');
@@ -242,14 +261,15 @@ class Scolta_CLI {
 
         // Pagefind binary.
         \WP_CLI::log('--- Pagefind Binary ---');
-        $version_output = shell_exec(escapeshellcmd($binary) . ' --version 2>&1');
-        if ($version_output) {
-            \WP_CLI::log("  Binary:  {$binary}");
-            \WP_CLI::log("  Version: " . trim($version_output));
+        $resolver = new PagefindBinary(
+            configuredPath: $settings['pagefind_binary'] ?? null,
+            projectDir: ABSPATH,
+        );
+        $binaryStatus = $resolver->status();
+        if ($binaryStatus['available']) {
+            \WP_CLI::log("  {$binaryStatus['message']}");
         } else {
-            \WP_CLI::warning("Pagefind binary not found at: {$binary}");
-            \WP_CLI::log("  Install: npm install -g pagefind");
-            \WP_CLI::log("  Or:      wp scolta download-pagefind");
+            \WP_CLI::warning($binaryStatus['message']);
         }
 
         // AI provider.
@@ -321,7 +341,8 @@ class Scolta_CLI {
 
     private function do_download_pagefind(): void {
         $settings = get_option('scolta_settings', []);
-        $target_dir = WP_CONTENT_DIR . '/scolta-bin';
+        $resolver = new PagefindBinary(projectDir: ABSPATH);
+        $target_dir = $resolver->downloadTargetDir();
 
         if (!is_dir($target_dir)) {
             mkdir($target_dir, 0755, true);
