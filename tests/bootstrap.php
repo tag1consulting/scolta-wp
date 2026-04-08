@@ -163,23 +163,41 @@ if (!function_exists('add_options_page')) {
     function add_options_page(string $title, string $menu, string $cap, string $slug, $callback = '', ?int $pos = null): string { return $slug; }
 }
 
-// REST API stubs.
+// REST API stubs (with optional tracking for tests).
 if (!function_exists('register_rest_route')) {
-    function register_rest_route(string $namespace, string $route, array $args = [], bool $override = false): bool { return true; }
+    function register_rest_route(string $namespace, string $route, array $args = [], bool $override = false): bool {
+        if (isset($GLOBALS['scolta_registered_routes'])) {
+            $GLOBALS['scolta_registered_routes'][] = ['namespace' => $namespace, 'route' => $route];
+        }
+        return true;
+    }
 }
 if (!function_exists('rest_url')) {
     function rest_url(string $path = ''): string { return 'https://example.com/wp-json/' . ltrim($path, '/'); }
 }
 
-// Script/style stubs.
+// Script/style stubs (with optional tracking for tests).
 if (!function_exists('wp_enqueue_script')) {
-    function wp_enqueue_script(string $handle, string $src = '', array $deps = [], $ver = false, $args = []): void {}
+    function wp_enqueue_script(string $handle, string $src = '', array $deps = [], $ver = false, $args = []): void {
+        if (isset($GLOBALS['scolta_enqueued_scripts'])) {
+            $GLOBALS['scolta_enqueued_scripts'][] = $handle;
+        }
+    }
 }
 if (!function_exists('wp_enqueue_style')) {
-    function wp_enqueue_style(string $handle, string $src = '', array $deps = [], $ver = false, string $media = 'all'): void {}
+    function wp_enqueue_style(string $handle, string $src = '', array $deps = [], $ver = false, string $media = 'all'): void {
+        if (isset($GLOBALS['scolta_enqueued_styles'])) {
+            $GLOBALS['scolta_enqueued_styles'][] = $handle;
+        }
+    }
 }
 if (!function_exists('wp_localize_script')) {
-    function wp_localize_script(string $handle, string $name, array $data): bool { return true; }
+    function wp_localize_script(string $handle, string $name, array $data): bool {
+        if (isset($GLOBALS['scolta_localized_scripts'])) {
+            $GLOBALS['scolta_localized_scripts'][$handle] = $data;
+        }
+        return true;
+    }
 }
 if (!function_exists('wp_create_nonce')) {
     function wp_create_nonce(string $action = ''): string { return 'test-nonce-' . md5($action); }
@@ -255,6 +273,7 @@ if (!isset($GLOBALS['wpdb'])) {
     $GLOBALS['wpdb'] = new class {
         public string $prefix = 'wp_';
         public string $options = 'wp_options';
+        public string $posts = 'wp_posts';
         public function prepare(string $query, ...$args): string { return vsprintf(str_replace('%s', "'%s'", $query), $args); }
         public function query(string $query) { return 0; }
         public function get_results(string $query, string $output = 'OBJECT'): array { return []; }
@@ -272,6 +291,49 @@ if (!function_exists('dbDelta')) {
 
 // Drupal\Core\Site\Settings stub (used in AI service via fallback).
 // Not needed — WP plugin doesn't use Drupal Settings.
+
+// Additional function stubs for tests.
+if (!function_exists('current_time')) {
+    function current_time(string $type = 'mysql', bool $gmt = false): string {
+        return gmdate('Y-m-d H:i:s');
+    }
+}
+if (!function_exists('site_url')) {
+    function site_url(string $path = ''): string { return 'https://example.com' . $path; }
+}
+if (!function_exists('content_url')) {
+    function content_url(string $path = ''): string { return 'https://example.com/wp-content' . $path; }
+}
+if (!function_exists('wp_normalize_path')) {
+    function wp_normalize_path(string $path): string { return str_replace('\\', '/', $path); }
+}
+if (!function_exists('sanitize_key')) {
+    function sanitize_key(string $key): string { return preg_replace('/[^a-z0-9_\-]/', '', strtolower($key)); }
+}
+if (!function_exists('setup_postdata')) {
+    function setup_postdata($post): bool { return true; }
+}
+if (!function_exists('wp_reset_postdata')) {
+    function wp_reset_postdata(): void {}
+}
+if (!function_exists('get_the_title')) {
+    function get_the_title($post = 0): string {
+        if ($post instanceof WP_Post) { return $post->post_title; }
+        return '';
+    }
+}
+if (!function_exists('get_post_types')) {
+    function get_post_types(array $args = [], string $output = 'names'): array { return []; }
+}
+
+// WP_Query stub (minimal).
+if (!class_exists('WP_Query')) {
+    class WP_Query {
+        public array $posts = [];
+        public int $max_num_pages = 0;
+        public function __construct(array $args = []) {}
+    }
+}
 
 // Load Composer autoloader (for scolta-php classes).
 require_once dirname(__DIR__) . '/vendor/autoload.php';
