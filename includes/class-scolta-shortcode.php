@@ -44,7 +44,7 @@ class Scolta_Shortcode {
         $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
         $pagefind_url = self::dir_to_url($output_dir);
 
-        // Enqueue the shared scolta.js from the Composer package.
+        // Enqueue the shared scolta.js and scolta.css from the Composer package.
         $scolta_js_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/js/scolta.js';
         if (file_exists($scolta_js_path)) {
             wp_enqueue_script(
@@ -53,6 +53,16 @@ class Scolta_Shortcode {
                 [],
                 SCOLTA_VERSION,
                 true // Load in footer.
+            );
+        }
+
+        $scolta_css_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/css/scolta.css';
+        if (file_exists($scolta_css_path)) {
+            wp_enqueue_style(
+                'scolta-search',
+                SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta-php/assets/css/scolta.css',
+                [],
+                SCOLTA_VERSION
             );
         }
 
@@ -96,8 +106,8 @@ class Scolta_Shortcode {
      */
     private static function dir_to_url(string $dir): string {
         // Normalize both paths for comparison.
-        $abspath = rtrim(ABSPATH, '/');
-        $dir = rtrim($dir, '/');
+        $abspath = rtrim(realpath(ABSPATH) ?: ABSPATH, '/');
+        $dir = rtrim(realpath($dir) ?: $dir, '/');
 
         if (str_starts_with($dir, $abspath)) {
             $relative = substr($dir, strlen($abspath));
