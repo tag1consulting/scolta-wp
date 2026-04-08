@@ -191,8 +191,9 @@ class RestApiValidationTest extends TestCase {
     // -------------------------------------------------------------------
 
     public function test_cache_key_is_case_insensitive(): void {
-        $key1 = 'scolta_expand_' . md5(strtolower('Product Pricing'));
-        $key2 = 'scolta_expand_' . md5(strtolower('product pricing'));
+        $generation = 0;
+        $key1 = 'scolta_expand_' . $generation . '_' . hash('sha256', strtolower('Product Pricing'));
+        $key2 = 'scolta_expand_' . $generation . '_' . hash('sha256', strtolower('product pricing'));
         $this->assertEquals($key1, $key2);
     }
 
