@@ -70,6 +70,16 @@ Create a page and add the shortcode:
 
 Go to **Settings > Scolta** to configure AI provider, scoring parameters, display options, and custom prompts.
 
+## Verify Your Setup
+
+After installation, run the setup check to verify all prerequisites:
+
+```bash
+wp scolta check-setup
+```
+
+This verifies PHP version, FFI extension, Extism library, WASM binary, Pagefind binary, AI provider configuration, and cache backend. Fix any items marked as failed before proceeding.
+
 ## Configuration
 
 The settings page at **Settings > Scolta** provides:
@@ -96,12 +106,16 @@ Endpoints are public by default. Filter `scolta_search_permission` to restrict a
 ## WP-CLI Commands
 
 ```bash
-wp scolta build                # Full build: mark all content, export HTML, run Pagefind
-wp scolta build --incremental  # Only process tracked changes
-wp scolta build --skip-pagefind  # Export HTML without rebuilding index
-wp scolta rebuild-index        # Rebuild Pagefind index from existing HTML
-wp scolta status               # Show tracker, content, index, and AI status
-wp scolta download-pagefind    # Download the Pagefind binary for your platform
+wp scolta build                    # Full build: mark all content, export HTML, run Pagefind
+wp scolta build --incremental      # Only process tracked changes
+wp scolta build --skip-pagefind    # Export HTML without rebuilding index
+wp scolta export                   # Export content to HTML only
+wp scolta export --incremental     # Only export tracked changes
+wp scolta rebuild-index            # Rebuild Pagefind index from existing HTML
+wp scolta status                   # Show tracker, content, index, and AI status
+wp scolta clear-cache              # Clear Scolta AI response caches
+wp scolta download-pagefind        # Download the Pagefind binary for your platform
+wp scolta check-setup              # Verify PHP, Extism, Pagefind, and configuration
 ```
 
 ## Content Tracking
@@ -141,6 +155,43 @@ cd packages/scolta-wp
 cd test-wordpress-7
 ddev wp eval-file tests/integration-test.php
 ```
+
+## Troubleshooting
+
+### "FFI not enabled" or WASM load failure
+
+```bash
+php -r "echo extension_loaded('ffi') ? 'OK' : 'MISSING';"
+php -r "echo class_exists('\Extism\Plugin') ? 'OK' : 'MISSING';"
+```
+
+Install Extism if missing:
+
+```bash
+curl -s https://get.extism.org/cli | bash -s -- -y
+sudo extism lib install --version latest
+sudo ldconfig  # Linux only
+```
+
+### "Pagefind binary not found"
+
+```bash
+wp scolta download-pagefind
+# or
+npm install -g pagefind
+```
+
+### "AI features not working"
+
+1. Verify API key: `wp scolta check-setup`
+2. Clear stale cache: `wp scolta clear-cache`
+
+### "No search results"
+
+1. Check index status: `wp scolta status`
+2. Run a full build: `wp scolta build`
+3. Verify the Pagefind output directory is web-accessible
+4. Try flushing rewrite rules: `wp rewrite flush`
 
 ## License
 
