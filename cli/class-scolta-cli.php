@@ -388,6 +388,50 @@ class Scolta_CLI {
     }
 
     /**
+     * Verify Scolta dependencies and configuration.
+     *
+     * Checks PHP, FFI, Extism, WASM binary, Pagefind, and AI key.
+     *
+     * @subcommand check-setup
+     */
+    public function check_setup(array $args, array $assoc_args): void {
+        try {
+            $settings = get_option('scolta_settings', []);
+            $ai = \Scolta_Ai_Service::from_options();
+
+            $results = \Tag1\Scolta\SetupCheck::run(
+                configuredBinaryPath: $settings['pagefind_binary'] ?? null,
+                projectDir: ABSPATH,
+                aiApiKey: $ai->get_api_key(),
+            );
+
+            foreach ($results as $r) {
+                $icon = match ($r['status']) {
+                    'pass' => '[OK]',
+                    'warn' => '[!!]',
+                    'fail' => '[FAIL]',
+                };
+                if ($r['status'] === 'fail') {
+                    \WP_CLI::error("{$icon} {$r['name']}: {$r['message']}", false);
+                } elseif ($r['status'] === 'warn') {
+                    \WP_CLI::warning("{$icon} {$r['name']}: {$r['message']}");
+                } else {
+                    \WP_CLI::log("{$icon} {$r['name']}: {$r['message']}");
+                }
+            }
+
+            $exit = \Tag1\Scolta\SetupCheck::exitCode($results);
+            if ($exit === 0) {
+                \WP_CLI::success('All critical checks passed.');
+            } else {
+                \WP_CLI::error('One or more critical checks failed.');
+            }
+        } catch (\Throwable $e) {
+            \WP_CLI::error($e->getMessage());
+        }
+    }
+
+    /**
      * Download the Pagefind binary for the current platform.
      *
      * For hosts without npm/Node.js — downloads the pre-built binary
