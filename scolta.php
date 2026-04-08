@@ -113,11 +113,11 @@ register_activation_hook(__FILE__, 'scolta_activate');
  */
 function scolta_deactivate(): void {
     global $wpdb;
-    $wpdb->query(
-        "DELETE FROM {$wpdb->options}
-         WHERE option_name LIKE '_transient_scolta_expand_%'
-            OR option_name LIKE '_transient_timeout_scolta_expand_%'"
-    );
+    $wpdb->query($wpdb->prepare(
+        "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+        '_transient_scolta_expand_%',
+        '_transient_timeout_scolta_expand_%'
+    ));
 }
 register_deactivation_hook(__FILE__, 'scolta_deactivate');
 

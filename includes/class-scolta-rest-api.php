@@ -162,7 +162,7 @@ class Scolta_Rest_Api {
             return new \WP_REST_Response($terms, 200);
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Expand failed: ' . $e->getMessage());
+                error_log('[scolta] Expand failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             }
             return new \WP_REST_Response(
                 ['error' => 'Query expansion unavailable'],
@@ -191,7 +191,7 @@ class Scolta_Rest_Api {
             return new \WP_REST_Response(['summary' => $summary], 200);
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Summarize failed: ' . $e->getMessage());
+                error_log('[scolta] Summarize failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             }
             return new \WP_REST_Response(
                 ['error' => 'Summarization unavailable'],
@@ -232,7 +232,7 @@ class Scolta_Rest_Api {
             ], 200);
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Follow-up failed: ' . $e->getMessage());
+                error_log('[scolta] Follow-up failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             }
             return new \WP_REST_Response(
                 ['error' => 'Follow-up unavailable'],
