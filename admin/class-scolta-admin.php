@@ -553,7 +553,10 @@ class Scolta_Admin {
         try {
             return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($template_name);
         } catch (\Throwable $e) {
-            return '';
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("[scolta] Failed to load default prompt '{$name}': " . $e->getMessage());
+            }
+            return __('Default prompt unavailable. Run "wp scolta check-setup" for diagnostics.', 'scolta');
         }
     }
 
