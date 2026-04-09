@@ -154,7 +154,15 @@ class ShortcodeTest extends TestCase {
     // -------------------------------------------------------------------
 
     public function test_register_runs_without_error(): void {
+        $GLOBALS['scolta_registered_shortcodes'] = [];
+
         Scolta_Shortcode::register();
-        $this->assertTrue(true);
+
+        $this->assertArrayHasKey('scolta_search', $GLOBALS['scolta_registered_shortcodes'],
+            'register() should add the "scolta_search" shortcode');
+        $this->assertIsCallable($GLOBALS['scolta_registered_shortcodes']['scolta_search'],
+            'The registered shortcode callback should be callable');
+
+        unset($GLOBALS['scolta_registered_shortcodes']);
     }
 }

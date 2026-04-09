@@ -87,8 +87,20 @@ class ActivationTest extends TestCase {
     }
 
     public function test_deactivation_runs_without_error(): void {
-        // Just verify it doesn't throw. The wpdb stub handles the query.
-        scolta_deactivate();
-        $this->assertTrue(true);
+        // Verify the function has the expected void return type and completes
+        // without throwing. The wpdb stub handles the query.
+        $ref = new ReflectionFunction('scolta_deactivate');
+        $this->assertEquals('void', $ref->getReturnType()?->getName(),
+            'scolta_deactivate() should declare a void return type');
+
+        // Call it and verify no exception was thrown.
+        $thrown = null;
+        try {
+            scolta_deactivate();
+        } catch (\Throwable $e) {
+            $thrown = $e;
+        }
+        $this->assertNull($thrown,
+            'scolta_deactivate() should complete without throwing');
     }
 }

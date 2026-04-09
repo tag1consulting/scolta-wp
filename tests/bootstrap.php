@@ -203,9 +203,13 @@ if (!function_exists('wp_create_nonce')) {
     function wp_create_nonce(string $action = ''): string { return 'test-nonce-' . md5($action); }
 }
 
-// Shortcode stub.
+// Shortcode stub (with optional tracking for tests).
 if (!function_exists('add_shortcode')) {
-    function add_shortcode(string $tag, callable $callback): void {}
+    function add_shortcode(string $tag, callable $callback): void {
+        if (isset($GLOBALS['scolta_registered_shortcodes'])) {
+            $GLOBALS['scolta_registered_shortcodes'][$tag] = $callback;
+        }
+    }
 }
 
 // Misc stubs.

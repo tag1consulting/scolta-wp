@@ -159,10 +159,21 @@ class ContentSourceTest extends TestCase {
     }
 
     public function test_clearTracker_delegates(): void {
-        // clearTracker should call Scolta_Tracker::clear() without error.
+        // clearTracker should delegate to Scolta_Tracker::clear() and return void.
         $source = $this->createSource();
-        $source->clearTracker();
-        $this->assertTrue(true);
+
+        $ref = new ReflectionMethod($source, 'clearTracker');
+        $this->assertEquals('void', $ref->getReturnType()?->getName(),
+            'clearTracker() should declare a void return type');
+
+        $thrown = null;
+        try {
+            $source->clearTracker();
+        } catch (\Throwable $e) {
+            $thrown = $e;
+        }
+        $this->assertNull($thrown,
+            'clearTracker() should complete without throwing');
     }
 
     public function test_getPendingCount_returns_int(): void {

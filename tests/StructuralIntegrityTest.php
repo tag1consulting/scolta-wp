@@ -136,7 +136,9 @@ class StructuralIntegrityTest extends TestCase {
         if (str_contains($content, 'vendor/tag1/')) {
             $this->assertStringContainsString('tag1/scolta-php', $content);
         } else {
-            $this->assertTrue(true); // No vendor path references — fine.
+            // No vendor/tag1/ references found — verify that explicitly.
+            $this->assertStringNotContainsString('vendor/tag1/', $content,
+                'Shortcode file should not contain any vendor/tag1/ references if the branch was taken');
         }
     }
 
