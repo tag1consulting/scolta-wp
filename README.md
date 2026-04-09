@@ -1,5 +1,8 @@
 # Scolta for WordPress
 
+<!-- TODO: Add CI badge once repo is on GitHub -->
+<!-- [![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml) -->
+
 WordPress plugin providing AI-powered search with Pagefind. Delivers client-side search with optional AI query expansion, summarization, and follow-up conversations.
 
 ## How It Works
