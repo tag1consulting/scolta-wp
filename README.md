@@ -2,7 +2,45 @@
 
 [![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml)
 
-WordPress plugin providing AI-powered search with Pagefind. Delivers client-side search with optional AI query expansion, summarization, and follow-up conversations.
+Scolta adds AI-powered search to your WordPress site. Search runs entirely in the browser using Pagefind — no search server needed. Optional AI features handle query expansion, result summarization, and follow-up conversations. Works with any content type, any language.
+
+## Quickstart
+
+```bash
+# 1. Install the scolta plugin (upload or Composer)
+
+# 2. Activate in wp-admin > Plugins
+
+# 3. Verify prerequisites
+wp scolta check-setup
+
+# 4. Build the search index
+wp scolta build
+
+# 5. Add [scolta_search] shortcode to any page.
+```
+
+## Configuration
+
+Set the API key to enable AI features:
+
+```bash
+export SCOLTA_API_KEY=sk-ant-...
+```
+
+Or add to `wp-config.php`:
+
+```php
+define('SCOLTA_API_KEY', 'sk-ant-...');
+```
+
+Then configure settings at **Settings > Scolta** -- provider, model, scoring, and display options.
+
+See [CONFIG_REFERENCE.md](../../docs/CONFIG_REFERENCE.md) for the full list of settings.
+
+## Prompt Enrichment
+
+The built-in expand, summarize, and follow-up prompts can be customized via the settings page under **Custom Prompts**. Pre-filled defaults make editing easy. You can also set site name and description to give the AI better context about your content. See [ENRICHMENT.md](../../docs/ENRICHMENT.md) for details on prompt customization.
 
 ## How It Works
 
@@ -98,7 +136,7 @@ wp scolta check-setup
 
 This verifies PHP version, FFI extension, Extism library, WASM binary, Pagefind binary, AI provider configuration, and cache backend. Fix any items marked as failed before proceeding.
 
-## Configuration
+## Configuration Details
 
 The settings page at **Settings > Scolta** provides:
 
@@ -164,14 +202,14 @@ vendor/
 
 ## Testing
 
-**Unit tests** (fast, no WordPress required — 247 tests):
+**Unit tests** (fast, no WordPress required -- 247 tests):
 
 ```bash
 cd packages/scolta-wp
 ./vendor/bin/phpunit
 ```
 
-**Integration tests** (requires DDEV — 34 tests):
+**Integration tests** (requires DDEV -- 34 tests):
 
 ```bash
 cd test-wordpress-7
