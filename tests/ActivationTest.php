@@ -31,6 +31,7 @@ class ActivationTest extends TestCase {
         $this->assertEquals(['post', 'page'], $settings['post_types']);
         $this->assertTrue($settings['ai_expand_query']);
         $this->assertTrue($settings['ai_summarize']);
+        $this->assertEquals(['en'], $settings['ai_languages']);
         $this->assertEquals(3, $settings['max_follow_ups']);
         $this->assertEquals(2592000, $settings['cache_ttl']);
     }

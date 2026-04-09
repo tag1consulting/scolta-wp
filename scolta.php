@@ -69,6 +69,7 @@ function scolta_activate(): void {
         'max_follow_ups'            => 3,
         'ai_expand_query'           => true,
         'ai_summarize'              => true,
+        'ai_languages'              => ['en'],
         // Scoring.
         'title_match_boost'         => 1.0,
         'title_all_terms_multiplier' => 1.5,

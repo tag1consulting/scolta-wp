@@ -62,6 +62,7 @@ class Scolta_Admin {
         add_settings_field('ai_expand_query', __('AI Query Expansion', 'scolta'), [self::class, 'render_ai_expand_field'], 'scolta', 'scolta_ai_section');
         add_settings_field('ai_summarize', __('AI Summarization', 'scolta'), [self::class, 'render_ai_summarize_field'], 'scolta', 'scolta_ai_section');
         add_settings_field('max_follow_ups', __('Max Follow-ups', 'scolta'), [self::class, 'render_max_followups_field'], 'scolta', 'scolta_ai_section');
+        add_settings_field('ai_languages', __('AI Languages', 'scolta'), [self::class, 'render_ai_languages_field'], 'scolta', 'scolta_ai_section');
 
         // --- Section: Content ---
         add_settings_section('scolta_content_section', __('Content', 'scolta'), [self::class, 'render_content_section'], 'scolta');
@@ -268,6 +269,18 @@ class Scolta_Admin {
         ?>
         <input type="number" name="scolta_settings[max_follow_ups]" value="<?php echo esc_attr($value); ?>" min="0" max="10" step="1" class="small-text" />
         <p class="description"><?php esc_html_e('Maximum conversational follow-up messages per search session. 0 to disable.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_ai_languages_field(): void {
+        $value = self::get_setting('ai_languages', ['en']);
+        if (!is_array($value)) {
+            $value = ['en'];
+        }
+        $display = implode(', ', $value);
+        ?>
+        <input type="text" name="scolta_settings[ai_languages]" value="<?php echo esc_attr($display); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Comma-separated language codes (e.g., en, es, fr). When multiple languages are configured, AI responses will match the language of the user\'s query.', 'scolta'); ?></p>
         <?php
     }
 
@@ -586,6 +599,17 @@ class Scolta_Admin {
         $clean['ai_expand_query'] = !empty($input['ai_expand_query']);
         $clean['ai_summarize'] = !empty($input['ai_summarize']);
         $clean['max_follow_ups'] = max(0, min(10, (int) ($input['max_follow_ups'] ?? 3)));
+
+        // AI languages.
+        $languages_raw = $input['ai_languages'] ?? 'en';
+        if (is_array($languages_raw)) {
+            $languages_raw = implode(',', $languages_raw);
+        }
+        $languages = array_values(array_filter(array_map(
+            fn($lang) => sanitize_text_field(trim($lang)),
+            explode(',', $languages_raw)
+        )));
+        $clean['ai_languages'] = !empty($languages) ? $languages : ['en'];
 
         // Content settings.
         $post_types = $input['post_types'] ?? ['post', 'page'];

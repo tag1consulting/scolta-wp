@@ -139,6 +139,7 @@ class Scolta_Rest_Api {
             $config->cacheTtl,
             $config->maxFollowUps,
             new \Scolta_Prompt_Enricher(),
+            $config->aiLanguages,
         );
     }
 

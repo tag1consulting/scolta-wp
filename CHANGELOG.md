@@ -8,6 +8,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ### Added
 
+- `ai_languages` setting for multilingual AI response support, configurable via Settings > Scolta (comma-separated language codes)
+- `make_handler()` now passes `aiLanguages` from config to `AiEndpointHandler`
 - `Scolta_Prompt_Enricher` class using `apply_filters('scolta_prompt', ...)` for site-specific prompt enrichment
 - `make_handler()` now passes the enricher to `AiEndpointHandler`
 
