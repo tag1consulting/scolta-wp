@@ -138,6 +138,7 @@ class Scolta_Rest_Api {
             $generation,
             $config->cacheTtl,
             $config->maxFollowUps,
+            new \Scolta_Prompt_Enricher(),
         );
     }
 

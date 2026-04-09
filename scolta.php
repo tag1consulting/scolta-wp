@@ -32,6 +32,7 @@ require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-tracker.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-content-source.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-ai-service.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-cache-driver.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-prompt-enricher.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-rest-api.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-shortcode.php';
 
