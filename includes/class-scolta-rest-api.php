@@ -273,35 +273,13 @@ class Scolta_Rest_Api {
         $settings = get_option('scolta_settings', []);
         $ai = \Scolta_Ai_Service::from_options();
 
-        // AI status.
-        $aiConfigured = !empty($ai->get_api_key());
-
-        // Pagefind binary.
-        $resolver = new \Tag1\Scolta\Binary\PagefindBinary(
-            configuredPath: $settings['pagefind_binary'] ?? null,
+        $checker = new \Tag1\Scolta\Health\HealthChecker(
+            config: $ai->get_config(),
+            indexOutputDir: $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind',
+            pagefindBinaryPath: $settings['pagefind_binary'] ?? null,
             projectDir: ABSPATH,
         );
-        $binaryStatus = $resolver->status();
 
-        // WASM status.
-        $wasmStatus = \Tag1\Scolta\ExtismCheck::status();
-
-        // Index status.
-        $outputDir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
-        $indexExists = file_exists($outputDir . '/pagefind.js');
-
-        $status = 'ok';
-        if (!$indexExists || !$aiConfigured) {
-            $status = 'degraded';
-        }
-
-        return new \WP_REST_Response([
-            'status' => $status,
-            'ai_provider' => $settings['ai_provider'] ?? 'anthropic',
-            'ai_configured' => $aiConfigured,
-            'pagefind_available' => $binaryStatus['available'],
-            'wasm_available' => $wasmStatus['available'],
-            'index_exists' => $indexExists,
-        ], 200);
+        return new \WP_REST_Response($checker->check(), 200);
     }
 }
