@@ -70,7 +70,8 @@ jobs:
         run: composer install --no-progress --prefer-dist
 
       - name: Check WordPress version locations match
-        run: php scripts/validate-release.php || echo "Note: -dev versions expected in development"
+        run: |
+          php scripts/validate-release.php || echo "Note: -dev versions expected in development"
 
   version-sync:
     runs-on: ubuntu-latest
