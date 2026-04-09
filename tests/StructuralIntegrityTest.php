@@ -96,6 +96,7 @@ class StructuralIntegrityTest extends TestCase {
             'tracker' => ['includes/class-scolta-tracker.php'],
             'content source' => ['includes/class-scolta-content-source.php'],
             'ai service' => ['includes/class-scolta-ai-service.php'],
+            'cache driver' => ['includes/class-scolta-cache-driver.php'],
             'rest api' => ['includes/class-scolta-rest-api.php'],
             'shortcode' => ['includes/class-scolta-shortcode.php'],
             'admin' => ['admin/class-scolta-admin.php'],

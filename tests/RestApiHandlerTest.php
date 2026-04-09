@@ -141,19 +141,25 @@ class RestApiHandlerTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // Expand handler cache key includes generation counter
+    // Handlers delegate to AiEndpointHandler
     // -------------------------------------------------------------------
 
-    public function test_expand_cache_key_includes_generation(): void {
-        // Read the source to verify cache key format includes generation.
+    public function test_handlers_use_ai_endpoint_handler(): void {
         $source = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-rest-api.php');
-        $this->assertStringContainsString('scolta_expand_', $source);
-        $this->assertStringContainsString('$generation', $source);
-        $this->assertStringContainsString("get_option('scolta_generation'", $source);
+        $this->assertStringContainsString('AiEndpointHandler', $source,
+            'REST API handlers should delegate to AiEndpointHandler');
+    }
+
+    public function test_make_handler_uses_generation_counter(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-rest-api.php');
+        $this->assertStringContainsString('scolta_generation', $source,
+            'make_handler should use the generation counter');
+        $this->assertStringContainsString('get_option', $source,
+            'make_handler should read generation from get_option');
     }
 
     public function test_expand_cache_key_format(): void {
-        // Verify the cache key format from the source code.
+        // Verify the cache key format from the handler.
         $generation = 5;
         $query = 'test query';
         $expected_key = 'scolta_expand_' . $generation . '_' . hash('sha256', strtolower($query));

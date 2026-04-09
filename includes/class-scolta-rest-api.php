@@ -15,6 +15,9 @@
 
 defined('ABSPATH') || exit;
 
+use Tag1\Scolta\Cache\NullCacheDriver;
+use Tag1\Scolta\Http\AiEndpointHandler;
+
 class Scolta_Rest_Api {
 
     /**
@@ -123,145 +126,89 @@ class Scolta_Rest_Api {
     }
 
     /**
+     * Build an AiEndpointHandler from current WordPress config.
+     */
+    private static function make_handler(\Scolta_Ai_Service $ai): AiEndpointHandler {
+        $config = $ai->get_config();
+        $generation = (int) get_option('scolta_generation', 0);
+
+        return new AiEndpointHandler(
+            $ai,
+            $config->cacheTtl > 0 ? new \Scolta_Cache_Driver() : new NullCacheDriver(),
+            $generation,
+            $config->cacheTtl,
+            $config->maxFollowUps,
+        );
+    }
+
+    /**
      * POST /wp-json/scolta/v1/expand-query
      *
      * Expands a search query into 2-4 related terms using AI.
-     * Caches results in WordPress transients.
      */
     public static function handle_expand(\WP_REST_Request $request): \WP_REST_Response {
-        $query = $request->get_param('query');
         $ai = Scolta_Ai_Service::from_options();
-        $config = $ai->get_config();
+        $handler = self::make_handler($ai);
 
-        // WordPress transient cache with generation counter for rebuild invalidation.
-        $generation = (int) get_option('scolta_generation', 0);
-        $cache_key = 'scolta_expand_' . $generation . '_' . hash('sha256', strtolower($query));
-        if ($config->cacheTtl > 0) {
-            $cached = get_transient($cache_key);
-            if ($cached !== false) {
-                return new \WP_REST_Response($cached, 200);
-            }
+        $result = $handler->handleExpandQuery($request->get_param('query'));
+
+        if ($result['ok']) {
+            return new \WP_REST_Response($result['data'], 200);
         }
 
-        try {
-            $response = $ai->message(
-                $ai->get_expand_prompt(),
-                'Expand this search query: ' . $query,
-                512,
-            );
-
-            // Strip markdown code fences if Claude wraps the JSON.
-            $cleaned = trim($response);
-            $cleaned = preg_replace('/^```(?:json)?\s*/i', '', $cleaned);
-            $cleaned = preg_replace('/\s*```$/', '', $cleaned);
-            $cleaned = trim($cleaned);
-
-            $terms = json_decode($cleaned, true);
-            if (!is_array($terms) || count($terms) < 2) {
-                $terms = [$query];
-            }
-
-            if ($config->cacheTtl > 0) {
-                set_transient($cache_key, $terms, $config->cacheTtl);
-            }
-
-            return new \WP_REST_Response($terms, 200);
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Expand failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            }
-            return new \WP_REST_Response(
-                ['error' => 'Query expansion unavailable'],
-                503
-            );
+        if (isset($result['exception']) && defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[scolta] Expand failed: ' . $result['exception']->getMessage() . "\n" . $result['exception']->getTraceAsString());
         }
+
+        return new \WP_REST_Response(['error' => $result['error']], $result['status']);
     }
 
     /**
      * POST /wp-json/scolta/v1/summarize
      */
     public static function handle_summarize(\WP_REST_Request $request): \WP_REST_Response {
-        $query = $request->get_param('query');
-        $context = $request->get_param('context');
         $ai = Scolta_Ai_Service::from_options();
-        $config = $ai->get_config();
+        $handler = self::make_handler($ai);
 
-        // Cache lookup with generation counter.
-        $generation = (int) get_option('scolta_generation', 0);
-        $cache_key = 'scolta_summarize_' . $generation . '_' . hash('sha256', strtolower($query) . '|' . $context);
-        if ($config->cacheTtl > 0) {
-            $cached = get_transient($cache_key);
-            if ($cached !== false) {
-                return new \WP_REST_Response($cached, 200);
-            }
+        $result = $handler->handleSummarize(
+            $request->get_param('query'),
+            $request->get_param('context'),
+        );
+
+        if ($result['ok']) {
+            return new \WP_REST_Response($result['data'], 200);
         }
 
-        $user_message = "Search query: {$query}\n\nSearch result excerpts:\n{$context}";
-
-        try {
-            $summary = $ai->message(
-                $ai->get_summarize_prompt(),
-                $user_message,
-                512,
-            );
-
-            $result = ['summary' => $summary];
-
-            if ($config->cacheTtl > 0) {
-                set_transient($cache_key, $result, $config->cacheTtl);
-            }
-
-            return new \WP_REST_Response($result, 200);
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Summarize failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            }
-            return new \WP_REST_Response(
-                ['error' => 'Summarization unavailable'],
-                503
-            );
+        if (isset($result['exception']) && defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[scolta] Summarize failed: ' . $result['exception']->getMessage() . "\n" . $result['exception']->getTraceAsString());
         }
+
+        return new \WP_REST_Response(['error' => $result['error']], $result['status']);
     }
 
     /**
      * POST /wp-json/scolta/v1/followup
      */
     public static function handle_followup(\WP_REST_Request $request): \WP_REST_Response {
-        $messages = $request->get_param('messages');
         $ai = Scolta_Ai_Service::from_options();
-        $config = $ai->get_config();
-        $max_followups = $config->maxFollowUps;
+        $handler = self::make_handler($ai);
 
-        // Enforce follow-up limit server-side.
-        $followups_so_far = intdiv(count($messages) - 2, 2);
-        if ($followups_so_far >= $max_followups) {
-            return new \WP_REST_Response([
-                'error' => 'Follow-up limit reached',
-                'limit' => $max_followups,
-            ], 429);
+        $result = $handler->handleFollowUp($request->get_param('messages'));
+
+        if ($result['ok']) {
+            return new \WP_REST_Response($result['data'], 200);
         }
 
-        try {
-            $response = $ai->conversation(
-                $ai->get_follow_up_prompt(),
-                $messages,
-                512,
-            );
-
-            $remaining = $max_followups - $followups_so_far - 1;
-            return new \WP_REST_Response([
-                'response'  => $response,
-                'remaining' => max(0, $remaining),
-            ], 200);
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] Follow-up failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            }
-            return new \WP_REST_Response(
-                ['error' => 'Follow-up unavailable'],
-                503
-            );
+        if (isset($result['exception']) && defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[scolta] Follow-up failed: ' . $result['exception']->getMessage() . "\n" . $result['exception']->getTraceAsString());
         }
+
+        $response = ['error' => $result['error']];
+        if (isset($result['limit'])) {
+            $response['limit'] = $result['limit'];
+        }
+
+        return new \WP_REST_Response($response, $result['status']);
     }
 
     /**

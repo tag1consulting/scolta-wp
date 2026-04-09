@@ -191,6 +191,11 @@ class Scolta_Ai_Service {
         );
     }
 
+    // camelCase aliases for AiEndpointHandler duck-typed interface.
+    public function getExpandPrompt(): string { return $this->get_expand_prompt(); }
+    public function getSummarizePrompt(): string { return $this->get_summarize_prompt(); }
+    public function getFollowUpPrompt(): string { return $this->get_follow_up_prompt(); }
+
     /**
      * Get the built-in AiClient (lazily instantiated).
      */
