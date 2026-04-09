@@ -32,3 +32,12 @@ The version appears in THREE places for WordPress: `composer.json`, the plugin h
 - Run: `./vendor/bin/phpunit`
 - Tests use a WP function stub bootstrap (tests/bootstrap.php), not a full WordPress install.
 - The bootstrap creates `/tmp/wordpress/wp-admin/includes/upgrade.php` for dbDelta.
+
+## Documentation Rules
+
+Documentation follows code. When a PR changes behavior, the same PR must update the relevant docs.
+
+- **CHANGELOG.md**: Every PR that changes code (not docs-only) MUST add an entry under `## [Unreleased]`. CI enforces this.
+- **README.md**: Update if the change affects installation, WP-CLI commands, REST API endpoints, shortcode, or settings.
+- **Admin settings page**: Settings descriptions in `Scolta_Admin` MUST match the behavior of the setting.
+- **PHPDoc**: All public methods MUST have complete PHPDoc per WordPress coding standards.

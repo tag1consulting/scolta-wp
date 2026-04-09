@@ -1,7 +1,6 @@
 # Scolta for WordPress
 
-<!-- TODO: Add CI badge once repo is on GitHub -->
-<!-- [![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml) -->
+[![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml)
 
 WordPress plugin providing AI-powered search with Pagefind. Delivers client-side search with optional AI query expansion, summarization, and follow-up conversations.
 
@@ -10,6 +9,22 @@ WordPress plugin providing AI-powered search with Pagefind. Delivers client-side
 1. **Indexing** -- The `wp scolta build` command exports published posts/pages as HTML files with Pagefind data attributes, then runs the Pagefind CLI to build a static search index.
 2. **Search** -- Entirely client-side. The browser loads `pagefind.js`, searches the static index, and scolta.js handles scoring, filtering, and result rendering.
 3. **AI features** -- Optional. When an API key is configured, the plugin provides REST API endpoints for query expansion, result summarization, and follow-up conversations powered by Anthropic or OpenAI.
+
+## Architecture
+
+Scolta is a multi-package system. This WordPress plugin is a platform adapter that sits on top of the shared PHP library:
+
+```
+scolta-wp (this plugin)            scolta-php              scolta-core (WASM)
+  WP-CLI commands ───────────> ContentExporter ──────> cleanHtml()
+  Scolta_Ai_Service ─────────> AiClient                buildPagefindHtml()
+  Scolta_Admin ──────────────> ScoltaConfig ─────────> toJsScoringConfig()
+  Scolta_Shortcode ──────────> DefaultPrompts ───────> resolvePrompt()
+  Scolta_Rest_Api ───────────> PagefindBinary           scoreResults()
+  Scolta_Cache_Driver ───────> CacheDriverInterface     mergeResults()
+```
+
+The WordPress plugin handles CMS-specific concerns: WP-CLI commands, Settings API integration, shortcodes, REST API endpoints, post hooks for change tracking, and asset enqueueing. All scoring, HTML processing, and prompt logic lives in the WASM module, accessed through scolta-php. This plugin never depends on scolta-core directly.
 
 ## Requirements
 
