@@ -2,7 +2,8 @@
 /**
  * AI service adapter for WordPress.
  *
- * Dual-path AI provider support:
+ * Extends the shared AiServiceAdapter base class, adding only
+ * WordPress-specific behavior:
  *   - WP 7.0+: Detects and uses the WordPress AI Client SDK (native, multi-provider)
  *   - WP 6.x:  Falls back to scolta-php's built-in AiClient (Anthropic + OpenAI)
  *
@@ -17,18 +18,10 @@
 
 defined('ABSPATH') || exit;
 
-use Tag1\Scolta\AiClient;
 use Tag1\Scolta\Config\ScoltaConfig;
-use Tag1\Scolta\Prompt\DefaultPrompts;
+use Tag1\Scolta\Service\AiServiceAdapter;
 
-class Scolta_Ai_Service {
-
-    private ScoltaConfig $config;
-    private ?AiClient $client = null;
-
-    public function __construct(ScoltaConfig $config) {
-        $this->config = $config;
-    }
+class Scolta_Ai_Service extends AiServiceAdapter {
 
     /**
      * Create from WordPress options, with API key from environment.
@@ -41,9 +34,37 @@ class Scolta_Ai_Service {
         return new self($config);
     }
 
+    // -- Snake-case aliases for inherited camelCase methods --
+
+    /**
+     * Get the Scolta configuration.
+     */
     public function get_config(): ScoltaConfig {
-        return $this->config;
+        return $this->getConfig();
     }
+
+    /**
+     * Get the expand-query system prompt.
+     */
+    public function get_expand_prompt(): string {
+        return $this->getExpandPrompt();
+    }
+
+    /**
+     * Get the summarize system prompt.
+     */
+    public function get_summarize_prompt(): string {
+        return $this->getSummarizePrompt();
+    }
+
+    /**
+     * Get the follow-up system prompt.
+     */
+    public function get_follow_up_prompt(): string {
+        return $this->getFollowUpPrompt();
+    }
+
+    // -- WordPress-specific API key resolution --
 
     /**
      * Get the API key from the best available source.
@@ -107,103 +128,52 @@ class Scolta_Ai_Service {
         return class_exists('\WordPress\AI\Client');
     }
 
-    /**
-     * Send a single-turn AI message.
-     *
-     * Tries WP AI Client SDK first (if available and configured), then
-     * falls back to scolta-php's built-in AiClient.
-     */
-    public function message(string $system_prompt, string $user_message, int $max_tokens = 512): string {
-        // Path 1: WordPress AI Client SDK (WP 7.0+).
-        if ($this->has_wp_ai_sdk()) {
-            try {
-                return $this->message_via_wp_sdk($system_prompt, $user_message, $max_tokens);
-            } catch (\Exception $e) {
-                // SDK not configured or provider missing — fall through to built-in.
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('[scolta] WP AI SDK failed, falling back to built-in: ' . $e->getMessage());
-                }
-            }
-        }
-
-        // Path 2: Built-in AiClient from scolta-php.
-        return $this->get_client()->message($system_prompt, $user_message, $max_tokens);
-    }
-
-    /**
-     * Send a multi-turn conversation.
-     */
-    public function conversation(string $system_prompt, array $messages, int $max_tokens = 512): string {
-        // Path 1: WordPress AI Client SDK (WP 7.0+).
-        if ($this->has_wp_ai_sdk()) {
-            try {
-                return $this->conversation_via_wp_sdk($system_prompt, $messages, $max_tokens);
-            } catch (\Exception $e) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('[scolta] WP AI SDK conversation failed, falling back: ' . $e->getMessage());
-                }
-            }
-        }
-
-        // Path 2: Built-in.
-        return $this->get_client()->conversation($system_prompt, $messages, $max_tokens);
-    }
-
-    /**
-     * Get the expand-query system prompt.
-     */
-    public function get_expand_prompt(): string {
-        if (!empty($this->config->promptExpandQuery)) {
-            return $this->config->promptExpandQuery;
-        }
-        return DefaultPrompts::resolve(
-            DefaultPrompts::EXPAND_QUERY,
-            $this->config->siteName,
-            $this->config->siteDescription,
-        );
-    }
-
-    /**
-     * Get the summarize system prompt.
-     */
-    public function get_summarize_prompt(): string {
-        if (!empty($this->config->promptSummarize)) {
-            return $this->config->promptSummarize;
-        }
-        return DefaultPrompts::resolve(
-            DefaultPrompts::SUMMARIZE,
-            $this->config->siteName,
-            $this->config->siteDescription,
-        );
-    }
-
-    /**
-     * Get the follow-up system prompt.
-     */
-    public function get_follow_up_prompt(): string {
-        if (!empty($this->config->promptFollowUp)) {
-            return $this->config->promptFollowUp;
-        }
-        return DefaultPrompts::resolve(
-            DefaultPrompts::FOLLOW_UP,
-            $this->config->siteName,
-            $this->config->siteDescription,
-        );
-    }
-
-    // camelCase aliases for AiEndpointHandler duck-typed interface.
-    public function getExpandPrompt(): string { return $this->get_expand_prompt(); }
-    public function getSummarizePrompt(): string { return $this->get_summarize_prompt(); }
-    public function getFollowUpPrompt(): string { return $this->get_follow_up_prompt(); }
+    // -- Snake-case alias for built-in client access --
 
     /**
      * Get the built-in AiClient (lazily instantiated).
      */
-    private function get_client(): AiClient {
-        if ($this->client === null) {
-            $this->client = new AiClient($this->config->toAiClientConfig());
+    public function get_client(): \Tag1\Scolta\AiClient {
+        return $this->getClient();
+    }
+
+    // -- Framework AI integration --
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function tryFrameworkAi(string $systemPrompt, string $userMessage, int $maxTokens): ?string {
+        if (!$this->has_wp_ai_sdk()) {
+            return null;
         }
-        return $this->client;
+
+        try {
+            return $this->message_via_wp_sdk($systemPrompt, $userMessage, $maxTokens);
+        } catch (\Exception $e) {
+            // SDK not configured or provider missing — fall through to built-in.
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[scolta] WP AI SDK failed, falling back to built-in: ' . $e->getMessage());
+            }
+            return null;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function tryFrameworkConversation(string $systemPrompt, array $messages, int $maxTokens): ?string {
+        if (!$this->has_wp_ai_sdk()) {
+            return null;
+        }
+
+        try {
+            return $this->conversation_via_wp_sdk($systemPrompt, $messages, $maxTokens);
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[scolta] WP AI SDK conversation failed, falling back: ' . $e->getMessage());
+            }
+            return null;
+        }
     }
 
     /**
