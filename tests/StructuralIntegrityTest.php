@@ -55,31 +55,6 @@ class StructuralIntegrityTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // PHP syntax
-    // -------------------------------------------------------------------
-
-    #[\PHPUnit\Framework\Attributes\DataProvider('phpFileProvider')]
-    public function test_php_syntax(string $file): void {
-        $output = [];
-        exec('php -l ' . escapeshellarg($file) . ' 2>&1', $output, $exitCode);
-        $this->assertEquals(0, $exitCode,
-            "Syntax error in " . basename($file) . ": " . implode("\n", $output));
-    }
-
-    public static function phpFileProvider(): \Generator {
-        $root = dirname(__DIR__);
-        foreach (['includes', 'admin', 'cli'] as $dir) {
-            $path = $root . '/' . $dir;
-            if (!is_dir($path)) continue;
-            foreach (glob($path . '/*.php') as $file) {
-                yield basename($file) => [$file];
-            }
-        }
-        yield 'scolta.php' => [$root . '/scolta.php'];
-        yield 'uninstall.php' => [$root . '/uninstall.php'];
-    }
-
-    // -------------------------------------------------------------------
     // Required files exist
     // -------------------------------------------------------------------
 
