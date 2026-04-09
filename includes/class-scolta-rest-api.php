@@ -183,8 +183,19 @@ class Scolta_Rest_Api {
     public static function handle_summarize(\WP_REST_Request $request): \WP_REST_Response {
         $query = $request->get_param('query');
         $context = $request->get_param('context');
-
         $ai = Scolta_Ai_Service::from_options();
+        $config = $ai->get_config();
+
+        // Cache lookup with generation counter.
+        $generation = (int) get_option('scolta_generation', 0);
+        $cache_key = 'scolta_summarize_' . $generation . '_' . hash('sha256', strtolower($query) . '|' . $context);
+        if ($config->cacheTtl > 0) {
+            $cached = get_transient($cache_key);
+            if ($cached !== false) {
+                return new \WP_REST_Response($cached, 200);
+            }
+        }
+
         $user_message = "Search query: {$query}\n\nSearch result excerpts:\n{$context}";
 
         try {
@@ -194,7 +205,13 @@ class Scolta_Rest_Api {
                 512,
             );
 
-            return new \WP_REST_Response(['summary' => $summary], 200);
+            $result = ['summary' => $summary];
+
+            if ($config->cacheTtl > 0) {
+                set_transient($cache_key, $result, $config->cacheTtl);
+            }
+
+            return new \WP_REST_Response($result, 200);
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('[scolta] Summarize failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
