@@ -81,6 +81,7 @@ class Scolta_Shortcode {
         // This sets window.scolta before scolta.js runs.
         wp_localize_script('scolta-search', 'scolta', [
             'scoring'            => $config->toJsScoringConfig(),
+            'wasmPath'           => SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta-php/assets/wasm/scolta_core.js',
             'endpoints'          => [
                 'expand'    => rest_url('scolta/v1/expand-query'),
                 'summarize' => rest_url('scolta/v1/summarize'),

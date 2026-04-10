@@ -56,20 +56,18 @@ Scolta is a multi-package system. This WordPress plugin is a platform adapter th
 scolta-wp (this plugin)            scolta-php              scolta-core (WASM)
   WP-CLI commands ───────────> ContentExporter ──────> cleanHtml()
   Scolta_Ai_Service ─────────> AiClient                buildPagefindHtml()
-  Scolta_Admin ──────────────> ScoltaConfig ─────────> toJsScoringConfig()
-  Scolta_Shortcode ──────────> DefaultPrompts ───────> resolvePrompt()
+  Scolta_Admin ──────────────> ScoltaConfig
+  Scolta_Shortcode ──────────> DefaultPrompts            (client-side)
   Scolta_Rest_Api ───────────> PagefindBinary           scoreResults()
   Scolta_Cache_Driver ───────> CacheDriverInterface     mergeResults()
 ```
 
-The WordPress plugin handles CMS-specific concerns: WP-CLI commands, Settings API integration, shortcodes, REST API endpoints, post hooks for change tracking, and asset enqueueing. All scoring, HTML processing, and prompt logic lives in the WASM module, accessed through scolta-php. This plugin never depends on scolta-core directly.
+The WordPress plugin handles CMS-specific concerns: WP-CLI commands, Settings API integration, shortcodes, REST API endpoints, post hooks for change tracking, and asset enqueueing. Scoring runs client-side via WebAssembly loaded by scolta.js. HTML processing runs server-side via scolta-php. Prompt resolution and config generation are pure PHP. This plugin never depends on scolta-core directly.
 
 ## Requirements
 
 - WordPress 6.0+
 - PHP 8.1+
-- [Extism](https://extism.org) shared library (for WASM scoring)
-- PHP FFI enabled (`ffi.enable=true`)
 - Pagefind CLI (`npm install -g pagefind`)
 
 ## Installation
@@ -83,14 +81,6 @@ composer install
 ```
 
 2. Activate the plugin in **Plugins > Installed Plugins**.
-
-### Install Extism (if not already present)
-
-```bash
-curl -s https://get.extism.org/cli | bash -s -- -y
-sudo extism lib install --version latest
-sudo ldconfig  # Linux only
-```
 
 ## Setup
 
@@ -134,7 +124,7 @@ After installation, run the setup check to verify all prerequisites:
 wp scolta check-setup
 ```
 
-This verifies PHP version, FFI extension, Extism library, WASM binary, Pagefind binary, AI provider configuration, and cache backend. Fix any items marked as failed before proceeding.
+This verifies PHP version, Pagefind binary, AI provider configuration, and cache backend. Fix any items marked as failed before proceeding.
 
 ## Configuration Details
 
@@ -171,7 +161,7 @@ wp scolta rebuild-index            # Rebuild Pagefind index from existing HTML
 wp scolta status                   # Show tracker, content, index, and AI status
 wp scolta clear-cache              # Clear Scolta AI response caches
 wp scolta download-pagefind        # Download the Pagefind binary for your platform
-wp scolta check-setup              # Verify PHP, Extism, Pagefind, and configuration
+wp scolta check-setup              # Verify PHP, Pagefind, and configuration
 ```
 
 ## Content Tracking
@@ -217,21 +207,6 @@ ddev wp eval-file tests/integration-test.php
 ```
 
 ## Troubleshooting
-
-### "FFI not enabled" or WASM load failure
-
-```bash
-php -r "echo extension_loaded('ffi') ? 'OK' : 'MISSING';"
-php -r "echo class_exists('\Extism\Plugin') ? 'OK' : 'MISSING';"
-```
-
-Install Extism if missing:
-
-```bash
-curl -s https://get.extism.org/cli | bash -s -- -y
-sudo extism lib install --version latest
-sudo ldconfig  # Linux only
-```
 
 ### "Pagefind binary not found"
 

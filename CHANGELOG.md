@@ -6,6 +6,12 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased] (0.2.0-dev)
 
+### Changed
+
+- Migrated from server-side WASM scoring to client-side WASM: scoring now runs in the browser via WebAssembly instead of requiring Extism/FFI on the server
+- Shortcode now passes `wasmPath` in the localized JS config, pointing to the WASM JS glue file at `vendor/tag1/scolta-php/assets/wasm/scolta_core.js`
+- Server-side Extism shared library and PHP FFI are no longer required
+
 ### Added
 
 - `ai_languages` setting for multilingual AI response support, configurable via Settings > Scolta (comma-separated language codes)
