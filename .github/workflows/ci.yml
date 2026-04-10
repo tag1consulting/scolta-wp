@@ -19,11 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Extism runtime
+        run: |
+          EXTISM_VERSION=$(curl -s https://api.github.com/repos/extism/extism/releases/latest | grep tag_name | cut -d'"' -f4)
+          curl -sL "https://github.com/extism/extism/releases/download/${EXTISM_VERSION}/libextism-x86_64-unknown-linux-gnu-${EXTISM_VERSION}.tar.gz" | tar -xzf - -C /tmp
+          sudo cp /tmp/libextism.so /usr/local/lib/
+          sudo cp /tmp/extism.h /usr/local/include/ 2>/dev/null || true
+          sudo ldconfig
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           extensions: ffi
+          ini-values: ffi.enable=true
           coverage: none
 
       - name: Replace path repo with GitHub VCS repo
