@@ -230,20 +230,9 @@ class AdminSanitizeTest extends TestCase {
     // -------------------------------------------------------------------
 
     public function test_prompt_clears_when_matches_default(): void {
-        // Get the default prompt template.
-        try {
-            $default = \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate(
-                \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY
-            );
-        } catch (\Throwable $e) {
-            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
-            return;
-        }
-
-        if (empty($default)) {
-            $this->markTestSkipped('Default prompt template is empty (WASM not available).');
-            return;
-        }
+        $default = \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate(
+            \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY
+        );
 
         $input = $this->defaultInput();
         $input['prompt_expand_query'] = $default;

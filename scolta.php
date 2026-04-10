@@ -190,6 +190,27 @@ add_action('transition_post_status', function (string $new_status, string $old_s
 }, 10, 3);
 
 /**
+ * Cache resolved prompts when settings are saved.
+ *
+ * DefaultPrompts::resolve() is pure PHP (no WASM), so this is cheap.
+ * Caching avoids repeated string replacement on every AI request.
+ */
+add_action('update_option_scolta_settings', function ($old, $new): void {
+    $site_name = $new['site_name'] ?? get_bloginfo('name');
+    $site_desc = $new['site_description'] ?? 'website';
+
+    $all = [];
+    foreach (['expand_query', 'summarize', 'follow_up'] as $name) {
+        $all[$name] = \Tag1\Scolta\Prompt\DefaultPrompts::resolve(
+            $name,
+            $site_name,
+            $site_desc,
+        );
+    }
+    update_option('scolta_resolved_prompts', $all);
+}, 10, 2);
+
+/**
  * REST API registration.
  */
 add_action('rest_api_init', function (): void {

@@ -549,10 +549,10 @@ class Scolta_Admin {
      * Get the default prompt template text.
      *
      * Returns the raw template with {SITE_NAME} and {SITE_DESCRIPTION}
-     * placeholders intact. Returns empty string if WASM is unavailable.
+     * placeholders intact.
      *
      * @param string $name Prompt template name constant or settings key.
-     * @return string The template text, or empty on failure.
+     * @return string The template text.
      */
     private static function get_default_prompt_template(string $name): string {
         // Map settings keys to template names.
@@ -563,14 +563,7 @@ class Scolta_Admin {
         ];
         $template_name = $map[$name] ?? $name;
 
-        try {
-            return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($template_name);
-        } catch (\Throwable $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log("[scolta] Failed to load default prompt '{$name}': " . $e->getMessage());
-            }
-            return __('Default prompt unavailable. Run "wp scolta check-setup" for diagnostics.', 'scolta');
-        }
+        return \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($template_name);
     }
 
     // -----------------------------------------------------------------

@@ -45,23 +45,57 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
     /**
      * Get the expand-query system prompt.
+     *
+     * Checks cached resolved prompts first, falls back to
+     * DefaultPrompts::resolve() (pure PHP, zero-cost).
      */
     public function get_expand_prompt(): string {
-        return $this->getExpandPrompt();
+        return $this->getCachedPrompt('expand_query') ?? $this->getExpandPrompt();
     }
 
     /**
      * Get the summarize system prompt.
+     *
+     * Checks cached resolved prompts first, falls back to
+     * DefaultPrompts::resolve() (pure PHP, zero-cost).
      */
     public function get_summarize_prompt(): string {
-        return $this->getSummarizePrompt();
+        return $this->getCachedPrompt('summarize') ?? $this->getSummarizePrompt();
     }
 
     /**
      * Get the follow-up system prompt.
+     *
+     * Checks cached resolved prompts first, falls back to
+     * DefaultPrompts::resolve() (pure PHP, zero-cost).
      */
     public function get_follow_up_prompt(): string {
-        return $this->getFollowUpPrompt();
+        return $this->getCachedPrompt('follow_up') ?? $this->getFollowUpPrompt();
+    }
+
+    /**
+     * Get a cached resolved prompt, if available.
+     *
+     * Only returns a cached prompt when no custom override is configured,
+     * since custom overrides bypass the default templates entirely.
+     *
+     * @param string $name Prompt name (expand_query, summarize, follow_up).
+     * @return string|null The cached prompt, or null if not cached or custom override is set.
+     */
+    private function getCachedPrompt(string $name): ?string {
+        // Custom overrides bypass caching.
+        $config = $this->getConfig();
+        $custom_map = [
+            'expand_query' => $config->promptExpandQuery,
+            'summarize'    => $config->promptSummarize,
+            'follow_up'    => $config->promptFollowUp,
+        ];
+        if (!empty($custom_map[$name] ?? '')) {
+            return null;
+        }
+
+        $cached = get_option('scolta_resolved_prompts', []);
+        return !empty($cached[$name]) ? $cached[$name] : null;
     }
 
     // -- WordPress-specific API key resolution --

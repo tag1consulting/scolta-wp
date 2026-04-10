@@ -11,6 +11,15 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - Migrated from server-side WASM scoring to client-side WASM: scoring now runs in the browser via WebAssembly instead of requiring Extism/FFI on the server
 - Shortcode now passes `wasmPath` in the localized JS config, pointing to the WASM JS glue file at `vendor/tag1/scolta-php/assets/wasm/scolta_core.js`
 - Server-side Extism shared library and PHP FFI are no longer required
+- Prompt resolution now uses pure PHP (`DefaultPrompts::resolve()`) — no WASM or FFI dependency
+- AI service reads cached prompts from `scolta_resolved_prompts` option with fallback to `DefaultPrompts::resolve()`
+
+### Removed
+
+- Extism runtime install step from CI workflow (no longer needed)
+- PHP FFI extension and `ffi.enable=true` from CI setup
+- `continue-on-error: true` from CI lint step (linting is now enforced)
+- Extism/FFI skip guards from test cases (prompts are now always available as pure PHP)
 
 ### Added
 

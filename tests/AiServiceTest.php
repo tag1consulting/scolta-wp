@@ -110,41 +110,28 @@ class AiServiceTest extends TestCase {
 
     public function test_get_expand_prompt_returns_default(): void {
         $service = $this->createService();
-        try {
-            $prompt = $service->get_expand_prompt();
-            $this->assertStringContainsString('Test Site', $prompt);
-        } catch (\RuntimeException $e) {
-            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
-        }
+        $prompt = $service->get_expand_prompt();
+        $this->assertStringContainsString('Test Site', $prompt);
     }
 
     public function test_get_expand_prompt_uses_custom_override(): void {
         $service = $this->createService([
             'prompt_expand_query' => 'Custom prompt for {SITE_NAME}',
         ]);
-        // When custom is set, it's used as-is (no WASM delegation).
         $prompt = $service->get_expand_prompt();
         $this->assertEquals('Custom prompt for {SITE_NAME}', $prompt);
     }
 
     public function test_get_summarize_prompt_returns_default(): void {
         $service = $this->createService();
-        try {
-            $prompt = $service->get_summarize_prompt();
-            $this->assertStringContainsString('Test Site', $prompt);
-        } catch (\RuntimeException $e) {
-            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
-        }
+        $prompt = $service->get_summarize_prompt();
+        $this->assertStringContainsString('Test Site', $prompt);
     }
 
     public function test_get_follow_up_prompt_returns_default(): void {
         $service = $this->createService();
-        try {
-            $prompt = $service->get_follow_up_prompt();
-            $this->assertStringContainsString('Test Site', $prompt);
-        } catch (\RuntimeException $e) {
-            $this->markTestSkipped('Extism runtime not available: ' . $e->getMessage());
-        }
+        $prompt = $service->get_follow_up_prompt();
+        $this->assertStringContainsString('Test Site', $prompt);
     }
 
     // -------------------------------------------------------------------

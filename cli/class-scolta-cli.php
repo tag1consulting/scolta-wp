@@ -390,7 +390,7 @@ class Scolta_CLI {
     /**
      * Verify Scolta dependencies and configuration.
      *
-     * Checks PHP, FFI, Extism, WASM binary, Pagefind, and AI key.
+     * Checks PHP version, Pagefind binary, AI key, and browser WASM assets.
      *
      * @subcommand check-setup
      */
