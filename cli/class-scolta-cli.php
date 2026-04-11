@@ -29,30 +29,51 @@ defined('ABSPATH') || exit;
 use Tag1\Scolta\Binary\PagefindBinary;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Export\ContentExporter;
+use Tag1\Scolta\Index\PhpIndexer;
 
 class Scolta_CLI {
 
     /**
      * Build or rebuild the Scolta search index.
      *
-     * Processes content through three stages:
-     * 1. Mark content for indexing (full) or read tracker (incremental)
-     * 2. Export content as HTML files with Pagefind attributes
-     * 3. Run Pagefind CLI to build the static search index
+     * Routes between two indexing pipelines:
+     * - Binary: mark → export HTML → run Pagefind CLI (original pipeline)
+     * - PHP: gather → filter → chunk → processChunk → finalize (new pipeline)
+     *
+     * The --indexer flag controls which pipeline is used. With "auto" (the
+     * default), the PHP indexer is used when the Pagefind binary is unavailable.
      *
      * ## OPTIONS
      *
      * [--incremental]
      * : Only process content that changed since the last build.
      *   Without this flag, all published content is reindexed.
+     *   Only applies to the binary indexer pipeline.
      *
      * [--skip-pagefind]
      * : Export HTML files but don't run the Pagefind CLI.
      *   Useful when you want to inspect the exported HTML.
+     *   Only applies to the binary indexer pipeline.
+     *
+     * [--indexer=<indexer>]
+     * : Which indexer to use. Overrides the admin setting.
+     * ---
+     * default: auto
+     * options:
+     *   - auto
+     *   - php
+     *   - binary
+     * ---
+     *
+     * [--force]
+     * : Skip fingerprint check and rebuild even if content hasn't changed.
+     *   Only applies to the PHP indexer pipeline.
      *
      * ## EXAMPLES
      *
      *     wp scolta build
+     *     wp scolta build --indexer=php
+     *     wp scolta build --indexer=php --force
      *     wp scolta build --incremental
      *
      * @subcommand build
@@ -66,11 +87,125 @@ class Scolta_CLI {
     }
 
     private function do_build(array $args, array $assoc_args): void {
+        $settings = get_option('scolta_settings', []);
+        $config = ScoltaConfig::fromArray($settings);
+
+        // Determine which indexer to use.
+        $indexer_setting = $settings['indexer'] ?? 'auto';
+        $indexer = \WP_CLI\Utils\get_flag_value($assoc_args, 'indexer', $indexer_setting);
+
+        if ($indexer === 'php') {
+            $this->do_build_php($assoc_args, $settings);
+            return;
+        }
+
+        if ($indexer === 'auto') {
+            $resolver = new PagefindBinary(
+                configuredPath: $settings['pagefind_binary'] ?? null,
+                projectDir: ABSPATH,
+            );
+            if (!$resolver->isExecutable()) {
+                \WP_CLI::log('Pagefind binary not available — using PHP indexer.');
+                $this->do_build_php($assoc_args, $settings);
+                return;
+            }
+        }
+
+        // Binary indexer pipeline.
+        $this->do_build_binary($args, $assoc_args, $settings, $config);
+    }
+
+    /**
+     * PHP indexer pipeline: gather → filter → chunk → processChunk → finalize.
+     *
+     * @param array $assoc_args CLI associative arguments.
+     * @param array $settings   Plugin settings.
+     */
+    private function do_build_php(array $assoc_args, array $settings): void {
+        $force = \WP_CLI\Utils\get_flag_value($assoc_args, 'force', false);
+        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+
+        \WP_CLI::log('Using PHP indexer pipeline.');
+
+        // Step 1: Gather content.
+        \WP_CLI::log('Step 1: Gathering content...');
+        $raw_items = \Scolta_Content_Gatherer::gather();
+        \WP_CLI::log(sprintf('  Found %d published items.', count($raw_items)));
+
+        if (count($raw_items) === 0) {
+            \WP_CLI::warning('No published content found. Check post_types setting.');
+            return;
+        }
+
+        // Step 2: Filter by minimum content length.
+        \WP_CLI::log('Step 2: Filtering content...');
+        $exporter = new ContentExporter($output_dir);
+        $items = $exporter->exportToItems($raw_items);
+        $skipped = count($raw_items) - count($items);
+        \WP_CLI::log(sprintf('  %d items pass filter, %d skipped (insufficient content).', count($items), $skipped));
+
+        if (count($items) === 0) {
+            \WP_CLI::warning('No items passed content length filter. Nothing to index.');
+            return;
+        }
+
+        // Step 3: Fingerprint check.
+        $state_dir = $this->get_state_dir();
+        $indexer = new PhpIndexer($state_dir, $output_dir, $this->get_hmac_secret());
+
+        if (!$force) {
+            $fingerprint = $indexer->shouldBuild($items);
+            if ($fingerprint === null) {
+                \WP_CLI::success('Content unchanged since last build. Use --force to rebuild anyway.');
+                return;
+            }
+            \WP_CLI::log('  Content fingerprint changed — rebuilding.');
+        } else {
+            \WP_CLI::log('  Forced rebuild — skipping fingerprint check.');
+        }
+
+        // Step 4: Process chunks.
+        \WP_CLI::log('Step 3: Indexing content...');
+        $chunks = array_chunk($items, 100);
+        $total_chunks = count($chunks);
+
+        foreach ($chunks as $i => $chunk) {
+            \WP_CLI::log(sprintf('  Processing chunk %d/%d (%d pages)...', $i + 1, $total_chunks, count($chunk)));
+            $indexer->processChunk($chunk, $i, count($items));
+        }
+
+        // Step 5: Finalize.
+        \WP_CLI::log('Step 4: Finalizing index...');
+        $result = $indexer->finalize();
+
+        if ($result->success) {
+            // Increment generation counter to invalidate cached expansions/summaries.
+            $generation = (int) get_option('scolta_generation', 0);
+            update_option('scolta_generation', $generation + 1);
+
+            \WP_CLI::success(sprintf(
+                'PHP indexer complete: %d pages indexed, %d files written in %.1fs.',
+                $result->pageCount,
+                $result->fileCount,
+                $result->elapsedSeconds
+            ));
+        } else {
+            \WP_CLI::error($result->error ?? $result->message);
+        }
+    }
+
+    /**
+     * Binary indexer pipeline: mark → export HTML → run Pagefind CLI.
+     *
+     * @param array        $args       CLI positional arguments.
+     * @param array        $assoc_args CLI associative arguments.
+     * @param array        $settings   Plugin settings.
+     * @param ScoltaConfig $config     Scolta configuration.
+     */
+    private function do_build_binary(array $args, array $assoc_args, array $settings, ScoltaConfig $config): void {
         $incremental = \WP_CLI\Utils\get_flag_value($assoc_args, 'incremental', false);
         $skip_pagefind = \WP_CLI\Utils\get_flag_value($assoc_args, 'skip-pagefind', false);
 
-        $settings = get_option('scolta_settings', []);
-        $config = ScoltaConfig::fromArray($settings);
         $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
         $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
         $post_types = $settings['post_types'] ?? ['post', 'page'];
@@ -163,6 +298,25 @@ class Scolta_CLI {
         }
         \WP_CLI::log("Using Pagefind: {$binary} (resolved via {$resolver->resolvedVia()})");
         $this->run_pagefind($binary, $build_dir, $output_dir);
+    }
+
+    /**
+     * Get the state directory for the PHP indexer.
+     *
+     * @return string Absolute path to the state directory.
+     */
+    private function get_state_dir(): string {
+        $upload_dir = wp_upload_dir();
+        return $upload_dir['basedir'] . '/scolta/state';
+    }
+
+    /**
+     * Get the HMAC secret for index integrity verification.
+     *
+     * @return string HMAC secret derived from WordPress auth salt.
+     */
+    private function get_hmac_secret(): string {
+        return wp_salt('auth');
     }
 
     /**

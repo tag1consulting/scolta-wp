@@ -329,6 +329,29 @@ if (!function_exists('get_the_title')) {
 if (!function_exists('get_post_types')) {
     function get_post_types(array $args = [], string $output = 'names'): array { return []; }
 }
+if (!function_exists('get_the_date')) {
+    function get_the_date(string $format = '', $post = null): string {
+        if ($post instanceof WP_Post && !empty($post->post_date)) {
+            return date($format ?: 'F j, Y', strtotime($post->post_date));
+        }
+        return date($format ?: 'F j, Y');
+    }
+}
+if (!function_exists('wp_upload_dir')) {
+    function wp_upload_dir(): array {
+        return [
+            'basedir' => WP_CONTENT_DIR . '/uploads',
+            'baseurl' => 'https://example.com/wp-content/uploads',
+            'path' => WP_CONTENT_DIR . '/uploads/' . date('Y/m'),
+            'url' => 'https://example.com/wp-content/uploads/' . date('Y/m'),
+        ];
+    }
+}
+if (!function_exists('wp_salt')) {
+    function wp_salt(string $scheme = 'auth'): string {
+        return 'test-salt-' . $scheme;
+    }
+}
 
 // WP_Query stub (minimal).
 if (!class_exists('WP_Query')) {

@@ -72,6 +72,7 @@ class Scolta_Admin {
 
         // --- Section: Pagefind ---
         add_settings_section('scolta_pagefind_section', __('Pagefind', 'scolta'), [self::class, 'render_pagefind_section'], 'scolta');
+        add_settings_field('indexer', __('Indexer', 'scolta'), [self::class, 'render_indexer_field'], 'scolta', 'scolta_pagefind_section');
         add_settings_field('pagefind_binary', __('Binary Path', 'scolta'), [self::class, 'render_pagefind_binary_field'], 'scolta', 'scolta_pagefind_section');
         add_settings_field('build_dir', __('Build Directory', 'scolta'), [self::class, 'render_build_dir_field'], 'scolta', 'scolta_pagefind_section');
         add_settings_field('output_dir', __('Output Directory', 'scolta'), [self::class, 'render_output_dir_field'], 'scolta', 'scolta_pagefind_section');
@@ -319,6 +320,18 @@ class Scolta_Admin {
         ?>
         <input type="text" name="scolta_settings[site_description]" value="<?php echo esc_attr($value); ?>" class="regular-text" />
         <p class="description"><?php esc_html_e('Brief description for AI context. e.g., "technology blog" or "university research portal"', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_indexer_field(): void {
+        $value = self::get_setting('indexer', 'auto');
+        ?>
+        <select name="scolta_settings[indexer]" id="scolta_indexer">
+            <option value="auto" <?php selected($value, 'auto'); ?>><?php esc_html_e('Auto (use binary if available, otherwise PHP)', 'scolta'); ?></option>
+            <option value="php" <?php selected($value, 'php'); ?>><?php esc_html_e('PHP (built-in, no binary needed)', 'scolta'); ?></option>
+            <option value="binary" <?php selected($value, 'binary'); ?>><?php esc_html_e('Binary (requires Pagefind CLI)', 'scolta'); ?></option>
+        </select>
+        <p class="description"><?php esc_html_e('The PHP indexer builds the search index without requiring the Pagefind binary. Auto selects PHP when the binary is unavailable.', 'scolta'); ?></p>
         <?php
     }
 
@@ -609,6 +622,11 @@ class Scolta_Admin {
         $clean['post_types'] = array_map('sanitize_key', (array) $post_types);
         $clean['site_name'] = sanitize_text_field($input['site_name'] ?? get_bloginfo('name'));
         $clean['site_description'] = sanitize_text_field($input['site_description'] ?? 'website');
+
+        // Indexer.
+        $clean['indexer'] = in_array($input['indexer'] ?? '', ['auto', 'php', 'binary'], true)
+            ? $input['indexer']
+            : 'auto';
 
         // Pagefind paths.
         $clean['pagefind_binary'] = sanitize_text_field($input['pagefind_binary'] ?? 'pagefind');
