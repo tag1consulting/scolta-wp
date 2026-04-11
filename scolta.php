@@ -36,6 +36,8 @@ require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-prompt-enricher.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-content-gatherer.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-rest-api.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-shortcode.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-rebuild-scheduler.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-auto-rebuild.php';
 
 // Admin.
 if (is_admin()) {
@@ -117,12 +119,27 @@ register_activation_hook(__FILE__, 'scolta_activate');
  * Deactivation: clean up transients.
  */
 function scolta_deactivate(): void {
+    // Clean up expand transients.
     global $wpdb;
     $wpdb->query($wpdb->prepare(
         "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
         '_transient_scolta_expand_%',
         '_transient_timeout_scolta_expand_%'
     ));
+
+    // Clear Action Scheduler actions.
+    if (function_exists('as_unschedule_all_actions')) {
+        as_unschedule_all_actions('scolta_rebuild_start', [], 'scolta');
+        as_unschedule_all_actions('scolta_process_chunk', null, 'scolta');
+        as_unschedule_all_actions('scolta_finalize_build', [], 'scolta');
+        as_unschedule_all_actions('scolta_debounced_rebuild', [], 'scolta');
+    }
+
+    // Clear build locks and state.
+    delete_transient('scolta_build_lock');
+    delete_transient('scolta_build_chunks');
+    delete_option('scolta_build_status');
+    delete_option('scolta_build_force');
 }
 register_deactivation_hook(__FILE__, 'scolta_deactivate');
 
@@ -225,3 +242,9 @@ add_action('rest_api_init', function (): void {
 add_action('init', function (): void {
     Scolta_Shortcode::register();
 });
+
+/**
+ * Initialize background rebuild scheduler and auto-rebuild hooks.
+ */
+add_action('init', ['Scolta_Rebuild_Scheduler', 'init']);
+add_action('init', ['Scolta_Auto_Rebuild', 'init']);

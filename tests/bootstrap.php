@@ -212,6 +212,22 @@ if (!function_exists('add_shortcode')) {
     }
 }
 
+// User capability stubs.
+if (!function_exists('current_user_can')) {
+    function current_user_can(string $capability): bool { return true; }
+}
+if (!function_exists('wp_kses_post')) {
+    function wp_kses_post(string $data): string { return $data; }
+}
+
+// Action Scheduler stubs.
+if (!function_exists('as_schedule_single_action')) {
+    function as_schedule_single_action($timestamp, $hook, $args = [], $group = '') { return 1; }
+}
+if (!function_exists('as_unschedule_all_actions')) {
+    function as_unschedule_all_actions($hook, $args = null, $group = '') {}
+}
+
 // Misc stubs.
 if (!function_exists('is_admin')) {
     function is_admin(): bool { return false; }

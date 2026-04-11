@@ -107,6 +107,21 @@ class Scolta_Rest_Api {
             'callback'            => [self::class, 'handle_health'],
             'permission_callback' => [self::class, 'check_search_permission'],
         ]);
+
+        register_rest_route('scolta/v1', '/build-progress', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_build_progress'],
+            'permission_callback' => fn() => current_user_can('manage_options'),
+        ]);
+
+        register_rest_route('scolta/v1', '/rebuild-now', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_rebuild_now'],
+            'permission_callback' => fn() => current_user_can('manage_options'),
+            'args' => [
+                'force' => ['type' => 'boolean', 'default' => false],
+            ],
+        ]);
     }
 
     /**
@@ -230,5 +245,47 @@ class Scolta_Rest_Api {
         );
 
         return new \WP_REST_Response($checker->check(), 200);
+    }
+
+    /**
+     * GET /wp-json/scolta/v1/build-progress
+     *
+     * Returns current build status for admin polling.
+     * Includes stale lock detection to recover from crashed builds.
+     *
+     * @since 0.2.0
+     */
+    public static function handle_build_progress(\WP_REST_Request $request): \WP_REST_Response {
+        $status = get_option('scolta_build_status', ['status' => 'idle']);
+
+        // Stale lock detection: if lock has exceeded TTL, clear it.
+        $lock_time = get_transient(Scolta_Rebuild_Scheduler::LOCK_KEY);
+        if ($lock_time && (time() - (int) $lock_time) > Scolta_Rebuild_Scheduler::LOCK_TTL) {
+            delete_transient(Scolta_Rebuild_Scheduler::LOCK_KEY);
+            $status = [
+                'status'  => 'idle',
+                'message' => __('Previous rebuild timed out. Lock cleared.', 'scolta'),
+            ];
+            update_option('scolta_build_status', $status);
+        }
+
+        return new \WP_REST_Response($status, 200);
+    }
+
+    /**
+     * POST /wp-json/scolta/v1/rebuild-now
+     *
+     * Triggers an immediate rebuild via Action Scheduler.
+     *
+     * @since 0.2.0
+     */
+    public static function handle_rebuild_now(\WP_REST_Request $request): \WP_REST_Response {
+        if (get_transient(Scolta_Rebuild_Scheduler::LOCK_KEY)) {
+            return new \WP_REST_Response(['error' => __('Rebuild already in progress.', 'scolta')], 409);
+        }
+
+        $force = $request->get_param('force') ?? false;
+        Scolta_Rebuild_Scheduler::start_rebuild((bool) $force);
+        return new \WP_REST_Response(['message' => __('Rebuild scheduled.', 'scolta')], 200);
     }
 }
