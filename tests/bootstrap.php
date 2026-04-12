@@ -321,6 +321,9 @@ if (!function_exists('current_time')) {
 if (!function_exists('site_url')) {
     function site_url(string $path = ''): string { return 'https://example.com' . $path; }
 }
+if (!function_exists('admin_url')) {
+    function admin_url(string $path = ''): string { return 'https://example.com/wp-admin/' . ltrim($path, '/'); }
+}
 if (!function_exists('content_url')) {
     function content_url(string $path = ''): string { return 'https://example.com/wp-content' . $path; }
 }

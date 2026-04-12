@@ -37,6 +37,19 @@ class Scolta_Shortcode {
      */
     public static function render(array $atts = []): string {
         $settings = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $index_exists = file_exists($output_dir . '/pagefind/pagefind-entry.json');
+
+        if (!$index_exists) {
+            if (current_user_can('manage_options')) {
+                return '<div class="scolta-no-index" style="padding:20px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;margin:20px 0;">'
+                    . '<p><strong>Scolta:</strong> Search index has not been built yet.</p>'
+                    . '<p><a href="' . esc_url(admin_url('options-general.php?page=scolta')) . '">Build now &rarr;</a>'
+                    . ' or run <code>wp scolta build</code></p></div>';
+            }
+            return ''; // Hide search box for non-admins when index doesn't exist.
+        }
+
         $config = ScoltaConfig::fromArray($settings);
 
         // Determine the Pagefind index URL path.

@@ -112,8 +112,33 @@ function scolta_activate(): void {
             ['option_name' => 'scolta_settings']
         );
     }
+
+    // Queue initial index build if Action Scheduler is available.
+    if (function_exists('as_schedule_single_action')) {
+        as_schedule_single_action(time() + 10, 'scolta_rebuild_start', [], 'scolta');
+    }
+
+    // Set transient for admin notice.
+    set_transient('scolta_activated', true, 60);
 }
 register_activation_hook(__FILE__, 'scolta_activate');
+
+/**
+ * Show one-time admin notice after plugin activation.
+ */
+add_action('admin_notices', function () {
+    if (!get_transient('scolta_activated')) {
+        return;
+    }
+    delete_transient('scolta_activated');
+    echo '<div class="notice notice-info"><p>';
+    echo 'Scolta activated! Your search index will be built automatically.';
+    if (!function_exists('as_schedule_single_action')) {
+        echo ' Install Action Scheduler for background indexing, or run <code>wp scolta build</code>.';
+    }
+    echo ' <a href="' . esc_url(admin_url('options-general.php?page=scolta')) . '">View settings &rarr;</a>';
+    echo '</p></div>';
+});
 
 /**
  * Deactivation: clean up transients.
