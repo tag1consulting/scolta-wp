@@ -220,6 +220,72 @@ if (!function_exists('wp_kses_post')) {
     function wp_kses_post(string $data): string { return $data; }
 }
 
+// Dashboard widget stubs.
+if (!function_exists('wp_add_dashboard_widget')) {
+    function wp_add_dashboard_widget(string $id, string $name, $callback, $control_cb = null, $callback_args = null): void {
+        if (!isset($GLOBALS['wp_meta_boxes'])) {
+            $GLOBALS['wp_meta_boxes'] = [];
+        }
+        $GLOBALS['wp_meta_boxes']['dashboard']['normal']['core'][$id] = [
+            'id' => $id, 'title' => $name, 'callback' => $callback,
+        ];
+    }
+}
+if (!function_exists('wp_nonce_field')) {
+    function wp_nonce_field(string $action = '', string $name = '_wpnonce', bool $referer = true, bool $echo = true): string {
+        $field = '<input type="hidden" id="' . esc_attr($name) . '" name="' . esc_attr($name) . '" value="test-nonce" />';
+        if ($echo) { echo $field; }
+        return $field;
+    }
+}
+if (!function_exists('submit_button')) {
+    function submit_button(string $text = 'Save Changes', string $type = 'primary', string $name = 'submit', bool $wrap = true): void {
+        echo '<input type="submit" name="' . esc_attr($name) . '" class="button button-' . esc_attr($type) . '" value="' . esc_attr($text) . '" />';
+    }
+}
+if (!function_exists('human_time_diff')) {
+    function human_time_diff(int $from, int $to = 0): string {
+        $to = $to === 0 ? time() : $to;
+        $diff = abs($to - $from);
+        if ($diff < 60) { return "{$diff} seconds"; }
+        $min = (int) ($diff / 60);
+        return "{$min} minutes";
+    }
+}
+if (!function_exists('esc_html_e')) {
+    function esc_html_e(string $text, string $domain = 'default'): void { echo htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('esc_html__')) {
+    function esc_html__(string $text, string $domain = 'default'): string { return htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('wp_date')) {
+    function wp_date(string $format, ?int $timestamp = null, ?object $timezone = null): string {
+        return date($format, $timestamp ?? time());
+    }
+}
+if (!function_exists('checked')) {
+    function checked($checked, $current = true, bool $echo = true): string {
+        $result = (string) $checked === (string) $current ? ' checked="checked"' : '';
+        if ($echo) { echo $result; }
+        return $result;
+    }
+}
+if (!function_exists('get_admin_page_title')) {
+    function get_admin_page_title(): string { return 'Scolta AI Search'; }
+}
+if (!function_exists('settings_errors')) {
+    function settings_errors(string $setting = '', bool $sanitize = false, bool $hide_on_update = false): void {}
+}
+if (!function_exists('settings_fields')) {
+    function settings_fields(string $option_group): void {}
+}
+if (!function_exists('do_settings_sections')) {
+    function do_settings_sections(string $page): void {}
+}
+if (!function_exists('get_current_screen')) {
+    function get_current_screen(): ?object { return null; }
+}
+
 // Action Scheduler stubs.
 if (!function_exists('as_schedule_single_action')) {
     function as_schedule_single_action($timestamp, $hook, $args = [], $group = '') { return 1; }

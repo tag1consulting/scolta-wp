@@ -267,6 +267,11 @@ wp scolta download-pagefind
 
 Verify: `wp scolta check-setup` — the health endpoint also reports `indexer_active`.
 
+## Hosting
+
+See the [Scolta Hosting Guide](../scolta-php/HOSTING.md) for platform-specific
+deployment guidance, indexer selection, and ephemeral filesystem handling.
+
 ## Troubleshooting
 
 ### "Pagefind binary not found"

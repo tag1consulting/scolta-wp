@@ -53,6 +53,7 @@ class AdminSanitizeTest extends TestCase {
             'ai_summary_top_n' => '5',
             'ai_summary_max_chars' => '2000',
             'cache_ttl' => '2592000',
+            'auto_rebuild_delay' => '300',
             'prompt_expand_query' => '',
             'prompt_summarize' => '',
             'prompt_follow_up' => '',
@@ -313,5 +314,54 @@ class AdminSanitizeTest extends TestCase {
         $input['ai_expand_query'] = '1';
         $result = Scolta_Admin::sanitize_settings($input);
         $this->assertTrue($result['ai_expand_query']);
+    }
+
+    // -------------------------------------------------------------------
+    // auto_rebuild_delay
+    // -------------------------------------------------------------------
+
+    public function test_auto_rebuild_delay_is_saved(): void {
+        $input = $this->defaultInput();
+        $input['auto_rebuild_delay'] = '120';
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertSame(120, $result['auto_rebuild_delay']);
+    }
+
+    public function test_auto_rebuild_delay_defaults_to_300(): void {
+        $input = $this->defaultInput();
+        unset($input['auto_rebuild_delay']);
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertSame(300, $result['auto_rebuild_delay']);
+    }
+
+    public function test_auto_rebuild_delay_clamped_to_minimum_60(): void {
+        $input = $this->defaultInput();
+        $input['auto_rebuild_delay'] = '10';
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertSame(60, $result['auto_rebuild_delay']);
+    }
+
+    public function test_auto_rebuild_delay_clamped_to_maximum_3600(): void {
+        $input = $this->defaultInput();
+        $input['auto_rebuild_delay'] = '9999';
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertSame(3600, $result['auto_rebuild_delay']);
+    }
+
+    public function test_auto_rebuild_delay_field_registered_in_settings(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
+
+        $this->assertStringContainsString(
+            "'auto_rebuild_delay'",
+            $source,
+            'auto_rebuild_delay must be registered as a settings field'
+        );
+    }
+
+    public function test_auto_rebuild_delay_render_method_exists(): void {
+        $this->assertTrue(
+            method_exists('Scolta_Admin', 'render_auto_rebuild_delay_field'),
+            'Scolta_Admin must have render_auto_rebuild_delay_field() method'
+        );
     }
 }

@@ -21,6 +21,7 @@ class Scolta_Admin {
         add_action('admin_menu', [self::class, 'add_settings_page']);
         add_action('admin_init', [self::class, 'register_settings']);
         add_action('admin_notices', [self::class, 'maybe_show_setup_notice']);
+        add_action('wp_dashboard_setup', [self::class, 'add_dashboard_widget']);
 
         // AJAX handler for removing legacy DB key.
         add_action('wp_ajax_scolta_remove_db_key', [self::class, 'ajax_remove_db_key']);
@@ -83,6 +84,7 @@ class Scolta_Admin {
         add_settings_field('build_dir', __('Build Directory', 'scolta'), [self::class, 'render_build_dir_field'], 'scolta', 'scolta_pagefind_section');
         add_settings_field('output_dir', __('Output Directory', 'scolta'), [self::class, 'render_output_dir_field'], 'scolta', 'scolta_pagefind_section');
         add_settings_field('auto_rebuild', __('Auto Rebuild', 'scolta'), [self::class, 'render_auto_rebuild_field'], 'scolta', 'scolta_pagefind_section');
+        add_settings_field('auto_rebuild_delay', __('Rebuild Delay (seconds)', 'scolta'), [self::class, 'render_auto_rebuild_delay_field'], 'scolta', 'scolta_pagefind_section');
 
         // --- Section: Scoring ---
         add_settings_section('scolta_scoring_section', __('Scoring', 'scolta'), [self::class, 'render_scoring_section'], 'scolta');
@@ -375,6 +377,20 @@ class Scolta_Admin {
         <?php
     }
 
+    /**
+     * Render the auto-rebuild delay field.
+     *
+     * @since 0.2.0
+     */
+    public static function render_auto_rebuild_delay_field(): void {
+        $delay = (int) self::get_setting('auto_rebuild_delay', 300);
+        printf(
+            '<input type="number" name="scolta_settings[auto_rebuild_delay]" value="%d" min="60" max="3600" step="60" />',
+            $delay
+        );
+        echo '<p class="description">' . esc_html__('Seconds to wait after the last content change before rebuilding the index. Minimum 60. Default 300 (5 minutes). Higher values batch more changes together.', 'scolta') . '</p>';
+    }
+
     // -- Scoring fields --
 
     public static function render_title_boost_field(): void {
@@ -639,6 +655,7 @@ class Scolta_Admin {
         $clean['build_dir'] = wp_normalize_path($input['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build');
         $clean['output_dir'] = wp_normalize_path($input['output_dir'] ?? ABSPATH . 'scolta-pagefind');
         $clean['auto_rebuild'] = !empty($input['auto_rebuild']);
+        $clean['auto_rebuild_delay'] = max(60, min(3600, (int) ($input['auto_rebuild_delay'] ?? 300)));
 
         // Scoring — all 8 fields.
         $clean['title_match_boost'] = max(0.0, min(10.0, (float) ($input['title_match_boost'] ?? 1.0)));
@@ -927,6 +944,115 @@ class Scolta_Admin {
                 echo '</div>';
             }
         }
+    }
+
+    // -----------------------------------------------------------------
+    // Dashboard widget
+    // -----------------------------------------------------------------
+
+    /**
+     * Register the Scolta dashboard widget.
+     *
+     * @since 0.2.0
+     */
+    public static function add_dashboard_widget(): void {
+        wp_add_dashboard_widget(
+            'scolta_dashboard_widget',
+            __('Scolta Search', 'scolta'),
+            [self::class, 'render_dashboard_widget']
+        );
+    }
+
+    /**
+     * Render the Scolta dashboard widget.
+     *
+     * Shows index status (fragment count + last build time), AI configuration
+     * status, a one-click rebuild button, and a link to the settings page.
+     *
+     * @since 0.2.0
+     */
+    public static function render_dashboard_widget(): void {
+        $settings = get_option('scolta_settings', []);
+        $health   = self::get_health_status();
+
+        echo '<div class="scolta-dashboard-widget">';
+
+        // Index status.
+        $index_exists = $health['index_exists'] ?? false;
+        $last_build   = $health['index']['last_modified'] ?? null;
+        $page_count   = $health['index']['fragment_count'] ?? 0;
+
+        if ($index_exists) {
+            $age = $last_build ? human_time_diff(strtotime($last_build)) . ' ' . __('ago', 'scolta') : __('unknown', 'scolta');
+            printf(
+                '<p><strong>%s</strong> %s</p>',
+                esc_html__('Index:', 'scolta'),
+                esc_html(sprintf(__('%d pages, last built %s', 'scolta'), $page_count, $age))
+            );
+        } else {
+            echo '<p><strong>' . esc_html__('Index:', 'scolta') . '</strong> ' . esc_html__('Not built yet', 'scolta') . '</p>';
+        }
+
+        // AI status.
+        $ai_configured = !empty($settings['ai_api_key']) || class_exists('\WordPress\AI\Client');
+        printf(
+            '<p><strong>%s</strong> %s</p>',
+            esc_html__('AI:', 'scolta'),
+            esc_html($ai_configured ? __('Configured', 'scolta') : __('Not configured', 'scolta'))
+        );
+
+        // Rebuild button.
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+        echo '<input type="hidden" name="action" value="scolta_rebuild_now">';
+        wp_nonce_field('scolta_rebuild_now', 'scolta_rebuild_nonce');
+        submit_button(__('Rebuild Now', 'scolta'), 'secondary', 'submit', false);
+        echo '</form>';
+
+        // Link to full settings.
+        printf(
+            '<p><a href="%s">%s</a></p>',
+            esc_url(admin_url('options-general.php?page=scolta')),
+            esc_html__('Settings →', 'scolta')
+        );
+
+        echo '</div>';
+    }
+
+    /**
+     * Return a summary of the current Scolta index status.
+     *
+     * Used by both the settings-page status table and the dashboard widget
+     * so the filesystem reads happen in one place.
+     *
+     * @return array{
+     *     index_exists: bool,
+     *     index: array{fragment_count: int, last_modified: string|null},
+     * }
+     *
+     * @since 0.2.0
+     */
+    public static function get_health_status(): array {
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $index_file = $output_dir . '/pagefind.js';
+
+        if (!file_exists($index_file)) {
+            return [
+                'index_exists' => false,
+                'index'        => ['fragment_count' => 0, 'last_modified' => null],
+            ];
+        }
+
+        $mtime          = filemtime($index_file);
+        $fragment_count = count(glob($output_dir . '/fragment/*') ?: []);
+
+        return [
+            'index_exists' => true,
+            'index'        => [
+                'fragment_count' => $fragment_count,
+                'last_modified'  => $mtime ? gmdate('c', $mtime) : null,
+            ],
+        ];
     }
 
     /**
