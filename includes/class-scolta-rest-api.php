@@ -128,8 +128,9 @@ class Scolta_Rest_Api {
      * Permission check: anyone can search.
      *
      * AI features are public by default (same as Drupal's implementation).
-     * Rate limiting is handled at the application level. Sites that want
-     * to restrict AI to logged-in users can filter this.
+     * Per-IP rate limiting is enforced via check_rate_limit() inside each
+     * handler. Sites that want to restrict AI to logged-in users can
+     * filter 'scolta_search_permission'.
      */
     public static function check_search_permission(): bool {
         /**
@@ -138,6 +139,56 @@ class Scolta_Rest_Api {
          * @param bool $allowed Default true (public access).
          */
         return apply_filters('scolta_search_permission', true);
+    }
+
+    /**
+     * Check per-IP rate limit for AI endpoints.
+     *
+     * Uses WordPress transients (one-minute windows) to count requests per IP.
+     * Returns a WP_REST_Response with 429 status if the limit is exceeded,
+     * or null if the request is allowed.
+     *
+     * Default: 10 AI requests/minute/IP. Filterable via 'scolta_ai_rate_limit'.
+     *
+     * @return \WP_REST_Response|null 429 response if rate-limited, null if allowed.
+     */
+    public static function check_rate_limit(): ?\WP_REST_Response {
+        $limit = (int) apply_filters('scolta_ai_rate_limit', 10);
+        if ($limit <= 0) {
+            return null; // Rate limiting disabled.
+        }
+
+        $ip = self::get_client_ip();
+        $window = (int) floor(time() / 60); // 1-minute window.
+        $key = 'scolta_rl_' . md5($ip) . '_' . $window;
+
+        $count = (int) get_transient($key);
+        if ($count >= $limit) {
+            $response = new \WP_REST_Response(
+                ['error' => __('Too many requests. Please slow down.', 'scolta')],
+                429
+            );
+            $response->header('Retry-After', '60');
+            return $response;
+        }
+
+        // Increment counter; TTL is 90s so the key always expires after the window.
+        set_transient($key, $count + 1, 90);
+        return null;
+    }
+
+    /**
+     * Get the client IP address, respecting common proxy headers.
+     *
+     * @return string
+     */
+    private static function get_client_ip(): string {
+        // Prefer X-Forwarded-For when behind a trusted proxy.
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
+            return trim($parts[0]);
+        }
+        return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
     }
 
     /**
@@ -164,6 +215,11 @@ class Scolta_Rest_Api {
      * Expands a search query into 2-4 related terms using AI.
      */
     public static function handle_expand(\WP_REST_Request $request): \WP_REST_Response {
+        $rate_limit_response = self::check_rate_limit();
+        if ($rate_limit_response !== null) {
+            return $rate_limit_response;
+        }
+
         $ai = Scolta_Ai_Service::from_options();
         $handler = self::make_handler($ai);
 
@@ -184,6 +240,11 @@ class Scolta_Rest_Api {
      * POST /wp-json/scolta/v1/summarize
      */
     public static function handle_summarize(\WP_REST_Request $request): \WP_REST_Response {
+        $rate_limit_response = self::check_rate_limit();
+        if ($rate_limit_response !== null) {
+            return $rate_limit_response;
+        }
+
         $ai = Scolta_Ai_Service::from_options();
         $handler = self::make_handler($ai);
 
@@ -207,6 +268,11 @@ class Scolta_Rest_Api {
      * POST /wp-json/scolta/v1/followup
      */
     public static function handle_followup(\WP_REST_Request $request): \WP_REST_Response {
+        $rate_limit_response = self::check_rate_limit();
+        if ($rate_limit_response !== null) {
+            return $rate_limit_response;
+        }
+
         $ai = Scolta_Ai_Service::from_options();
         $handler = self::make_handler($ai);
 

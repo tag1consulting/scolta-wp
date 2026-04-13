@@ -36,7 +36,7 @@ class Scolta_Content_Gatherer {
         ]);
 
         foreach ($query->posts as $post) {
-            $items[] = new ContentItem(
+            $item = new ContentItem(
                 id: 'post-' . $post->ID,
                 title: $post->post_title,
                 bodyHtml: apply_filters('the_content', $post->post_content),
@@ -44,6 +44,21 @@ class Scolta_Content_Gatherer {
                 date: get_the_date('Y-m-d', $post),
                 siteName: $site_name,
             );
+
+            /**
+             * Filter the ContentItem before it is added to the search index.
+             *
+             * Allows plugins to modify the title, body HTML, URL, date, or
+             * site name for a post before indexing. Use this to inject content
+             * from ACF fields, WooCommerce attributes, or any custom data source
+             * that is not rendered through `the_content` filter.
+             *
+             * @param ContentItem  $item  The content item about to be indexed.
+             * @param \WP_Post     $post  The WordPress post object.
+             */
+            $item = apply_filters('scolta_content_item', $item, $post);
+
+            $items[] = $item;
         }
 
         return $items;

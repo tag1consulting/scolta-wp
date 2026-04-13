@@ -164,6 +164,47 @@ wp scolta download-pagefind        # Download the Pagefind binary for your platf
 wp scolta check-setup              # Verify PHP, Pagefind, and configuration
 ```
 
+## Content Coverage
+
+By default, Scolta indexes all published posts and pages. You can add custom post types (including WooCommerce products and CPTs) via **Settings > Scolta > Content > Post types to index**.
+
+### What gets indexed
+
+- **Post content** — `the_content` filter is applied before indexing. Any plugin that renders through this filter (ACF blocks, Elementor, shortcodes) is indexed automatically.
+- **Post title** — sanitized and tokenized for search.
+- **Post URL and date** — used for display and recency scoring.
+
+### What is NOT indexed by default
+
+- Custom fields / post meta (unless rendered through `the_content`)
+- ACF field groups that output to a custom field rather than post content
+- Taxonomy terms (categories, tags, custom taxonomies)
+- Widget or sidebar content
+
+### Extending with the `scolta_content_item` filter
+
+Use the `scolta_content_item` filter to inject any additional data before a post is indexed:
+
+```php
+add_filter( 'scolta_content_item', function( $item, $post ) {
+    // Append ACF field content to the indexed body.
+    $extra = get_field( 'product_specs', $post->ID );
+    if ( $extra ) {
+        $item = new \Tag1\Scolta\Export\ContentItem(
+            id:       $item->id,
+            title:    $item->title,
+            bodyHtml: $item->bodyHtml . '<p>' . esc_html( $extra ) . '</p>',
+            url:      $item->url,
+            date:     $item->date,
+            siteName: $item->siteName,
+        );
+    }
+    return $item;
+}, 10, 2 );
+```
+
+You can use the same pattern to override the title, URL, date, or site name — for example, to use a WooCommerce product's short description instead of the full post content.
+
 ## Content Tracking
 
 The plugin automatically tracks content changes:
@@ -205,6 +246,26 @@ cd packages/scolta-wp
 cd test-wordpress-7
 ddev wp eval-file tests/integration-test.php
 ```
+
+## Indexer
+
+Scolta auto-detects the best available indexer (`indexer: auto` default). See [scolta-php README](../scolta-php/README.md) for the full comparison table.
+
+| Feature | PHP Indexer | Pagefind Binary |
+| ------- | ----------- | --------------- |
+| Languages with stemming | 15 (Snowball) | 33+ |
+| Speed (1 000 pages) | ~3–4 seconds | ~0.3–0.5 seconds |
+| Shared / managed hosting | Yes | Only if binary installable |
+
+**To upgrade to the binary indexer:**
+
+```bash
+npm install -g pagefind
+# or:
+wp scolta download-pagefind
+```
+
+Verify: `wp scolta check-setup` — the health endpoint also reports `indexer_active`.
 
 ## Troubleshooting
 

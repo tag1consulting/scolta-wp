@@ -260,12 +260,17 @@ if (!class_exists('WP_REST_Response')) {
     class WP_REST_Response {
         public $data;
         public int $status;
+        public array $headers = [];
         public function __construct($data = null, int $status = 200) {
             $this->data = $data;
             $this->status = $status;
         }
         public function get_data() { return $this->data; }
         public function get_status(): int { return $this->status; }
+        public function header(string $name, string $value): void {
+            $this->headers[$name] = $value;
+        }
+        public function get_headers(): array { return $this->headers; }
     }
 }
 

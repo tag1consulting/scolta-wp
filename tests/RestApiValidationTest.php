@@ -206,6 +206,51 @@ class RestApiValidationTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // Rate limiting
+    // -------------------------------------------------------------------
+
+    public function test_rate_limit_allows_requests_under_threshold(): void {
+        // Clear transients for a clean state.
+        $GLOBALS['wp_options'] = array_filter(
+            $GLOBALS['wp_options'] ?? [],
+            fn($k) => !str_contains($k, 'scolta_rl_'),
+            ARRAY_FILTER_USE_KEY
+        );
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+
+        // First 10 requests should be allowed (default limit is 10).
+        for ($i = 0; $i < 10; $i++) {
+            $response = Scolta_Rest_Api::check_rate_limit();
+            $this->assertNull($response, "Request {$i} should be allowed");
+        }
+    }
+
+    public function test_rate_limit_blocks_after_threshold(): void {
+        // Pre-fill the counter to simulate 10 previous requests.
+        $_SERVER['REMOTE_ADDR'] = '10.0.0.99';
+        $ip = '10.0.0.99';
+        $window = (int) floor(time() / 60);
+        $key = '_transient_scolta_rl_' . md5($ip) . '_' . $window;
+        $GLOBALS['wp_options'][$key] = 10; // Already at limit.
+
+        $response = Scolta_Rest_Api::check_rate_limit();
+        $this->assertNotNull($response, '11th request should be rate-limited');
+        $this->assertSame(429, $response->get_status());
+        $this->assertArrayHasKey('Retry-After', $response->get_headers());
+    }
+
+    public function test_rate_limit_counter_key_is_window_scoped(): void {
+        // Two different minute windows should produce different transient keys.
+        $ip = '172.16.0.1';
+        $hash = md5($ip);
+        $window1 = 1000;
+        $window2 = 1001;
+        $key1 = 'scolta_rl_' . $hash . '_' . $window1;
+        $key2 = 'scolta_rl_' . $hash . '_' . $window2;
+        $this->assertNotSame($key1, $key2, 'Rate limit keys must differ across minute windows');
+    }
+
+    // -------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------
 

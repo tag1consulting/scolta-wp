@@ -24,6 +24,12 @@ class Scolta_Admin {
 
         // AJAX handler for removing legacy DB key.
         add_action('wp_ajax_scolta_remove_db_key', [self::class, 'ajax_remove_db_key']);
+
+        // Admin POST handler for the "Rebuild Now" button in the status summary.
+        add_action('admin_post_scolta_rebuild_now', [self::class, 'handle_rebuild_now']);
+
+        // Show rebuild result notices.
+        add_action('admin_notices', [self::class, 'maybe_show_rebuild_notice']);
     }
 
     /**
@@ -787,6 +793,27 @@ class Scolta_Admin {
             echo '<td>' . esc_html__('Not built yet — run: wp scolta build', 'scolta') . '</td></tr>';
         }
 
+        // Active indexer.
+        $indexer_setting = $settings['indexer'] ?? 'auto';
+        $binary_resolver = new \Tag1\Scolta\Binary\PagefindBinary(
+            configuredPath: $settings['pagefind_binary'] ?? null,
+            projectDir: ABSPATH,
+        );
+        $binary_available = $binary_resolver->isExecutable();
+        if ($indexer_setting === 'php') {
+            $active_indexer = __('PHP indexer (forced)', 'scolta');
+        } elseif ($indexer_setting === 'binary') {
+            $active_indexer = $binary_available
+                ? __('Pagefind binary', 'scolta')
+                : __('Pagefind binary (not found — check binary path)', 'scolta');
+        } else {
+            $active_indexer = $binary_available
+                ? __('Pagefind binary (auto-detected)', 'scolta')
+                : __('PHP indexer (Pagefind binary not found)', 'scolta');
+        }
+        echo '<tr><td>' . esc_html__('Active indexer', 'scolta') . '</td>';
+        echo '<td>' . esc_html($active_indexer) . '</td></tr>';
+
         // AI provider.
         if (class_exists('\WordPress\AI\Client')) {
             echo '<tr><td>' . esc_html__('AI Provider', 'scolta') . '</td>';
@@ -805,6 +832,49 @@ class Scolta_Admin {
         }
 
         echo '</table>';
+
+        // Rebuild Now button.
+        echo '<p>';
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline;">';
+        wp_nonce_field('scolta_rebuild_now', 'scolta_rebuild_nonce');
+        echo '<input type="hidden" name="action" value="scolta_rebuild_now">';
+        echo '<button type="submit" class="button button-primary">' . esc_html__('Rebuild Index Now', 'scolta') . '</button>';
+        echo '</form>';
+        echo '&nbsp;<span class="description">' . esc_html__('Runs a full index rebuild (equivalent to wp scolta build). Large sites may time out — use WP-CLI for those.', 'scolta') . '</span>';
+        echo '</p>';
+    }
+
+    /**
+     * Show a notice after a "Rebuild Index Now" form submission.
+     */
+    public static function maybe_show_rebuild_notice(): void {
+        $result = isset($_GET['scolta_rebuild']) ? sanitize_key($_GET['scolta_rebuild']) : '';
+        if ($result === '') {
+            return;
+        }
+
+        if ($result === 'ok') {
+            $pages = isset($_GET['scolta_pages']) ? (int) $_GET['scolta_pages'] : 0;
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            echo esc_html(sprintf(
+                /* translators: %d: number of pages indexed */
+                __('Scolta index rebuilt successfully. %d pages indexed.', 'scolta'),
+                $pages
+            ));
+            echo '</p></div>';
+        } elseif ($result === 'no_content') {
+            echo '<div class="notice notice-warning is-dismissible"><p>';
+            echo esc_html__('Scolta rebuild: no published content found. Check your post types setting.', 'scolta');
+            echo '</p></div>';
+        } elseif ($result === 'no_items') {
+            echo '<div class="notice notice-warning is-dismissible"><p>';
+            echo esc_html__('Scolta rebuild: no items passed the content filter. Your posts may be too short.', 'scolta');
+            echo '</p></div>';
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>';
+            echo esc_html__('Scolta rebuild failed. Try running wp scolta build from the command line for more details.', 'scolta');
+            echo '</p></div>';
+        }
     }
 
     /**
@@ -837,6 +907,91 @@ class Scolta_Admin {
             )) . '</p>';
             echo '</div>';
         }
+
+        // Show upgrade notice when the Pagefind binary is not installed.
+        $settings = get_option('scolta_settings', []);
+        $indexer_setting = $settings['indexer'] ?? 'auto';
+        if ($indexer_setting !== 'php') {
+            $resolver = new \Tag1\Scolta\Binary\PagefindBinary(
+                configuredPath: $settings['pagefind_binary'] ?? null,
+                projectDir: ABSPATH,
+            );
+            $binary_status = $resolver->status();
+            if (!$binary_status['available']) {
+                echo '<div class="notice notice-info is-dismissible">';
+                echo '<p>' . wp_kses_post(sprintf(
+                    /* translators: %s: shell command */
+                    __('<strong>Scolta:</strong> Pagefind binary not found. Using PHP indexer (slower, English-only). For 10× faster indexing and 15-language support, run: %s', 'scolta'),
+                    '<code>npm install -g pagefind</code>'
+                )) . '</p>';
+                echo '</div>';
+            }
+        }
+    }
+
+    /**
+     * Handle the "Rebuild Index Now" form submission from the status summary.
+     *
+     * Runs the same PHP-indexer build pipeline as `wp scolta build` but
+     * from within the admin context. Redirects back to the settings page
+     * with a notice showing the result.
+     *
+     * Large sites should use WP-CLI to avoid hitting the PHP time limit.
+     */
+    public static function handle_rebuild_now(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You do not have permission to rebuild the Scolta index.', 'scolta'), 403);
+        }
+
+        check_admin_referer('scolta_rebuild_now', 'scolta_rebuild_nonce');
+
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+
+        $redirect = admin_url('options-general.php?page=scolta');
+
+        try {
+            $raw_items = \Scolta_Content_Gatherer::gather();
+
+            if (empty($raw_items)) {
+                wp_safe_redirect(add_query_arg('scolta_rebuild', 'no_content', $redirect));
+                exit;
+            }
+
+            $exporter = new \Tag1\Scolta\Export\ContentExporter($output_dir);
+            $items    = $exporter->exportToItems($raw_items);
+
+            if (empty($items)) {
+                wp_safe_redirect(add_query_arg('scolta_rebuild', 'no_items', $redirect));
+                exit;
+            }
+
+            $upload_dir = wp_upload_dir();
+            $state_dir  = $upload_dir['basedir'] . '/scolta/state';
+            $indexer    = new \Tag1\Scolta\Index\PhpIndexer($state_dir, $output_dir, wp_salt('auth'));
+
+            $chunks = array_chunk($items, 100);
+            foreach ($chunks as $i => $chunk) {
+                $indexer->processChunk($chunk, $i, count($items));
+            }
+
+            $result = $indexer->finalize();
+
+            if ($result->success) {
+                $generation = (int) get_option('scolta_generation', 0);
+                update_option('scolta_generation', $generation + 1);
+                wp_safe_redirect(add_query_arg([
+                    'scolta_rebuild' => 'ok',
+                    'scolta_pages'   => $result->pageCount,
+                ], $redirect));
+            } else {
+                wp_safe_redirect(add_query_arg('scolta_rebuild', 'error', $redirect));
+            }
+        } catch (\Throwable $e) {
+            wp_safe_redirect(add_query_arg('scolta_rebuild', 'error', $redirect));
+        }
+
+        exit;
     }
 }
 
