@@ -178,16 +178,25 @@ class Scolta_Rest_Api {
     }
 
     /**
-     * Get the client IP address, respecting common proxy headers.
+     * Get the client IP address.
+     *
+     * X-Forwarded-For is only trusted when the scolta_trust_proxy_headers
+     * option is explicitly enabled. Trusting proxy headers by default allows
+     * clients to spoof their IP and bypass rate limiting.
+     *
+     * Enable with: update_option('scolta_trust_proxy_headers', true);
+     * Only enable when WordPress is behind a trusted reverse proxy.
      *
      * @return string
      */
     private static function get_client_ip(): string {
-        // Prefer X-Forwarded-For when behind a trusted proxy.
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $trust_proxy = get_option('scolta_trust_proxy_headers', false);
+
+        if ($trust_proxy && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
             return trim($parts[0]);
         }
+
         return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
     }
 
