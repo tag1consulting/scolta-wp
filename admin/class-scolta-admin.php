@@ -896,7 +896,8 @@ class Scolta_Admin {
             configuredPath: $settings['pagefind_binary'] ?? null,
             projectDir: ABSPATH,
         );
-        $binary_available = $binary_resolver->isExecutable();
+        $binary_status    = $binary_resolver->status();
+        $binary_available = $binary_status['available'];
         if ($indexer_setting === 'php') {
             $active_indexer = __('PHP indexer (forced)', 'scolta');
         } elseif ($indexer_setting === 'binary') {
