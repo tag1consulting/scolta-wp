@@ -96,6 +96,10 @@ class Scolta_Admin {
         add_settings_field('recency_penalty_after_days', __('Recency Penalty After (days)', 'scolta'), [self::class, 'render_recency_penalty_days_field'], 'scolta', 'scolta_scoring_section');
         add_settings_field('recency_max_penalty', __('Recency Max Penalty', 'scolta'), [self::class, 'render_recency_max_penalty_field'], 'scolta', 'scolta_scoring_section');
         add_settings_field('expand_primary_weight', __('Expand Primary Weight', 'scolta'), [self::class, 'render_expand_weight_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('language', __('Scoring Language', 'scolta'), [self::class, 'render_language_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('custom_stop_words', __('Custom Stop Words', 'scolta'), [self::class, 'render_custom_stop_words_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_strategy', __('Recency Strategy', 'scolta'), [self::class, 'render_recency_strategy_field'], 'scolta', 'scolta_scoring_section');
+        add_settings_field('recency_curve', __('Custom Recency Curve', 'scolta'), [self::class, 'render_recency_curve_field'], 'scolta', 'scolta_scoring_section');
 
         // --- Section: Display ---
         add_settings_section('scolta_display_section', __('Display', 'scolta'), [self::class, 'render_display_section'], 'scolta');
@@ -457,6 +461,63 @@ class Scolta_Admin {
         <?php
     }
 
+    public static function render_language_field(): void {
+        $value = self::get_setting('language', 'en');
+        $languages = [
+            'ar' => 'Arabic (ar)', 'ca' => 'Catalan (ca)', 'da' => 'Danish (da)',
+            'de' => 'German (de)', 'el' => 'Greek (el)', 'en' => 'English (en)',
+            'es' => 'Spanish (es)', 'et' => 'Estonian (et)', 'eu' => 'Basque (eu)',
+            'fi' => 'Finnish (fi)', 'fr' => 'French (fr)', 'ga' => 'Irish (ga)',
+            'hi' => 'Hindi (hi)', 'hu' => 'Hungarian (hu)', 'hy' => 'Armenian (hy)',
+            'id' => 'Indonesian (id)', 'it' => 'Italian (it)', 'lt' => 'Lithuanian (lt)',
+            'ne' => 'Nepali (ne)', 'nl' => 'Dutch (nl)', 'no' => 'Norwegian (no)',
+            'pl' => 'Polish (pl)', 'pt' => 'Portuguese (pt)', 'ro' => 'Romanian (ro)',
+            'ru' => 'Russian (ru)', 'sr' => 'Serbian (sr)', 'sv' => 'Swedish (sv)',
+            'ta' => 'Tamil (ta)', 'tr' => 'Turkish (tr)', 'yi' => 'Yiddish (yi)',
+        ];
+        echo '<select name="scolta_settings[language]" id="scolta_language">';
+        foreach ($languages as $code => $label) {
+            printf('<option value="%s"%s>%s</option>', esc_attr($code), selected($value, $code, false), esc_html($label));
+        }
+        echo '</select>';
+        echo '<p class="description">' . esc_html__('Language used for stop word filtering during scoring. Choose the primary language of your site content. Default: en', 'scolta') . '</p>';
+    }
+
+    public static function render_custom_stop_words_field(): void {
+        $value = self::get_setting('custom_stop_words', []);
+        if (!is_array($value)) {
+            $value = [];
+        }
+        $display = implode(', ', $value);
+        ?>
+        <input type="text" name="scolta_settings[custom_stop_words]" value="<?php echo esc_attr($display); ?>" class="regular-text" />
+        <p class="description"><?php esc_html_e('Comma-separated extra stop words to exclude from scoring, beyond the language built-in list. e.g. drupal, cms, site', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_strategy_field(): void {
+        $value = self::get_setting('recency_strategy', 'exponential');
+        ?>
+        <select name="scolta_settings[recency_strategy]" id="scolta_recency_strategy">
+            <option value="exponential" <?php selected($value, 'exponential'); ?>><?php esc_html_e('Exponential (default)', 'scolta'); ?></option>
+            <option value="linear" <?php selected($value, 'linear'); ?>><?php esc_html_e('Linear', 'scolta'); ?></option>
+            <option value="step" <?php selected($value, 'step'); ?>><?php esc_html_e('Step', 'scolta'); ?></option>
+            <option value="none" <?php selected($value, 'none'); ?>><?php esc_html_e('None (disable recency scoring)', 'scolta'); ?></option>
+            <option value="custom" <?php selected($value, 'custom'); ?>><?php esc_html_e('Custom (piecewise-linear curve)', 'scolta'); ?></option>
+        </select>
+        <p class="description"><?php esc_html_e('Decay function for recency boost. Custom uses the control points in the field below.', 'scolta'); ?></p>
+        <?php
+    }
+
+    public static function render_recency_curve_field(): void {
+        $raw = self::get_setting('recency_curve', []);
+        $display = !empty($raw) ? json_encode($raw) : '';
+        ?>
+        <input type="text" name="scolta_settings[recency_curve]" value="<?php echo esc_attr($display); ?>" class="large-text" />
+        <p class="description"><?php esc_html_e('JSON array of [days, boost] control points for the custom strategy. e.g. [[0, 1.0], [180, 0.5], [365, 0.0]]. Only used when strategy is "custom".', 'scolta'); ?></p>
+        <?php
+    }
+
     // -- Display fields --
 
     public static function render_excerpt_length_field(): void {
@@ -657,7 +718,7 @@ class Scolta_Admin {
         $clean['auto_rebuild'] = !empty($input['auto_rebuild']);
         $clean['auto_rebuild_delay'] = max(60, min(3600, (int) ($input['auto_rebuild_delay'] ?? 300)));
 
-        // Scoring — all 8 fields.
+        // Scoring — all 12 fields.
         $clean['title_match_boost'] = max(0.0, min(10.0, (float) ($input['title_match_boost'] ?? 1.0)));
         $clean['title_all_terms_multiplier'] = max(0.0, min(10.0, (float) ($input['title_all_terms_multiplier'] ?? 1.5)));
         $clean['content_match_boost'] = max(0.0, min(10.0, (float) ($input['content_match_boost'] ?? 0.4)));
@@ -666,6 +727,25 @@ class Scolta_Admin {
         $clean['recency_penalty_after_days'] = max(0, min(7300, (int) ($input['recency_penalty_after_days'] ?? 1825)));
         $clean['recency_max_penalty'] = max(0.0, min(1.0, (float) ($input['recency_max_penalty'] ?? 0.3)));
         $clean['expand_primary_weight'] = max(0.0, min(1.0, (float) ($input['expand_primary_weight'] ?? 0.7)));
+
+        $valid_languages = ['ar','ca','da','de','el','en','es','et','eu','fi','fr','ga','hi','hu','hy','id','it','lt','ne','nl','no','pl','pt','ro','ru','sr','sv','ta','tr','yi'];
+        $clean['language'] = in_array($input['language'] ?? '', $valid_languages, true)
+            ? $input['language']
+            : 'en';
+
+        $stop_words_raw = $input['custom_stop_words'] ?? '';
+        $clean['custom_stop_words'] = array_values(array_filter(array_map(
+            fn($w) => sanitize_text_field(trim($w)),
+            explode(',', $stop_words_raw)
+        )));
+
+        $clean['recency_strategy'] = in_array($input['recency_strategy'] ?? '', ['exponential', 'linear', 'step', 'none', 'custom'], true)
+            ? $input['recency_strategy']
+            : 'exponential';
+
+        $curve_raw = $input['recency_curve'] ?? '';
+        $curve_decoded = json_decode($curve_raw, true);
+        $clean['recency_curve'] = is_array($curve_decoded) ? $curve_decoded : [];
 
         // Display — all 5 fields.
         $clean['excerpt_length'] = max(50, min(1000, (int) ($input['excerpt_length'] ?? 300)));

@@ -6,6 +6,16 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+## [0.2.2] - Unreleased
+
+### Added
+
+- **Scoring language:** Settings field to select the ISO 639-1 language code for stop word filtering (`language`).
+- **Custom stop words:** Text field for comma-separated extra stop words (`custom_stop_words`).
+- **Recency strategy:** Select field for recency decay function — `exponential`, `linear`, `step`, `none`, or `custom` (`recency_strategy`).
+- **Custom recency curve:** Text field for JSON `[[days, boost], …]` control points (`recency_curve`).
+- All four new fields are sanitized and validated in `sanitize_settings()`.
+
 ## [0.2.1] - 2026-04-15
 
 ### Fixed
