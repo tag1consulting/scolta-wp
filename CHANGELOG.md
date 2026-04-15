@@ -15,6 +15,19 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - **Recency strategy:** Select field for recency decay function — `exponential`, `linear`, `step`, `none`, or `custom` (`recency_strategy`).
 - **Custom recency curve:** Text field for JSON `[[days, boost], …]` control points (`recency_curve`).
 - All four new fields are sanitized and validated in `sanitize_settings()`.
+- **PHP indexer progress bar:** `wp scolta build --indexer=php` now shows a progress bar while processing index chunks via `WP_CLI\Utils\make_progress_bar()`.
+- **`BUILDING.md`:** Documents the distribution ZIP build process for WordPress.org submission.
+
+### Fixed
+
+- **Managed hosting compatibility:** `build_dir` and `output_dir` now default to `wp_upload_dir()['basedir']/scolta/{build,pagefind}` instead of `WP_CONTENT_DIR` and `ABSPATH` paths that are read-only on many managed hosts. Activation migrates existing installs with old defaults automatically.
+- **Download-pagefind install location:** `wp scolta download-pagefind` now installs the binary into `plugin-dir/bin/` (always writable) instead of `ABSPATH/.scolta/bin/`. Adds `bin/` to `.gitignore`.
+- **is_executable() check after chmod:** `download-pagefind` now warns if execute permission could not be set after `chmod(0755)`.
+- **CLI PHP noise:** All WP-CLI command handlers now suppress `display_errors` during execution to prevent PHP notices from corrupting WP-CLI output.
+- **Pagefind subprocess timeout:** `run_pagefind()` now uses `proc_open()` with a 5-minute timeout and non-blocking stream reads instead of `shell_exec()`, preventing hung builds from blocking indefinitely.
+- **First-run auto-setup:** `scolta_activate()` now calls `wp_mkdir_p()` to create index directories in uploads, auto-selects the PHP indexer when no Pagefind binary is found on new installs, and migrates old `WP_CONTENT_DIR`/`ABSPATH`-based directory defaults on updates.
+- **Uninstall cleanup:** `uninstall.php` now removes the `uploads/scolta/` directory tree in addition to options and the tracker table.
+- **Version floor:** Plugin header `Requires at least` lowered from `6.5` to `6.0` — no WP 6.5+ APIs are used. Matches README.
 
 ## [0.2.1] - 2026-04-15
 

@@ -79,10 +79,14 @@ class Scolta_CLI {
      * @subcommand build
      */
     public function build(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $this->do_build($args, $assoc_args);
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
@@ -104,7 +108,7 @@ class Scolta_CLI {
                 configuredPath: $settings['pagefind_binary'] ?? null,
                 projectDir: ABSPATH,
             );
-            if (!$resolver->isExecutable()) {
+            if ($resolver->resolve() === null) {
                 \WP_CLI::log('Pagefind binary not available — using PHP indexer.');
                 $this->do_build_php($assoc_args, $settings);
                 return;
@@ -123,7 +127,7 @@ class Scolta_CLI {
      */
     private function do_build_php(array $assoc_args, array $settings): void {
         $force = \WP_CLI\Utils\get_flag_value($assoc_args, 'force', false);
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
         \WP_CLI::log('Using PHP indexer pipeline.');
 
@@ -169,10 +173,12 @@ class Scolta_CLI {
         $chunks = array_chunk($items, 100);
         $total_chunks = count($chunks);
 
+        $progress = \WP_CLI\Utils\make_progress_bar('Indexing', $total_chunks);
         foreach ($chunks as $i => $chunk) {
-            \WP_CLI::log(sprintf('  Processing chunk %d/%d (%d pages)...', $i + 1, $total_chunks, count($chunk)));
             $indexer->processChunk($chunk, $i, count($items));
+            $progress->tick();
         }
+        $progress->finish();
 
         // Step 5: Finalize.
         \WP_CLI::log('Step 4: Finalizing index...');
@@ -206,8 +212,8 @@ class Scolta_CLI {
         $incremental = \WP_CLI\Utils\get_flag_value($assoc_args, 'incremental', false);
         $skip_pagefind = \WP_CLI\Utils\get_flag_value($assoc_args, 'skip-pagefind', false);
 
-        $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $build_dir = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
         $post_types = $settings['post_types'] ?? ['post', 'page'];
 
         $source = new \Scolta_Content_Source($config);
@@ -333,11 +339,13 @@ class Scolta_CLI {
      * @subcommand export
      */
     public function export(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $incremental = \WP_CLI\Utils\get_flag_value($assoc_args, 'incremental', false);
             $settings = get_option('scolta_settings', []);
             $config = ScoltaConfig::fromArray($settings);
-            $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
+            $build_dir = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
             $post_types = $settings['post_types'] ?? ['post', 'page'];
 
             $source = new \Scolta_Content_Source($config);
@@ -380,6 +388,8 @@ class Scolta_CLI {
             \WP_CLI::success('Export complete.');
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
@@ -392,10 +402,12 @@ class Scolta_CLI {
      * @subcommand rebuild-index
      */
     public function rebuild_index(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $settings = get_option('scolta_settings', []);
-            $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
-            $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+            $build_dir = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
+            $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
             $resolver = new PagefindBinary(
                 configuredPath: $settings['pagefind_binary'] ?? null,
@@ -411,6 +423,8 @@ class Scolta_CLI {
             $this->run_pagefind($binary, $build_dir, $output_dir);
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
@@ -423,18 +437,22 @@ class Scolta_CLI {
      * @subcommand status
      */
     public function status(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $this->do_status();
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
     private function do_status(): void {
         $settings = get_option('scolta_settings', []);
         $post_types = $settings['post_types'] ?? ['post', 'page'];
-        $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $build_dir = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
         // Tracker status.
         \WP_CLI::log('--- Tracker ---');
@@ -522,6 +540,8 @@ class Scolta_CLI {
      * @subcommand clear-cache
      */
     public function clear_cache(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $generation = (int) get_option('scolta_generation', 0);
             update_option('scolta_generation', $generation + 1);
@@ -538,6 +558,8 @@ class Scolta_CLI {
             \WP_CLI::success("Scolta caches cleared (generation counter incremented, {$deleted} transients deleted).");
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
@@ -549,6 +571,8 @@ class Scolta_CLI {
      * @subcommand check-setup
      */
     public function check_setup(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $settings = get_option('scolta_settings', []);
             $ai = \Scolta_Ai_Service::from_options();
@@ -582,6 +606,8 @@ class Scolta_CLI {
             }
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
@@ -594,17 +620,22 @@ class Scolta_CLI {
      * @subcommand download-pagefind
      */
     public function download_pagefind(array $args, array $assoc_args): void {
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '0');
         try {
             $this->do_download_pagefind();
         } catch (\Throwable $e) {
             \WP_CLI::error($e->getMessage());
+        } finally {
+            ini_set('display_errors', $prev);
         }
     }
 
     private function do_download_pagefind(): void {
         $settings = get_option('scolta_settings', []);
-        $resolver = new PagefindBinary(projectDir: ABSPATH);
-        $target_dir = $resolver->downloadTargetDir();
+        // Install into the plugin's own bin/ directory — guaranteed writable
+        // on all hosts, no ABSPATH/.scolta/ directory outside webroot needed.
+        $target_dir = rtrim(SCOLTA_PLUGIN_DIR, '/') . '/bin';
 
         if (!is_dir($target_dir)) {
             mkdir($target_dir, 0755, true);
@@ -670,6 +701,10 @@ class Scolta_CLI {
 
         chmod($target_binary, 0755);
 
+        if (!is_executable($target_binary)) {
+            \WP_CLI::warning("Could not set execute permission on {$target_binary}. You may need to run: chmod +x {$target_binary}");
+        }
+
         // Update settings to point to the downloaded binary.
         $settings['pagefind_binary'] = $target_binary;
         update_option('scolta_settings', $settings);
@@ -699,12 +734,62 @@ class Scolta_CLI {
 
         $cmd = escapeshellcmd($binary)
             . ' --site ' . escapeshellarg($build_dir)
-            . ' --output-path ' . escapeshellarg($output_dir)
-            . ' 2>&1';
+            . ' --output-path ' . escapeshellarg($output_dir);
 
         \WP_CLI::log("  Running: {$cmd}");
 
-        $output = shell_exec($cmd);
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $process = proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            \WP_CLI::error('Failed to start Pagefind process.');
+            return;
+        }
+
+        fclose($pipes[0]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $output = '';
+        $timeout = 300; // 5 minutes.
+        $start = time();
+
+        while (true) {
+            $chunk = fread($pipes[1], 8192);
+            if ($chunk !== false && $chunk !== '') {
+                $output .= $chunk;
+            }
+            $chunk = fread($pipes[2], 8192);
+            if ($chunk !== false && $chunk !== '') {
+                $output .= $chunk;
+            }
+
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                $output .= stream_get_contents($pipes[1]);
+                $output .= stream_get_contents($pipes[2]);
+                break;
+            }
+
+            if ((time() - $start) > $timeout) {
+                proc_terminate($process, 15);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                proc_close($process);
+                \WP_CLI::error("Pagefind timed out after {$timeout}s. Try running it manually: {$cmd}");
+                return;
+            }
+
+            usleep(100000); // 100ms poll.
+        }
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
+
         $success = file_exists($output_dir . '/pagefind.js');
 
         if ($success) {

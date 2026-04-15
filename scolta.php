@@ -4,7 +4,7 @@
  * Plugin URI:        https://www.tag1.com/scolta
  * Description:       Zero-infrastructure AI-powered search. Uses Pagefind for client-side full-text search with AI query expansion, result summarization, and conversational follow-up. Content stays on your server. No Elasticsearch, no Solr, no external search service required.
  * Version:           0.2.2-dev
- * Requires at least: 6.5
+ * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Tag1 Consulting
  * Author URI:        https://www.tag1.com
@@ -50,10 +50,27 @@ if (defined('WP_CLI') && WP_CLI) {
 }
 
 /**
+ * Check whether the Pagefind binary is available and executable.
+ *
+ * Used during activation to auto-select the PHP indexer when no binary exists.
+ *
+ * @return bool True if the Pagefind binary can be found and executed.
+ */
+function scolta_pagefind_binary_available(): bool {
+    $resolver = new \Tag1\Scolta\Binary\PagefindBinary(
+        configuredPath: null,
+        projectDir: ABSPATH,
+    );
+    return $resolver->resolve() !== null;
+}
+
+/**
  * Activation: create tracker table and set default options.
  */
 function scolta_activate(): void {
     Scolta_Tracker::create_table();
+
+    $upload_dir = wp_upload_dir();
 
     $defaults = [
         'ai_provider'               => 'anthropic',
@@ -62,10 +79,10 @@ function scolta_activate(): void {
         'site_name'                 => get_bloginfo('name'),
         'site_description'          => 'website',
         'search_page_path'          => '/scolta-search',
-        'pagefind_index_path'       => '/scolta-pagefind',
+        'pagefind_index_path'       => wp_upload_dir()['baseurl'] . '/scolta/pagefind',
         'pagefind_binary'           => 'pagefind',
-        'build_dir'                 => WP_CONTENT_DIR . '/scolta-build',
-        'output_dir'                => ABSPATH . 'scolta-pagefind',
+        'build_dir'                 => wp_upload_dir()['basedir'] . '/scolta/build',
+        'output_dir'                => wp_upload_dir()['basedir'] . '/scolta/pagefind',
         'indexer'                   => 'auto',
         'auto_rebuild'              => true,
         'post_types'                => ['post', 'page'],
@@ -95,13 +112,33 @@ function scolta_activate(): void {
         'prompt_follow_up'          => '',
     ];
 
+    // Ensure index directories exist in uploads (writable on all managed hosts).
+    wp_mkdir_p($upload_dir['basedir'] . '/scolta/build');
+    wp_mkdir_p($upload_dir['basedir'] . '/scolta/pagefind');
+
     // New installs: set defaults with autoload disabled.
     if (false === get_option('scolta_settings')) {
+        // Use PHP indexer by default when no Pagefind binary is available.
+        if (!scolta_pagefind_binary_available()) {
+            $defaults['indexer'] = 'php';
+        }
         add_option('scolta_settings', $defaults, '', false);
     } else {
         // Existing installs: merge in new defaults for added fields,
         // and fix autoload flag.
         $existing = get_option('scolta_settings', []);
+
+        // Migrate build_dir/output_dir from old defaults (WP_CONTENT_DIR and ABSPATH)
+        // to uploads-based paths that work on managed hosting.
+        $old_build = wp_normalize_path(WP_CONTENT_DIR . '/scolta-build');
+        $old_output = wp_normalize_path(ABSPATH . 'scolta-pagefind');
+        if (!isset($existing['build_dir']) || wp_normalize_path($existing['build_dir']) === $old_build) {
+            $existing['build_dir'] = $upload_dir['basedir'] . '/scolta/build';
+        }
+        if (!isset($existing['output_dir']) || wp_normalize_path($existing['output_dir']) === $old_output) {
+            $existing['output_dir'] = $upload_dir['basedir'] . '/scolta/pagefind';
+        }
+
         $merged = array_merge($defaults, $existing);
         update_option('scolta_settings', $merged);
 
@@ -131,10 +168,18 @@ add_action('admin_notices', function () {
         return;
     }
     delete_transient('scolta_activated');
+    $settings = get_option('scolta_settings', []);
+    $using_php_indexer = ($settings['indexer'] ?? 'auto') === 'php';
     echo '<div class="notice notice-info"><p>';
-    echo 'Scolta activated! Your search index will be built automatically.';
-    if (!function_exists('as_schedule_single_action')) {
-        echo ' Install Action Scheduler for background indexing, or run <code>wp scolta build</code>.';
+    echo 'Scolta activated!';
+    if (function_exists('as_schedule_single_action')) {
+        echo ' Your search index will be built automatically in the background.';
+    } else {
+        echo ' Run <code>wp scolta build</code> to build your search index.';
+        echo ' Install <a href="https://actionscheduler.org/">Action Scheduler</a> for automatic background indexing.';
+    }
+    if ($using_php_indexer) {
+        echo ' Using the PHP indexer (Pagefind binary not found).';
     }
     echo ' <a href="' . esc_url(admin_url('options-general.php?page=scolta')) . '">View settings &rarr;</a>';
     echo '</p></div>';

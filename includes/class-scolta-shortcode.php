@@ -37,7 +37,7 @@ class Scolta_Shortcode {
      */
     public static function render(array $atts = []): string {
         $settings = get_option('scolta_settings', []);
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
         $index_exists = file_exists($output_dir . '/pagefind/pagefind-entry.json');
 
         if (!$index_exists) {
@@ -54,7 +54,7 @@ class Scolta_Shortcode {
 
         // Determine the Pagefind index URL path.
         // The output dir is an absolute filesystem path — convert to URL.
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
         $pagefind_url = self::dir_to_url($output_dir);
 
         // Enqueue the shared scolta.js and scolta.css from the Composer package.

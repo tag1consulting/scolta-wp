@@ -19,7 +19,8 @@ class ShortcodeTest extends TestCase {
         scolta_activate();
 
         // Create a fake pagefind index so the index-missing check passes.
-        $output_dir = ABSPATH . 'scolta-pagefind/pagefind';
+        $settings = get_option('scolta_settings', []);
+        $output_dir = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind';
         if (!is_dir($output_dir)) {
             @mkdir($output_dir, 0755, true);
         }
@@ -164,7 +165,8 @@ class ShortcodeTest extends TestCase {
 
     public function test_render_shows_admin_warning_when_index_missing(): void {
         // Remove the fake index file.
-        $index_file = ABSPATH . 'scolta-pagefind/pagefind/pagefind-entry.json';
+        $settings = get_option('scolta_settings', []);
+        $index_file = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind/pagefind-entry.json';
         if (file_exists($index_file)) {
             unlink($index_file);
         }
@@ -178,7 +180,8 @@ class ShortcodeTest extends TestCase {
 
     public function test_render_returns_empty_for_nonadmin_when_index_missing(): void {
         // Remove the fake index file.
-        $index_file = ABSPATH . 'scolta-pagefind/pagefind/pagefind-entry.json';
+        $settings = get_option('scolta_settings', []);
+        $index_file = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind/pagefind-entry.json';
         if (file_exists($index_file)) {
             unlink($index_file);
         }

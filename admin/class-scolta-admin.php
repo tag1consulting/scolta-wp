@@ -713,8 +713,8 @@ class Scolta_Admin {
 
         // Pagefind paths.
         $clean['pagefind_binary'] = sanitize_text_field($input['pagefind_binary'] ?? 'pagefind');
-        $clean['build_dir'] = wp_normalize_path($input['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build');
-        $clean['output_dir'] = wp_normalize_path($input['output_dir'] ?? ABSPATH . 'scolta-pagefind');
+        $clean['build_dir'] = wp_normalize_path($input['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build');
+        $clean['output_dir'] = wp_normalize_path($input['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind');
         $clean['auto_rebuild'] = !empty($input['auto_rebuild']);
         $clean['auto_rebuild_delay'] = max(60, min(3600, (int) ($input['auto_rebuild_delay'] ?? 300)));
 
@@ -765,7 +765,7 @@ class Scolta_Admin {
 
         // Preserve internal settings not exposed in the form.
         $clean['search_page_path'] = $existing['search_page_path'] ?? '/scolta-search';
-        $clean['pagefind_index_path'] = $existing['pagefind_index_path'] ?? '/scolta-pagefind';
+        $clean['pagefind_index_path'] = $existing['pagefind_index_path'] ?? wp_upload_dir()['baseurl'] . '/scolta/pagefind';
 
         // Preserve legacy API key if it exists (for backward compat until user removes it).
         if (!empty($existing['ai_api_key'])) {

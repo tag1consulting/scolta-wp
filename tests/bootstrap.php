@@ -401,6 +401,12 @@ if (!function_exists('content_url')) {
 if (!function_exists('wp_normalize_path')) {
     function wp_normalize_path(string $path): string { return str_replace('\\', '/', $path); }
 }
+if (!function_exists('wp_mkdir_p')) {
+    function wp_mkdir_p(string $dir): bool {
+        if (is_dir($dir)) { return true; }
+        return mkdir($dir, 0755, true);
+    }
+}
 if (!function_exists('sanitize_key')) {
     function sanitize_key(string $key): string { return preg_replace('/[^a-z0-9_\-]/', '', strtolower($key)); }
 }

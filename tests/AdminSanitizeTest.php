@@ -223,7 +223,8 @@ class AdminSanitizeTest extends TestCase {
     public function test_defaults_pagefind_index_path_when_missing(): void {
         update_option('scolta_settings', []);
         $result = Scolta_Admin::sanitize_settings($this->defaultInput());
-        $this->assertEquals('/scolta-pagefind', $result['pagefind_index_path']);
+        $expected = wp_upload_dir()['baseurl'] . '/scolta/pagefind';
+        $this->assertEquals($expected, $result['pagefind_index_path']);
     }
 
     // -------------------------------------------------------------------
