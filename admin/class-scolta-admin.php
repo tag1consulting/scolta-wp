@@ -938,7 +938,7 @@ class Scolta_Admin {
                 echo '<div class="notice notice-info is-dismissible">';
                 echo '<p>' . wp_kses_post(sprintf(
                     /* translators: %s: shell command */
-                    __('<strong>Scolta:</strong> Pagefind binary not found. Using PHP indexer (slower, English-only). For 10× faster indexing and 15-language support, run: %s', 'scolta'),
+                    __('<strong>Scolta:</strong> Pagefind binary not found. Using PHP indexer (14 languages). For faster indexing and 33+ language support, install Pagefind: %s', 'scolta'),
                     '<code>npm install -g pagefind</code>'
                 )) . '</p>';
                 echo '</div>';
