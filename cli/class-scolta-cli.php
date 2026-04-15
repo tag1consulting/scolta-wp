@@ -175,7 +175,10 @@ class Scolta_CLI {
 
         $progress = \WP_CLI\Utils\make_progress_bar('Indexing', $total_chunks);
         foreach ($chunks as $i => $chunk) {
+            $chunk_start = microtime(true);
             $indexer->processChunk($chunk, $i, count($items));
+            $elapsed = round(microtime(true) - $chunk_start, 1);
+            \WP_CLI::log(sprintf('  Chunk %d/%d: %ss (%d items)', $i + 1, $total_chunks, $elapsed, count($chunk)));
             $progress->tick();
         }
         $progress->finish();
