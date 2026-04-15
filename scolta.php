@@ -3,7 +3,7 @@
  * Plugin Name:       Scolta AI Search
  * Plugin URI:        https://www.tag1.com/scolta
  * Description:       Zero-infrastructure AI-powered search. Uses Pagefind for client-side full-text search with AI query expansion, result summarization, and conversational follow-up. Content stays on your server. No Elasticsearch, no Solr, no external search service required.
- * Version:           0.2.1
+ * Version:           0.2.2-dev
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Tag1 Consulting
@@ -16,7 +16,7 @@
 
 defined('ABSPATH') || exit;
 
-define('SCOLTA_VERSION', '0.2.1');
+define('SCOLTA_VERSION', '0.2.2-dev');
 define('SCOLTA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SCOLTA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SCOLTA_PLUGIN_FILE', __FILE__);
