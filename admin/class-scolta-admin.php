@@ -1188,8 +1188,8 @@ class Scolta_Admin {
 			);
 		}
 
-		$mtime       = filemtime( $index_file );
-		$glob_result = glob( $output_dir . '/fragment/*' );
+		$mtime          = filemtime( $index_file );
+		$glob_result    = glob( $output_dir . '/fragment/*' );
 		$fragment_count = count( ! empty( $glob_result ) ? $glob_result : array() );
 
 		return array(

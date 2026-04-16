@@ -95,7 +95,7 @@ class Scolta_Rebuild_Scheduler {
 
 		// Check if PHP or binary indexer.
 		$indexer_setting = $settings['indexer'] ?? 'auto';
-		$use_php = (
+		$use_php         = (
 			$indexer_setting === 'php' ||
 			( $indexer_setting === 'auto' && ! ( new PagefindBinary( null, ABSPATH ) )->resolve() )
 		);

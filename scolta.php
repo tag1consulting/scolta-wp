@@ -137,8 +137,8 @@ function scolta_activate(): void {
 
 		// Migrate build_dir/output_dir from old defaults (WP_CONTENT_DIR and ABSPATH)
 		// to uploads-based paths that work on managed hosting.
-		$old_build  = wp_normalize_path( WP_CONTENT_DIR . '/scolta-build' );
-		$old_output = wp_normalize_path( ABSPATH . 'scolta-pagefind' );
+		$old_build     = wp_normalize_path( WP_CONTENT_DIR . '/scolta-build' );
+		$old_output    = wp_normalize_path( ABSPATH . 'scolta-pagefind' );
 		$build_matches = wp_normalize_path( $existing['build_dir'] ?? '' ) === $old_build;
 		if ( ! isset( $existing['build_dir'] ) || $build_matches ) {
 			$existing['build_dir'] = $upload_dir['basedir'] . '/scolta/build';
