@@ -16,30 +16,31 @@
  * @since 0.2.0
  */
 
-defined('ABSPATH') || exit;
+defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Prompt\PromptEnricherInterface;
 
 class Scolta_Prompt_Enricher implements PromptEnricherInterface {
 
-    /**
-     * Enrich a resolved prompt by running it through WordPress filters.
-     *
-     * @param string $resolvedPrompt The prompt text after WASM template resolution.
-     * @param string $promptName     The prompt identifier ('expand_query', 'summarize', or 'follow_up').
-     * @param array  $context        Additional context (e.g., query, search results, messages).
-     * @return string The filtered prompt text.
-     */
-    public function enrich(string $resolvedPrompt, string $promptName, array $context = []): string {
-        /**
-         * Filter the AI prompt before it is sent to the LLM provider.
-         *
-         * @since 0.2.0
-         *
-         * @param string $resolvedPrompt The prompt text after WASM template resolution.
-         * @param string $promptName     The prompt identifier ('expand_query', 'summarize', or 'follow_up').
-         * @param array  $context        Additional context (e.g., query, search results, messages).
-         */
-        return apply_filters('scolta_prompt', $resolvedPrompt, $promptName, $context);
-    }
+	/**
+	 * Enrich a resolved prompt by running it through WordPress filters.
+	 *
+	 * @param string $resolvedPrompt The prompt text after WASM template resolution.
+	 * @param string $promptName     The prompt identifier ('expand_query', 'summarize', etc.).
+	 * @param array  $context        Additional context (query, search results, messages).
+	 * @return string The filtered prompt text.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	public function enrich( string $resolvedPrompt, string $promptName, array $context = array() ): string {
+		/**
+		 * Filter the AI prompt before it is sent to the LLM provider.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $resolvedPrompt The prompt text after WASM template resolution.
+		 * @param string $promptName     The prompt identifier ('expand_query', 'summarize', etc.).
+		 * @param array  $context        Additional context (query, search results, messages).
+		 */
+		return apply_filters( 'scolta_prompt', $resolvedPrompt, $promptName, $context );
+	}
 }

@@ -180,8 +180,8 @@ class CliValidationTest extends TestCase {
 
     public function test_cli_file_registers_command(): void {
         $content = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
-        $this->assertStringContainsString(
-            "WP_CLI::add_command('scolta'",
+        $this->assertMatchesRegularExpression(
+            "/\\\\?WP_CLI::add_command\s*\(\s*'scolta'/",
             $content,
             'CLI file should register the scolta command via WP_CLI::add_command'
         );
@@ -204,8 +204,8 @@ class CliValidationTest extends TestCase {
         // Every public command method must open with ini_set('display_errors','0')
         // and restore it in a finally block.
         $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
-        $this->assertStringContainsString(
-            "ini_set('display_errors', '0')",
+        $this->assertMatchesRegularExpression(
+            "/ini_set\s*\(\s*'display_errors'\s*,\s*'0'\s*\)/",
             $source,
             'CLI handlers must suppress display_errors'
         );

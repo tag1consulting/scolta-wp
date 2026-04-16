@@ -16,237 +16,247 @@
  * AiClient directly. The dual-path fallback is invisible to callers.
  */
 
-defined('ABSPATH') || exit;
+defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Service\AiServiceAdapter;
 
 class Scolta_Ai_Service extends AiServiceAdapter {
 
-    /**
-     * Create from WordPress options, with API key from environment.
-     */
-    public static function from_options(): self {
-        $settings = get_option('scolta_settings', []);
-        // Override with environment-sourced API key.
-        $settings['ai_api_key'] = self::get_api_key();
-        $config = ScoltaConfig::fromArray($settings);
-        return new self($config);
-    }
+	/**
+	 * Create from WordPress options, with API key from environment.
+	 */
+	public static function from_options(): self {
+		$settings = get_option( 'scolta_settings', array() );
+		// Override with environment-sourced API key.
+		$settings['ai_api_key'] = self::get_api_key();
+		$config                 = ScoltaConfig::fromArray( $settings );
+		return new self( $config );
+	}
 
-    // -- Snake-case aliases for inherited camelCase methods --
+	// -- Snake-case aliases for inherited camelCase methods --
 
-    /**
-     * Get the Scolta configuration.
-     */
-    public function get_config(): ScoltaConfig {
-        return $this->getConfig();
-    }
+	/**
+	 * Get the Scolta configuration.
+	 */
+	public function get_config(): ScoltaConfig {
+		return $this->getConfig();
+	}
 
-    /**
-     * Get the expand-query system prompt.
-     *
-     * Checks cached resolved prompts first, falls back to
-     * DefaultPrompts::resolve() (pure PHP, zero-cost).
-     */
-    public function get_expand_prompt(): string {
-        return $this->getCachedPrompt('expand_query') ?? $this->getExpandPrompt();
-    }
+	/**
+	 * Get the expand-query system prompt.
+	 *
+	 * Checks cached resolved prompts first, falls back to
+	 * DefaultPrompts::resolve() (pure PHP, zero-cost).
+	 */
+	public function get_expand_prompt(): string {
+		return $this->getCachedPrompt( 'expand_query' ) ?? $this->getExpandPrompt();
+	}
 
-    /**
-     * Get the summarize system prompt.
-     *
-     * Checks cached resolved prompts first, falls back to
-     * DefaultPrompts::resolve() (pure PHP, zero-cost).
-     */
-    public function get_summarize_prompt(): string {
-        return $this->getCachedPrompt('summarize') ?? $this->getSummarizePrompt();
-    }
+	/**
+	 * Get the summarize system prompt.
+	 *
+	 * Checks cached resolved prompts first, falls back to
+	 * DefaultPrompts::resolve() (pure PHP, zero-cost).
+	 */
+	public function get_summarize_prompt(): string {
+		return $this->getCachedPrompt( 'summarize' ) ?? $this->getSummarizePrompt();
+	}
 
-    /**
-     * Get the follow-up system prompt.
-     *
-     * Checks cached resolved prompts first, falls back to
-     * DefaultPrompts::resolve() (pure PHP, zero-cost).
-     */
-    public function get_follow_up_prompt(): string {
-        return $this->getCachedPrompt('follow_up') ?? $this->getFollowUpPrompt();
-    }
+	/**
+	 * Get the follow-up system prompt.
+	 *
+	 * Checks cached resolved prompts first, falls back to
+	 * DefaultPrompts::resolve() (pure PHP, zero-cost).
+	 */
+	public function get_follow_up_prompt(): string {
+		return $this->getCachedPrompt( 'follow_up' ) ?? $this->getFollowUpPrompt();
+	}
 
-    /**
-     * Get a cached resolved prompt, if available.
-     *
-     * Only returns a cached prompt when no custom override is configured,
-     * since custom overrides bypass the default templates entirely.
-     *
-     * @param string $name Prompt name (expand_query, summarize, follow_up).
-     * @return string|null The cached prompt, or null if not cached or custom override is set.
-     */
-    private function getCachedPrompt(string $name): ?string {
-        // Custom overrides bypass caching.
-        $config = $this->getConfig();
-        $custom_map = [
-            'expand_query' => $config->promptExpandQuery,
-            'summarize'    => $config->promptSummarize,
-            'follow_up'    => $config->promptFollowUp,
-        ];
-        if (!empty($custom_map[$name] ?? '')) {
-            return null;
-        }
+	/**
+	 * Get a cached resolved prompt, if available.
+	 *
+	 * Only returns a cached prompt when no custom override is configured,
+	 * since custom overrides bypass the default templates entirely.
+	 *
+	 * @param string $name Prompt name (expand_query, summarize, follow_up).
+	 * @return string|null The cached prompt, or null if not cached or custom override is set.
+	 */
+	private function getCachedPrompt( string $name ): ?string {
+		// Custom overrides bypass caching.
+		$config     = $this->getConfig();
+		$custom_map = array(
+			'expand_query' => $config->promptExpandQuery,
+			'summarize'    => $config->promptSummarize,
+			'follow_up'    => $config->promptFollowUp,
+		);
+		if ( ! empty( $custom_map[ $name ] ?? '' ) ) {
+			return null;
+		}
 
-        $cached = get_option('scolta_resolved_prompts', []);
-        return !empty($cached[$name]) ? $cached[$name] : null;
-    }
+		$cached = get_option( 'scolta_resolved_prompts', array() );
+		return ! empty( $cached[ $name ] ) ? $cached[ $name ] : null;
+	}
 
-    // -- WordPress-specific API key resolution --
+	// -- WordPress-specific API key resolution --
 
-    /**
-     * Get the API key from the best available source.
-     *
-     * Priority: environment variable > wp-config.php constant > database (legacy).
-     * Environment variables are the only production-safe path. The database
-     * fallback exists solely for backward compatibility with existing installs.
-     */
-    public static function get_api_key(): string {
-        // Primary: environment variable.
-        $env = getenv('SCOLTA_API_KEY');
-        if ($env !== false && $env !== '') {
-            return $env;
-        }
+	/**
+	 * Get the API key from the best available source.
+	 *
+	 * Priority: environment variable > wp-config.php constant > database (legacy).
+	 * Environment variables are the only production-safe path. The database
+	 * fallback exists solely for backward compatibility with existing installs.
+	 */
+	public static function get_api_key(): string {
+		// Primary: environment variable.
+		$env = getenv( 'SCOLTA_API_KEY' );
+		if ( $env !== false && $env !== '' ) {
+			return $env;
+		}
 
-        // Also check $_ENV and $_SERVER (some hosts populate these differently).
-        if (!empty($_ENV['SCOLTA_API_KEY'])) {
-            return $_ENV['SCOLTA_API_KEY'];
-        }
-        if (!empty($_SERVER['SCOLTA_API_KEY'])) {
-            return $_SERVER['SCOLTA_API_KEY'];
-        }
+		// Also check $_ENV and $_SERVER (some hosts populate these differently).
+		if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) ) {
+			return $_ENV['SCOLTA_API_KEY'];
+		}
+		if ( ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
+			return $_SERVER['SCOLTA_API_KEY'];
+		}
 
-        // wp-config.php constant (better than database, not as good as env var).
-        if (defined('SCOLTA_API_KEY') && SCOLTA_API_KEY !== '') {
-            return SCOLTA_API_KEY;
-        }
+		// wp-config.php constant (better than database, not as good as env var).
+		if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
+			return SCOLTA_API_KEY;
+		}
 
-        // Legacy: database option (backward compatibility only).
-        $settings = get_option('scolta_settings', []);
-        return $settings['ai_api_key'] ?? '';
-    }
+		// Legacy: database option (backward compatibility only).
+		$settings = get_option( 'scolta_settings', array() );
+		return $settings['ai_api_key'] ?? '';
+	}
 
-    /**
-     * Detect where the API key is coming from, for status display.
-     *
-     * @return string One of 'env', 'constant', 'database', or 'none'.
-     */
-    public static function get_api_key_source(): string {
-        $env = getenv('SCOLTA_API_KEY');
-        if ($env !== false && $env !== '') {
-            return 'env';
-        }
-        if (!empty($_ENV['SCOLTA_API_KEY']) || !empty($_SERVER['SCOLTA_API_KEY'])) {
-            return 'env';
-        }
-        if (defined('SCOLTA_API_KEY') && SCOLTA_API_KEY !== '') {
-            return 'constant';
-        }
-        $settings = get_option('scolta_settings', []);
-        if (!empty($settings['ai_api_key'])) {
-            return 'database';
-        }
-        return 'none';
-    }
+	/**
+	 * Detect where the API key is coming from, for status display.
+	 *
+	 * @return string One of 'env', 'constant', 'database', or 'none'.
+	 */
+	public static function get_api_key_source(): string {
+		$env = getenv( 'SCOLTA_API_KEY' );
+		if ( $env !== false && $env !== '' ) {
+			return 'env';
+		}
+		if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) || ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
+			return 'env';
+		}
+		if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
+			return 'constant';
+		}
+		$settings = get_option( 'scolta_settings', array() );
+		if ( ! empty( $settings['ai_api_key'] ) ) {
+			return 'database';
+		}
+		return 'none';
+	}
 
-    /**
-     * Check if the WordPress AI Client SDK is available (WP 7.0+).
-     */
-    public function has_wp_ai_sdk(): bool {
-        return class_exists('\WordPress\AI\Client');
-    }
+	/**
+	 * Check if the WordPress AI Client SDK is available (WP 7.0+).
+	 */
+	public function has_wp_ai_sdk(): bool {
+		return class_exists( '\WordPress\AI\Client' );
+	}
 
-    // -- Snake-case alias for built-in client access --
+	// -- Snake-case alias for built-in client access --
 
-    /**
-     * Get the built-in AiClient (lazily instantiated).
-     */
-    public function get_client(): \Tag1\Scolta\AiClient {
-        return $this->getClient();
-    }
+	/**
+	 * Get the built-in AiClient (lazily instantiated).
+	 */
+	public function get_client(): \Tag1\Scolta\AiClient {
+		return $this->getClient();
+	}
 
-    // -- Framework AI integration --
+	// -- Framework AI integration --
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function tryFrameworkAi(string $systemPrompt, string $userMessage, int $maxTokens): ?string {
-        if (!$this->has_wp_ai_sdk()) {
-            return null;
-        }
+	/**
+	 * {@inheritdoc}
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	protected function tryFrameworkAi( string $systemPrompt, string $userMessage, int $maxTokens ): ?string {
+		if ( ! $this->has_wp_ai_sdk() ) {
+			return null;
+		}
 
-        try {
-            return $this->message_via_wp_sdk($systemPrompt, $userMessage, $maxTokens);
-        } catch (\Exception $e) {
-            // SDK not configured or provider missing — fall through to built-in.
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] WP AI SDK failed, falling back to built-in: ' . $e->getMessage());
-            }
-            return null;
-        }
-    }
+		try {
+			return $this->message_via_wp_sdk( $systemPrompt, $userMessage, $maxTokens );
+		} catch ( \Exception $e ) {
+			// SDK not configured or provider missing — fall through to built-in.
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				$msg = '[scolta] WP AI SDK failed, falling back to built-in: ';
+				error_log( $msg . $e->getMessage() );
+			}
+			return null;
+		}
+	}
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function tryFrameworkConversation(string $systemPrompt, array $messages, int $maxTokens): ?string {
-        if (!$this->has_wp_ai_sdk()) {
-            return null;
-        }
+	/**
+	 * {@inheritdoc}
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	protected function tryFrameworkConversation( string $systemPrompt, array $messages, int $maxTokens ): ?string {
+		if ( ! $this->has_wp_ai_sdk() ) {
+			return null;
+		}
 
-        try {
-            return $this->conversation_via_wp_sdk($systemPrompt, $messages, $maxTokens);
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[scolta] WP AI SDK conversation failed, falling back: ' . $e->getMessage());
-            }
-            return null;
-        }
-    }
+		try {
+			return $this->conversation_via_wp_sdk( $systemPrompt, $messages, $maxTokens );
+		} catch ( \Exception $e ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				$msg = '[scolta] WP AI SDK conversation failed, falling back: ';
+				error_log( $msg . $e->getMessage() );
+			}
+			return null;
+		}
+	}
 
-    /**
-     * Send a message via the WordPress AI Client SDK.
-     */
-    private function message_via_wp_sdk(string $system_prompt, string $user_message, int $max_tokens): string {
-        /** @var \WordPress\AI\Client $ai */
-        $ai = \WordPress\AI\Client::instance();
+	/**
+	 * Send a message via the WordPress AI Client SDK.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	private function message_via_wp_sdk( string $system_prompt, string $user_message, int $max_tokens ): string {
+		/** @var \WordPress\AI\Client $ai */
+		$ai = \WordPress\AI\Client::instance();
 
-        $response = $ai->prompt([
-            'system'     => $system_prompt,
-            'user'       => $user_message,
-            'max_tokens' => $max_tokens,
-        ]);
+		$response = $ai->prompt(
+			array(
+				'system'     => $system_prompt,
+				'user'       => $user_message,
+				'max_tokens' => $max_tokens,
+			)
+		);
 
-        return $response->get_text();
-    }
+		return $response->get_text();
+	}
 
-    /**
-     * Send a conversation via the WordPress AI Client SDK.
-     */
-    private function conversation_via_wp_sdk(string $system_prompt, array $messages, int $max_tokens): string {
-        /** @var \WordPress\AI\Client $ai */
-        $ai = \WordPress\AI\Client::instance();
+	/**
+	 * Send a conversation via the WordPress AI Client SDK.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	private function conversation_via_wp_sdk( string $system_prompt, array $messages, int $max_tokens ): string {
+		/** @var \WordPress\AI\Client $ai */
+		$ai = \WordPress\AI\Client::instance();
 
-        $sdk_messages = [];
-        foreach ($messages as $msg) {
-            $sdk_messages[] = [
-                'role'    => $msg['role'],
-                'content' => $msg['content'],
-            ];
-        }
+		$sdk_messages = array();
+		foreach ( $messages as $msg ) {
+			$sdk_messages[] = array(
+				'role'    => $msg['role'],
+				'content' => $msg['content'],
+			);
+		}
 
-        $response = $ai->prompt([
-            'system'     => $system_prompt,
-            'messages'   => $sdk_messages,
-            'max_tokens' => $max_tokens,
-        ]);
+		$response = $ai->prompt(
+			array(
+				'system'     => $system_prompt,
+				'messages'   => $sdk_messages,
+				'max_tokens' => $max_tokens,
+			)
+		);
 
-        return $response->get_text();
-    }
+		return $response->get_text();
+	}
 }

@@ -30,8 +30,8 @@ class AutoRebuildTest extends TestCase {
     public function test_init_hooks_save_post_when_enabled(): void {
         $source = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-auto-rebuild.php');
 
-        $this->assertStringContainsString(
-            "add_action('save_post'",
+        $this->assertMatchesRegularExpression(
+            "/add_action\s*\(\s*'save_post'/",
             $source,
             'Scolta_Auto_Rebuild::init() must hook save_post'
         );
@@ -125,8 +125,8 @@ class AutoRebuildTest extends TestCase {
         // We verify this by checking the source guard.
         $source = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-auto-rebuild.php');
 
-        $this->assertStringContainsString(
-            "empty(\$settings['auto_rebuild'])",
+        $this->assertMatchesRegularExpression(
+            "/empty\s*\(\s*\\\$settings\['auto_rebuild'\]\s*\)/",
             $source,
             'init() must guard on auto_rebuild setting'
         );

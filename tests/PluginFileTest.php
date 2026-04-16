@@ -67,16 +67,16 @@ class PluginFileTest extends TestCase {
 
     public function test_activation_hook_registered_in_source(): void {
         $content = file_get_contents(dirname(__DIR__) . '/scolta.php');
-        $this->assertStringContainsString(
-            "register_activation_hook(__FILE__, 'scolta_activate')",
+        $this->assertMatchesRegularExpression(
+            "/register_activation_hook\s*\(\s*__FILE__\s*,\s*'scolta_activate'\s*\)/",
             $content
         );
     }
 
     public function test_deactivation_hook_registered_in_source(): void {
         $content = file_get_contents(dirname(__DIR__) . '/scolta.php');
-        $this->assertStringContainsString(
-            "register_deactivation_hook(__FILE__, 'scolta_deactivate')",
+        $this->assertMatchesRegularExpression(
+            "/register_deactivation_hook\s*\(\s*__FILE__\s*,\s*'scolta_deactivate'\s*\)/",
             $content
         );
     }

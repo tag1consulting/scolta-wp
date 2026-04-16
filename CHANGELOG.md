@@ -28,6 +28,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - **CLI PHP noise:** All WP-CLI command handlers now suppress `display_errors` during execution to prevent PHP notices from corrupting WP-CLI output.
 - **Pagefind subprocess timeout:** `run_pagefind()` now uses `proc_open()` with a 5-minute timeout and non-blocking stream reads instead of `shell_exec()`, preventing hung builds from blocking indefinitely.
 - **First-run auto-setup:** `scolta_activate()` now calls `wp_mkdir_p()` to create index directories in uploads, auto-selects the PHP indexer when no Pagefind binary is found on new installs, and migrates old `WP_CONTENT_DIR`/`ABSPATH`-based directory defaults on updates.
+- **Release ZIP structure:** Release workflow now creates a `scolta-wp/` folder inside the ZIP archive, which is required by the WordPress plugin updater. Previously the archive was flat and could not be installed via the admin UI.
+- **CI linting enforced:** Removed `continue-on-error: true` from the linting step in CI. Fixed all WordPress coding standards violations (tabs, Yoda conditions, missing translator comments, unescaped output, SQL placeholders, short ternaries). Lint now fails the build if violations are introduced.
 - **Uninstall cleanup:** `uninstall.php` now removes the `uploads/scolta/` directory tree in addition to options and the tracker table.
 - **Version floor:** Plugin header `Requires at least` lowered from `6.5` to `6.0` — no WP 6.5+ APIs are used. Matches README.
 

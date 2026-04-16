@@ -50,8 +50,8 @@ class DashboardWidgetTest extends TestCase {
     public function test_init_registers_wp_dashboard_setup_hook(): void {
         $source = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
 
-        $this->assertStringContainsString(
-            "add_action('wp_dashboard_setup'",
+        $this->assertMatchesRegularExpression(
+            "/add_action\s*\(\s*'wp_dashboard_setup'/",
             $source,
             'Scolta_Admin::init() must register wp_dashboard_setup action'
         );

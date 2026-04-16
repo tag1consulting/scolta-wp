@@ -8,59 +8,61 @@
  * indexer path.
  */
 
-defined('ABSPATH') || exit;
+defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Export\ContentItem;
 
 class Scolta_Content_Gatherer {
 
-    /**
-     * Gather all published content as ContentItem objects.
-     *
-     * Queries published posts of the configured post types and creates
-     * ContentItem instances suitable for the PHP indexer pipeline.
-     *
-     * @return ContentItem[] Array of content items.
-     */
-    public static function gather(): array {
-        $settings = get_option('scolta_settings', []);
-        $post_types = $settings['post_types'] ?? ['post', 'page'];
-        $site_name = $settings['site_name'] ?? get_bloginfo('name');
+	/**
+	 * Gather all published content as ContentItem objects.
+	 *
+	 * Queries published posts of the configured post types and creates
+	 * ContentItem instances suitable for the PHP indexer pipeline.
+	 *
+	 * @return ContentItem[] Array of content items.
+	 */
+	public static function gather(): array {
+		$settings   = get_option( 'scolta_settings', array() );
+		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
+		$site_name  = $settings['site_name'] ?? get_bloginfo( 'name' );
 
-        $items = [];
-        $query = new \WP_Query([
-            'post_type' => $post_types,
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'no_found_rows' => true,
-        ]);
+		$items = array();
+		$query = new \WP_Query(
+			array(
+				'post_type'      => $post_types,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'no_found_rows'  => true,
+			)
+		);
 
-        foreach ($query->posts as $post) {
-            $item = new ContentItem(
-                id: 'post-' . $post->ID,
-                title: $post->post_title,
-                bodyHtml: apply_filters('the_content', $post->post_content),
-                url: get_permalink($post),
-                date: get_the_date('Y-m-d', $post),
-                siteName: $site_name,
-            );
+		foreach ( $query->posts as $post ) {
+			$item = new ContentItem(
+				id: 'post-' . $post->ID,
+				title: $post->post_title,
+				bodyHtml: apply_filters( 'the_content', $post->post_content ),
+				url: get_permalink( $post ),
+				date: get_the_date( 'Y-m-d', $post ),
+				siteName: $site_name,
+			);
 
-            /**
-             * Filter the ContentItem before it is added to the search index.
-             *
-             * Allows plugins to modify the title, body HTML, URL, date, or
-             * site name for a post before indexing. Use this to inject content
-             * from ACF fields, WooCommerce attributes, or any custom data source
-             * that is not rendered through `the_content` filter.
-             *
-             * @param ContentItem  $item  The content item about to be indexed.
-             * @param \WP_Post     $post  The WordPress post object.
-             */
-            $item = apply_filters('scolta_content_item', $item, $post);
+			/**
+			 * Filter the ContentItem before it is added to the search index.
+			 *
+			 * Allows plugins to modify the title, body HTML, URL, date, or
+			 * site name for a post before indexing. Use this to inject content
+			 * from ACF fields, WooCommerce attributes, or any custom data source
+			 * that is not rendered through `the_content` filter.
+			 *
+			 * @param ContentItem  $item  The content item about to be indexed.
+			 * @param \WP_Post     $post  The WordPress post object.
+			 */
+			$item = apply_filters( 'scolta_content_item', $item, $post );
 
-            $items[] = $item;
-        }
+			$items[] = $item;
+		}
 
-        return $items;
-    }
+		return $items;
+	}
 }

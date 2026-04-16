@@ -43,8 +43,8 @@ class AjaxRemoveDbKeyTest extends TestCase {
     public function test_ajax_action_hook_is_registered(): void {
         $source = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
 
-        $this->assertStringContainsString(
-            "add_action('wp_ajax_scolta_remove_db_key'",
+        $this->assertMatchesRegularExpression(
+            "/add_action\s*\(\s*'wp_ajax_scolta_remove_db_key'/",
             $source,
             "wp_ajax_scolta_remove_db_key hook must be registered"
         );
@@ -54,7 +54,7 @@ class AjaxRemoveDbKeyTest extends TestCase {
         $source = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
 
         $this->assertMatchesRegularExpression(
-            "/add_action\s*\(\s*'wp_ajax_scolta_remove_db_key'\s*,\s*\[self::class,\s*'ajax_remove_db_key'\]/",
+            "/add_action\s*\(\s*'wp_ajax_scolta_remove_db_key'\s*,\s*(?:array\s*\(\s*|\[)self::class,\s*'ajax_remove_db_key'/",
             $source,
             "wp_ajax_scolta_remove_db_key must point to ajax_remove_db_key method"
         );
@@ -129,14 +129,14 @@ class AjaxRemoveDbKeyTest extends TestCase {
 
         // Extract the ajax_remove_db_key function body.
         preg_match(
-            '/public static function ajax_remove_db_key\(\)[^{]*\{(.*?)\n    \}/s',
+            '/public static function ajax_remove_db_key\(\)[^{]*\{(.*?)\n[\t ]+\}/s',
             $source,
             $match
         );
         $body = $match[1] ?? '';
 
-        $this->assertStringContainsString(
-            "current_user_can('manage_options')",
+        $this->assertMatchesRegularExpression(
+            "/current_user_can\s*\(\s*'manage_options'\s*\)/",
             $body,
             'ajax_remove_db_key must check manage_options capability'
         );
@@ -147,7 +147,7 @@ class AjaxRemoveDbKeyTest extends TestCase {
 
         // Extract just the function body.
         preg_match(
-            '/public static function ajax_remove_db_key\(\)[^{]*\{(.*?)\n    \}/s',
+            '/public static function ajax_remove_db_key\(\)[^{]*\{(.*?)\n[\t ]+\}/s',
             $source,
             $match
         );

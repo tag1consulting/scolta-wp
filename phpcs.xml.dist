@@ -15,8 +15,48 @@
   <config name="minimum_supported_wp_version" value="6.0"/>
   <config name="text_domain" value="scolta"/>
 
-  <!-- Allow long lines in tests -->
+  <!-- Allow long lines in tests and admin HTML templates -->
   <rule ref="Generic.Files.LineLength">
     <exclude-pattern>tests/*</exclude-pattern>
+  </rule>
+  <!-- Admin and CLI have HTML-heavy rendering code; relax hard line limit -->
+  <rule ref="Generic.Files.LineLength.MaxExceeded">
+    <exclude-pattern>admin/*</exclude-pattern>
+    <exclude-pattern>cli/*</exclude-pattern>
+  </rule>
+
+  <!--
+    Yoda conditions are a WP style preference, not a code-quality rule.
+    Scolta interfaces with PSR-4 scolta-php which uses standard conditions.
+    Enforcing Yoda would require diverging from scolta-php conventions.
+  -->
+  <rule ref="WordPress.PHP.YodaConditions">
+    <exclude-pattern>*</exclude-pattern>
+  </rule>
+
+  <!--
+    ini_set('display_errors') is intentional in CLI commands: managed hosting
+    (WP Engine, Kinsta) echoes PHP warnings mid-JSON output, breaking clients.
+    The CLI suppresses display_errors for the duration of each command.
+    See: CliValidationTest::test_public_commands_suppress_display_errors()
+  -->
+  <rule ref="WordPress.PHP.IniSet">
+    <exclude-pattern>cli/*</exclude-pattern>
+  </rule>
+
+  <!--
+    Properties and variables that interface with scolta-php (PSR-4) use
+    camelCase to match their counterparts. Renaming would break the interface.
+  -->
+  <rule ref="WordPress.NamingConventions.ValidVariableName.PropertyNotSnakeCase">
+    <exclude-pattern>*</exclude-pattern>
+  </rule>
+  <rule ref="WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase">
+    <exclude-pattern>includes/*</exclude-pattern>
+    <exclude-pattern>cli/*</exclude-pattern>
+    <exclude-pattern>admin/*</exclude-pattern>
+  </rule>
+  <rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
+    <exclude-pattern>*</exclude-pattern>
   </rule>
 </ruleset>

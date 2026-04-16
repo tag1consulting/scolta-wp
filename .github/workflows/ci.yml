@@ -42,7 +42,6 @@ jobs:
       - name: Lint (WordPress coding standards)
         if: matrix.lint
         run: composer lint
-        continue-on-error: true
 
       - name: Run tests
         run: composer test
