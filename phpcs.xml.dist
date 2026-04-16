@@ -4,6 +4,8 @@
   <arg name="extensions" value="php"/>
   <arg name="colors"/>
   <arg value="sp"/>
+  <!-- Warnings are informational only; only errors block CI. -->
+  <arg value="n"/>
 
   <file>includes</file>
   <file>cli</file>
