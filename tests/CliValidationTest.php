@@ -263,6 +263,19 @@ class CliValidationTest extends TestCase {
     // Method count
     // -------------------------------------------------------------------
 
+    // -------------------------------------------------------------------
+    // isExecutable() guard
+    // -------------------------------------------------------------------
+
+    public function test_cli_uses_status_not_is_executable(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
+        $this->assertStringNotContainsString(
+            'isExecutable()',
+            $source,
+            'CLI must not call private isExecutable(); use resolve() + status() instead'
+        );
+    }
+
     public function test_public_command_method_count(): void {
         $ref = new ReflectionClass('Scolta_CLI');
         $publicMethods = $ref->getMethods(ReflectionMethod::IS_PUBLIC);

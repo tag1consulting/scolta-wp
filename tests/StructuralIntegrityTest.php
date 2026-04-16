@@ -189,4 +189,22 @@ class StructuralIntegrityTest extends TestCase {
             'Shortcode must reference scolta.js from vendor/tag1/scolta-php/assets/'
         );
     }
+
+    // -------------------------------------------------------------------
+    // Release workflow produces correct ZIP folder structure
+    // -------------------------------------------------------------------
+
+    public function test_release_workflow_creates_correct_zip_folder(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'mv package scolta-wp',
+            $workflow,
+            'Release workflow must rename package dir to scolta-wp before zipping'
+        );
+        $this->assertStringNotContainsString(
+            'zip -r ../scolta-wp-${VERSION}.zip .',
+            $workflow,
+            'Must not zip from current dir (creates flat archive without scolta-wp/ folder)'
+        );
+    }
 }

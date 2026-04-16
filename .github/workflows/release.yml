@@ -39,11 +39,13 @@ jobs:
         working-directory: package
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          zip -r ../scolta-wp-${VERSION}.zip . \
-            --exclude "*.git*" \
-            --exclude "tests/*" \
-            --exclude "node_modules/*" \
-            --exclude ".claude/*"
+          cd ..
+          mv package scolta-wp
+          zip -r scolta-wp-${VERSION}.zip scolta-wp/ \
+            --exclude "scolta-wp/.git*" \
+            --exclude "scolta-wp/tests/*" \
+            --exclude "scolta-wp/node_modules/*" \
+            --exclude "scolta-wp/.claude/*"
 
       - name: Extract CHANGELOG entry
         working-directory: package

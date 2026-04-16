@@ -152,6 +152,59 @@ class ActivationTest extends TestCase {
         $this->assertEquals($uploads . '/scolta/pagefind', $settings['output_dir']);
     }
 
+    public function test_settings_round_trip_uses_uploads_paths(): void {
+        // Fresh install — no existing settings.
+        delete_option('scolta_settings');
+
+        // Call activation directly (bootstrap loads scolta.php which defines scolta_activate).
+        scolta_activate();
+
+        $settings = get_option('scolta_settings', []);
+        $uploads_base = wp_upload_dir()['basedir'];
+
+        // Both paths must be under wp-content/uploads/scolta/.
+        $this->assertStringStartsWith(
+            $uploads_base . '/scolta/',
+            $settings['build_dir'] ?? '',
+            'build_dir must default to uploads-based path after activation'
+        );
+        $this->assertStringStartsWith(
+            $uploads_base . '/scolta/',
+            $settings['output_dir'] ?? '',
+            'output_dir must default to uploads-based path after activation'
+        );
+
+        // Neither path should contain old defaults.
+        $this->assertStringNotContainsString('scolta-build', $settings['build_dir'] ?? '');
+        $this->assertStringNotContainsString('scolta-pagefind', $settings['output_dir'] ?? '');
+    }
+
+    public function test_admin_form_defaults_match_plugin_defaults(): void {
+        $admin_source = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
+        // Admin must NOT use old default paths.
+        $this->assertStringNotContainsString(
+            "WP_CONTENT_DIR . '/scolta-build'",
+            $admin_source,
+            'Admin form must not use old build_dir default (WP_CONTENT_DIR/scolta-build)'
+        );
+        $this->assertStringNotContainsString(
+            "ABSPATH . 'scolta-pagefind'",
+            $admin_source,
+            'Admin form must not use old output_dir default (ABSPATH/scolta-pagefind)'
+        );
+        // Admin must use uploads-based paths.
+        $this->assertStringContainsString(
+            "'/scolta/build'",
+            $admin_source,
+            'Admin form must default build_dir to uploads-based path'
+        );
+        $this->assertStringContainsString(
+            "'/scolta/pagefind'",
+            $admin_source,
+            'Admin form must default output_dir to uploads-based path'
+        );
+    }
+
     public function test_deactivation_runs_without_error(): void {
         // Verify the function has the expected void return type and completes
         // without throwing. The wpdb stub handles the query.

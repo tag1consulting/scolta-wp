@@ -356,18 +356,18 @@ class Scolta_Admin {
     }
 
     public static function render_build_dir_field(): void {
-        $value = self::get_setting('build_dir', WP_CONTENT_DIR . '/scolta-build');
+        $value = self::get_setting('build_dir', wp_upload_dir()['basedir'] . '/scolta/build');
         ?>
         <input type="text" name="scolta_settings[build_dir]" value="<?php echo esc_attr($value); ?>" class="large-text" />
-        <p class="description"><?php esc_html_e('Where exported HTML files are written. Should be outside the web root.', 'scolta'); ?></p>
+        <p class="description"><?php esc_html_e('Where exported HTML files are written during index builds. Defaults to wp-content/uploads/scolta/build, which works on managed hosts. If your host allows it, can be outside the web root for better security.', 'scolta'); ?></p>
         <?php
     }
 
     public static function render_output_dir_field(): void {
-        $value = self::get_setting('output_dir', ABSPATH . 'scolta-pagefind');
+        $value = self::get_setting('output_dir', wp_upload_dir()['basedir'] . '/scolta/pagefind');
         ?>
         <input type="text" name="scolta_settings[output_dir]" value="<?php echo esc_attr($value); ?>" class="large-text" />
-        <p class="description"><?php esc_html_e('Directory for the Pagefind index. Must be web-accessible.', 'scolta'); ?></p>
+        <p class="description"><?php esc_html_e('Directory for the Pagefind search index. Must be web-accessible. Defaults to wp-content/uploads/scolta/pagefind.', 'scolta'); ?></p>
         <?php
     }
 
@@ -850,8 +850,8 @@ class Scolta_Admin {
 
     private static function render_status_summary(): void {
         $settings = get_option('scolta_settings', []);
-        $build_dir = $settings['build_dir'] ?? WP_CONTENT_DIR . '/scolta-build';
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $build_dir = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
         echo '<h2>' . esc_html__('Index Status', 'scolta') . '</h2>';
         echo '<table class="widefat striped" style="max-width: 600px;">';
@@ -1114,7 +1114,7 @@ class Scolta_Admin {
      */
     public static function get_health_status(): array {
         $settings   = get_option('scolta_settings', []);
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
         $index_file = $output_dir . '/pagefind.js';
 
         if (!file_exists($index_file)) {
@@ -1153,7 +1153,7 @@ class Scolta_Admin {
         check_admin_referer('scolta_rebuild_now', 'scolta_rebuild_nonce');
 
         $settings   = get_option('scolta_settings', []);
-        $output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+        $output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
         $redirect = admin_url('options-general.php?page=scolta');
 
