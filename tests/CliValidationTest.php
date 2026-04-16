@@ -197,6 +197,69 @@ class CliValidationTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // display_errors suppression (managed hosting fix)
+    // -------------------------------------------------------------------
+
+    public function test_public_commands_suppress_display_errors(): void {
+        // Every public command method must open with ini_set('display_errors','0')
+        // and restore it in a finally block.
+        $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
+        $this->assertStringContainsString(
+            "ini_set('display_errors', '0')",
+            $source,
+            'CLI handlers must suppress display_errors'
+        );
+        $this->assertStringContainsString(
+            'finally',
+            $source,
+            'CLI handlers must use finally to restore display_errors'
+        );
+    }
+
+    public function test_display_errors_is_restored_after_clear_cache(): void {
+        // clear_cache completes successfully with WP stubs, so we can
+        // verify that ini_set('display_errors','0') is in effect during the
+        // call and restored afterward via the finally block.
+        $prev = ini_get('display_errors');
+        ini_set('display_errors', '1');
+
+        $cli = new \Scolta_CLI();
+        $cli->clear_cache([], []);
+
+        $this->assertEquals('1', ini_get('display_errors'),
+            'display_errors must be restored to its prior value after command returns');
+
+        ini_set('display_errors', $prev);
+    }
+
+    // -------------------------------------------------------------------
+    // download-pagefind uses downloadTargetDir() (Fix 3)
+    // -------------------------------------------------------------------
+
+    public function test_download_pagefind_uses_download_target_dir(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
+        $this->assertStringContainsString(
+            'downloadTargetDir()',
+            $source,
+            'do_download_pagefind() must call downloadTargetDir() to obtain install path'
+        );
+        $this->assertStringNotContainsString(
+            "SCOLTA_PLUGIN_DIR . '/bin'",
+            $source,
+            'Hardcoded /bin path must not remain — downloadTargetDir() owns the path'
+        );
+    }
+
+    public function test_all_resolvers_use_plugin_dir(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
+        $this->assertStringNotContainsString(
+            'projectDir: ABSPATH',
+            $source,
+            'All PagefindBinary constructions must use SCOLTA_PLUGIN_DIR, not ABSPATH'
+        );
+    }
+
+    // -------------------------------------------------------------------
     // Method count
     // -------------------------------------------------------------------
 

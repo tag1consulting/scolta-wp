@@ -87,6 +87,71 @@ class ActivationTest extends TestCase {
         $this->assertArrayHasKey('max_follow_ups', $settings);
     }
 
+    // -------------------------------------------------------------------
+    // Old-path migration (managed hosting fix)
+    // -------------------------------------------------------------------
+
+    public function test_activation_migrates_old_build_dir_default(): void {
+        // Simulate an existing install using the pre-managed-hosting default.
+        $old_build = WP_CONTENT_DIR . '/scolta-build';
+        update_option('scolta_settings', ['build_dir' => $old_build]);
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $expected = wp_upload_dir()['basedir'] . '/scolta/build';
+        $this->assertEquals($expected, $settings['build_dir'],
+            'build_dir with old WP_CONTENT_DIR default should be migrated to uploads path');
+    }
+
+    public function test_activation_migrates_old_output_dir_default(): void {
+        // Simulate an existing install using the pre-managed-hosting default.
+        $old_output = ABSPATH . 'scolta-pagefind';
+        update_option('scolta_settings', ['output_dir' => $old_output]);
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $expected = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $this->assertEquals($expected, $settings['output_dir'],
+            'output_dir with old ABSPATH default should be migrated to uploads path');
+    }
+
+    public function test_activation_preserves_custom_build_dir(): void {
+        // A custom path should not be touched by migration.
+        $custom = '/mnt/fast-ssd/scolta-build';
+        update_option('scolta_settings', ['build_dir' => $custom]);
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $this->assertEquals($custom, $settings['build_dir'],
+            'Custom build_dir should not be migrated');
+    }
+
+    public function test_activation_preserves_custom_output_dir(): void {
+        $custom = '/mnt/fast-ssd/scolta-pagefind';
+        update_option('scolta_settings', ['output_dir' => $custom]);
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $this->assertEquals($custom, $settings['output_dir'],
+            'Custom output_dir should not be migrated');
+    }
+
+    public function test_activation_new_install_uses_uploads_paths(): void {
+        // Fresh install — no existing settings.
+        $this->assertFalse(get_option('scolta_settings'));
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $uploads   = wp_upload_dir()['basedir'];
+        $this->assertEquals($uploads . '/scolta/build', $settings['build_dir']);
+        $this->assertEquals($uploads . '/scolta/pagefind', $settings['output_dir']);
+    }
+
     public function test_deactivation_runs_without_error(): void {
         // Verify the function has the expected void return type and completes
         // without throwing. The wpdb stub handles the query.
