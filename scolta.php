@@ -59,7 +59,7 @@ if (defined('WP_CLI') && WP_CLI) {
 function scolta_pagefind_binary_available(): bool {
     $resolver = new \Tag1\Scolta\Binary\PagefindBinary(
         configuredPath: null,
-        projectDir: ABSPATH,
+        projectDir: SCOLTA_PLUGIN_DIR,
     );
     return $resolver->resolve() !== null;
 }

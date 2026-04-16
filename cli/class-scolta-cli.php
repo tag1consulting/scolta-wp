@@ -106,7 +106,7 @@ class Scolta_CLI {
         if ($indexer === 'auto') {
             $resolver = new PagefindBinary(
                 configuredPath: $settings['pagefind_binary'] ?? null,
-                projectDir: ABSPATH,
+                projectDir: SCOLTA_PLUGIN_DIR,
             );
             if ($resolver->resolve() === null) {
                 \WP_CLI::log('Pagefind binary not available — using PHP indexer.');
@@ -297,7 +297,7 @@ class Scolta_CLI {
         \WP_CLI::log('Step 3: Building Pagefind index...');
         $resolver = new PagefindBinary(
             configuredPath: $settings['pagefind_binary'] ?? null,
-            projectDir: ABSPATH,
+            projectDir: SCOLTA_PLUGIN_DIR,
         );
         $binary = $resolver->resolve();
         if ($binary === null) {
@@ -414,7 +414,7 @@ class Scolta_CLI {
 
             $resolver = new PagefindBinary(
                 configuredPath: $settings['pagefind_binary'] ?? null,
-                projectDir: ABSPATH,
+                projectDir: SCOLTA_PLUGIN_DIR,
             );
             $binary = $resolver->resolve();
             if ($binary === null) {
@@ -502,7 +502,7 @@ class Scolta_CLI {
         \WP_CLI::log('--- Pagefind Binary ---');
         $resolver = new PagefindBinary(
             configuredPath: $settings['pagefind_binary'] ?? null,
-            projectDir: ABSPATH,
+            projectDir: SCOLTA_PLUGIN_DIR,
         );
         $binaryStatus = $resolver->status();
         if ($binaryStatus['available']) {
@@ -582,7 +582,7 @@ class Scolta_CLI {
 
             $results = \Tag1\Scolta\SetupCheck::run(
                 configuredBinaryPath: $settings['pagefind_binary'] ?? null,
-                projectDir: ABSPATH,
+                projectDir: SCOLTA_PLUGIN_DIR,
                 aiApiKey: $ai->get_api_key(),
             );
 
@@ -636,13 +636,13 @@ class Scolta_CLI {
 
     private function do_download_pagefind(): void {
         $settings = get_option('scolta_settings', []);
-        // Install into the plugin's own bin/ directory — guaranteed writable
-        // on all hosts, no ABSPATH/.scolta/ directory outside webroot needed.
-        $target_dir = rtrim(SCOLTA_PLUGIN_DIR, '/') . '/bin';
-
-        if (!is_dir($target_dir)) {
-            mkdir($target_dir, 0755, true);
-        }
+        // Use PagefindBinary::downloadTargetDir() so the install location
+        // matches what resolve() searches — plugin-dir/.scolta/bin/pagefind.
+        $resolver   = new PagefindBinary(
+            configuredPath: $settings['pagefind_binary'] ?? null,
+            projectDir: SCOLTA_PLUGIN_DIR,
+        );
+        $target_dir = $resolver->downloadTargetDir(); // creates dir if needed
 
         // Detect platform.
         $os = PHP_OS_FAMILY;

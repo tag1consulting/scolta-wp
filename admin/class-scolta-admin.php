@@ -894,7 +894,7 @@ class Scolta_Admin {
         $indexer_setting = $settings['indexer'] ?? 'auto';
         $binary_resolver = new \Tag1\Scolta\Binary\PagefindBinary(
             configuredPath: $settings['pagefind_binary'] ?? null,
-            projectDir: ABSPATH,
+            projectDir: SCOLTA_PLUGIN_DIR,
         );
         $binary_status    = $binary_resolver->status();
         $binary_available = $binary_status['available'];
@@ -1012,7 +1012,7 @@ class Scolta_Admin {
         if ($indexer_setting !== 'php') {
             $resolver = new \Tag1\Scolta\Binary\PagefindBinary(
                 configuredPath: $settings['pagefind_binary'] ?? null,
-                projectDir: ABSPATH,
+                projectDir: SCOLTA_PLUGIN_DIR,
             );
             $binary_status = $resolver->status();
             if (!$binary_status['available']) {
