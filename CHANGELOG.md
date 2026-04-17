@@ -4,9 +4,17 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
-## [Unreleased]
+## [0.2.3] - 2026-04-17
 
-## [0.2.3] - Unreleased
+### Fixed
+- Admin rebuild notice now shows exactly once after rebuild (replaced query-param approach with 60-second transient)
+- CLI `--indexer` flag now correctly falls back to the admin setting default when the flag is absent
+
+### Added
+- "Test Connection" button in the AI settings panel (LLM endpoint + API key verification)
+
+### Changed
+- Inherits all scolta-php 0.2.3 fixes and features (filter sidebar, N-set merge, AI context, PII sanitization, priority pages)
 
 ## [0.2.2] - 2026-04-16
 
