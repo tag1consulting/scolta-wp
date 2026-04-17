@@ -995,14 +995,25 @@ class Scolta_Admin {
 	/**
 	 * Show a notice after a "Rebuild Index Now" form submission.
 	 */
+	/**
+	 * Show a one-time notice after a "Rebuild Index Now" form submission.
+	 *
+	 * Reads from a short-lived transient set by handle_rebuild_now().
+	 * The transient is deleted immediately so the notice only appears once.
+	 */
 	public static function maybe_show_rebuild_notice(): void {
-		$result = isset( $_GET['scolta_rebuild'] ) ? sanitize_key( $_GET['scolta_rebuild'] ) : '';
-		if ( $result === '' ) {
+		$notice = get_transient( 'scolta_rebuild_notice' );
+		if ( ! $notice || ! is_array( $notice ) ) {
 			return;
 		}
 
+		// Delete immediately — notice should display exactly once.
+		delete_transient( 'scolta_rebuild_notice' );
+
+		$result = $notice['result'] ?? '';
+
 		if ( $result === 'ok' ) {
-			$pages = isset( $_GET['scolta_pages'] ) ? (int) $_GET['scolta_pages'] : 0;
+			$pages = (int) ( $notice['pages'] ?? 0 );
 			echo '<div class="notice notice-success is-dismissible"><p>';
 			echo esc_html(
 				sprintf(
@@ -1226,7 +1237,8 @@ class Scolta_Admin {
 			$raw_items = \Scolta_Content_Gatherer::gather();
 
 			if ( empty( $raw_items ) ) {
-				wp_safe_redirect( add_query_arg( 'scolta_rebuild', 'no_content', $redirect ) );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_content' ), 60 );
+				wp_safe_redirect( $redirect );
 				exit;
 			}
 
@@ -1234,7 +1246,8 @@ class Scolta_Admin {
 			$items    = $exporter->exportToItems( $raw_items );
 
 			if ( empty( $items ) ) {
-				wp_safe_redirect( add_query_arg( 'scolta_rebuild', 'no_items', $redirect ) );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_items' ), 60 );
+				wp_safe_redirect( $redirect );
 				exit;
 			}
 
@@ -1252,20 +1265,18 @@ class Scolta_Admin {
 			if ( $result->success ) {
 				$generation = (int) get_option( 'scolta_generation', 0 );
 				update_option( 'scolta_generation', $generation + 1 );
-				wp_safe_redirect(
-					add_query_arg(
-						array(
-							'scolta_rebuild' => 'ok',
-							'scolta_pages'   => $result->pageCount,
-						),
-						$redirect
-					)
-				);
+				set_transient( 'scolta_rebuild_notice', array(
+					'result' => 'ok',
+					'pages'  => $result->pageCount,
+				), 60 );
+				wp_safe_redirect( $redirect );
 			} else {
-				wp_safe_redirect( add_query_arg( 'scolta_rebuild', 'error', $redirect ) );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'error' ), 60 );
+				wp_safe_redirect( $redirect );
 			}
 		} catch ( \Throwable $e ) {
-			wp_safe_redirect( add_query_arg( 'scolta_rebuild', 'error', $redirect ) );
+			set_transient( 'scolta_rebuild_notice', array( 'result' => 'error' ), 60 );
+			wp_safe_redirect( $redirect );
 		}
 
 		exit;
