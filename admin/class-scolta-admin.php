@@ -1265,10 +1265,11 @@ class Scolta_Admin {
 			if ( $result->success ) {
 				$generation = (int) get_option( 'scolta_generation', 0 );
 				update_option( 'scolta_generation', $generation + 1 );
-				set_transient( 'scolta_rebuild_notice', array(
+				$notice = array(
 					'result' => 'ok',
 					'pages'  => $result->pageCount,
-				), 60 );
+				);
+				set_transient( 'scolta_rebuild_notice', $notice, 60 );
 				wp_safe_redirect( $redirect );
 			} else {
 				set_transient( 'scolta_rebuild_notice', array( 'result' => 'error' ), 60 );
