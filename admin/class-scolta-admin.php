@@ -26,6 +26,9 @@ class Scolta_Admin {
 		// AJAX handler for removing legacy DB key.
 		add_action( 'wp_ajax_scolta_remove_db_key', array( self::class, 'ajax_remove_db_key' ) );
 
+		// AJAX handler for testing LLM connection.
+		add_action( 'wp_ajax_scolta_test_connection', array( self::class, 'ajax_scolta_test_connection' ) );
+
 		// Admin POST handler for the "Rebuild Now" button in the status summary.
 		add_action( 'admin_post_scolta_rebuild_now', array( self::class, 'handle_rebuild_now' ) );
 
@@ -246,6 +249,41 @@ class Scolta_Admin {
 				);
 				echo '</p></div>';
 				break;
+		}
+
+		if ( $source !== 'none' ) {
+			$nonce = wp_create_nonce( 'scolta_test_connection' );
+			echo '<div style="margin-top: 10px;">';
+			echo '<button type="button" class="button" id="scolta-test-connection-btn" data-nonce="' . esc_attr( $nonce ) . '">';
+			echo esc_html__( 'Test Connection', 'scolta' );
+			echo '</button>';
+			echo '<span id="scolta-test-result" style="margin-left: 10px; display: none;"></span>';
+			echo '</div>';
+			echo '<script>
+                document.getElementById("scolta-test-connection-btn")?.addEventListener("click", function() {
+                    var btn = this;
+                    var result = document.getElementById("scolta-test-result");
+                    btn.disabled = true;
+                    result.innerHTML = "<span style=\"color:#666\">' . esc_js( __( 'Testing\u2026', 'scolta' ) ) . '</span>";
+                    result.style.display = "inline";
+                    var data = new FormData();
+                    data.append("action", "scolta_test_connection");
+                    data.append("nonce", btn.dataset.nonce);
+                    fetch(ajaxurl, { method: "POST", body: data })
+                        .then(function(r) { return r.json(); })
+                        .then(function(d) {
+                            if (d.success) {
+                                result.innerHTML = "<span style=\"color:#28a745\">\u2713 ' . esc_js( __( 'Connected', 'scolta' ) ) . '</span> (" + d.data.provider + " / " + d.data.model + ", " + d.data.response_time + "ms)";
+                            } else {
+                                result.innerHTML = "<span style=\"color:#dc3545\">\u2717 ' . esc_js( __( 'Failed', 'scolta' ) ) . ':</span> " + d.data.error;
+                            }
+                        })
+                        .catch(function() {
+                            result.innerHTML = "<span style=\"color:#dc3545\">\u2717 ' . esc_js( __( 'Network error', 'scolta' ) ) . '</span>";
+                        })
+                        .finally(function() { btn.disabled = false; });
+                });
+            </script>';
 		}
 	}
 
@@ -858,6 +896,43 @@ class Scolta_Admin {
 		update_option( 'scolta_settings', $settings );
 
 		wp_send_json_success( 'API key removed from database' );
+	}
+
+	/**
+	 * AJAX handler for testing the LLM connection.
+	 *
+	 * Sends a minimal one-token prompt to the configured provider and
+	 * returns timing and provider info on success, or an error message.
+	 */
+	public static function ajax_scolta_test_connection(): void {
+		check_ajax_referer( 'scolta_test_connection', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'error' => __( 'Insufficient permissions.', 'scolta' ) ), 403 );
+		}
+
+		$api_key = Scolta_Ai_Service::get_api_key();
+		if ( empty( $api_key ) && ! class_exists( '\WordPress\AI\Client' ) ) {
+			wp_send_json_error( array( 'error' => __( 'No API key configured.', 'scolta' ) ) );
+		}
+
+		try {
+			$service    = Scolta_Ai_Service::from_options();
+			$config     = $service->getConfig();
+			$start_time = microtime( true );
+			$service->message( 'Respond with only the word OK.', 'Test', 5 );
+			$elapsed_ms = (int) round( ( microtime( true ) - $start_time ) * 1000 );
+
+			wp_send_json_success(
+				array(
+					'provider'      => ucfirst( $config->aiProvider ),
+					'model'         => $config->aiModel,
+					'response_time' => $elapsed_ms,
+				)
+			);
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( array( 'error' => $e->getMessage() ) );
+		}
 	}
 
 	// -----------------------------------------------------------------

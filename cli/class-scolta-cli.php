@@ -96,7 +96,7 @@ class Scolta_CLI {
 
 		// Determine which indexer to use.
 		$indexer_setting = $settings['indexer'] ?? 'auto';
-		$indexer         = \WP_CLI\Utils\get_flag_value( $assoc_args, 'indexer', $indexer_setting );
+		$indexer         = isset( $assoc_args['indexer'] ) ? $assoc_args['indexer'] : $indexer_setting;
 
 		if ( $indexer === 'php' ) {
 			$this->do_build_php( $assoc_args, $settings );
