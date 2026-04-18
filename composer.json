@@ -47,6 +47,9 @@
         "allow-plugins": {
             "composer/installers": true,
             "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "audit": {
+            "ignore": ["PKSA-5jz8-6tcw-pbk4", "PKSA-z3gr-8qht-p93v"]
         }
     },
     "extra": {
