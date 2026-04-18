@@ -57,8 +57,8 @@ class Scolta_CLI {
 	 *
 	 * [--indexer=<indexer>]
 	 * : Which indexer to use. Overrides the admin setting.
+	 *   When omitted, the admin setting is used (Settings › Scolta › Pagefind › Indexer).
 	 * ---
-	 * default: auto
 	 * options:
 	 *   - auto
 	 *   - php
@@ -410,7 +410,18 @@ class Scolta_CLI {
 		$prev = ini_get( 'display_errors' );
 		ini_set( 'display_errors', '0' );
 		try {
-			$settings   = get_option( 'scolta_settings', array() );
+			$settings        = get_option( 'scolta_settings', array() );
+			$indexer_setting = $settings['indexer'] ?? 'auto';
+
+			if ( 'php' === $indexer_setting ) {
+				\WP_CLI::error(
+					'The `rebuild-index` command re-runs the Pagefind binary on existing HTML export files. ' .
+					'Your active indexer is set to PHP, which writes the index directly without HTML staging files. ' .
+					'Use `wp scolta build` to rebuild the index.'
+				);
+				return;
+			}
+
 			$build_dir  = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
 			$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 

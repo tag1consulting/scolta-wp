@@ -972,9 +972,21 @@ class Scolta_Admin {
 	}
 
 	private static function render_status_summary(): void {
-		$settings   = get_option( 'scolta_settings', array() );
-		$build_dir  = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$settings        = get_option( 'scolta_settings', array() );
+		$build_dir       = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
+		$output_dir      = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$indexer_setting = $settings['indexer'] ?? 'auto';
+
+		$binary_resolver  = new \Tag1\Scolta\Binary\PagefindBinary(
+			configuredPath: $settings['pagefind_binary'] ?? null,
+			projectDir: SCOLTA_PLUGIN_DIR,
+		);
+		$binary_status    = $binary_resolver->status();
+		$binary_available = $binary_status['available'];
+
+		// PHP pipeline is active when forced, or when auto-detect finds no binary.
+		$uses_php_pipeline = ( 'php' === $indexer_setting )
+			|| ( 'auto' === $indexer_setting && ! $binary_available );
 
 		echo '<h2>' . esc_html__( 'Index Status', 'scolta' ) . '</h2>';
 		echo '<table class="widefat striped" style="max-width: 600px;">';
@@ -989,15 +1001,18 @@ class Scolta_Admin {
 			echo '<td><span style="color: #d63638;">' . esc_html__( 'Table missing — deactivate and reactivate the plugin', 'scolta' ) . '</span></td></tr>';
 		}
 
-		// Build directory.
-		if ( is_dir( $build_dir ) ) {
-			$glob_result = glob( $build_dir . '/*.html' );
-			$html_count  = count( ! empty( $glob_result ) ? $glob_result : array() );
-			echo '<tr><td>' . esc_html__( 'Exported HTML files', 'scolta' ) . '</td>';
-			echo '<td>' . esc_html( $html_count ) . '</td></tr>';
-		} else {
-			echo '<tr><td>' . esc_html__( 'Build directory', 'scolta' ) . '</td>';
-			echo '<td>' . esc_html__( 'Not created yet', 'scolta' ) . '</td></tr>';
+		// Build directory — the binary pipeline writes intermediate HTML files here.
+		// The PHP pipeline writes the index format directly; no HTML staging files are produced.
+		if ( ! $uses_php_pipeline ) {
+			if ( is_dir( $build_dir ) ) {
+				$glob_result = glob( $build_dir . '/*.html' );
+				$html_count  = count( ! empty( $glob_result ) ? $glob_result : array() );
+				echo '<tr><td>' . esc_html__( 'Exported HTML files', 'scolta' ) . '</td>';
+				echo '<td>' . esc_html( $html_count ) . '</td></tr>';
+			} else {
+				echo '<tr><td>' . esc_html__( 'Build directory', 'scolta' ) . '</td>';
+				echo '<td>' . esc_html__( 'Not created yet', 'scolta' ) . '</td></tr>';
+			}
 		}
 
 		// Pagefind index.
@@ -1016,16 +1031,9 @@ class Scolta_Admin {
 		}
 
 		// Active indexer.
-		$indexer_setting  = $settings['indexer'] ?? 'auto';
-		$binary_resolver  = new \Tag1\Scolta\Binary\PagefindBinary(
-			configuredPath: $settings['pagefind_binary'] ?? null,
-			projectDir: SCOLTA_PLUGIN_DIR,
-		);
-		$binary_status    = $binary_resolver->status();
-		$binary_available = $binary_status['available'];
-		if ( $indexer_setting === 'php' ) {
+		if ( 'php' === $indexer_setting ) {
 			$active_indexer = __( 'PHP indexer (forced)', 'scolta' );
-		} elseif ( $indexer_setting === 'binary' ) {
+		} elseif ( 'binary' === $indexer_setting ) {
 			$active_indexer = $binary_available
 				? __( 'Pagefind binary', 'scolta' )
 				: __( 'Pagefind binary (not found — check binary path)', 'scolta' );
