@@ -1015,11 +1015,17 @@ class Scolta_Admin {
 			}
 		}
 
-		// Pagefind index.
-		$index_file = $output_dir . '/pagefind.js';
+		// Pagefind index — detect subdirectory (PHP pipeline) or flat (binary pipeline).
+		if ( file_exists( $output_dir . '/pagefind/pagefind.js' ) ) {
+			$index_dir  = $output_dir . '/pagefind';
+			$index_file = $index_dir . '/pagefind.js';
+		} else {
+			$index_dir  = $output_dir;
+			$index_file = $output_dir . '/pagefind.js';
+		}
 		if ( file_exists( $index_file ) ) {
 			$mtime          = filemtime( $index_file );
-			$glob_result    = glob( $output_dir . '/fragment/*' );
+			$glob_result    = glob( $index_dir . '/fragment/*' );
 			$fragment_count = count( ! empty( $glob_result ) ? $glob_result : array() );
 			echo '<tr><td>' . esc_html__( 'Index fragments', 'scolta' ) . '</td>';
 			echo '<td>' . esc_html( $fragment_count ) . '</td></tr>';

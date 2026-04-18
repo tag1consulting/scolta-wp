@@ -36,9 +36,22 @@ class Scolta_Shortcode {
 	 * @return string HTML output.
 	 */
 	public static function render( array $atts = array() ): string {
-		$settings     = get_option( 'scolta_settings', array() );
-		$output_dir   = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$index_exists = file_exists( $output_dir . '/pagefind/pagefind-entry.json' );
+		$settings   = get_option( 'scolta_settings', array() );
+		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+
+		// The PHP indexer writes to {output_dir}/pagefind/ (atomic swap subdirectory).
+		// The binary pipeline writes directly to {output_dir}/ (flat structure).
+		// Detect which layout exists so URLs point to the right location.
+		if ( file_exists( $output_dir . '/pagefind/pagefind-entry.json' ) ) {
+			$index_dir    = $output_dir . '/pagefind';
+			$index_exists = true;
+		} elseif ( file_exists( $output_dir . '/pagefind-entry.json' ) ) {
+			$index_dir    = $output_dir;
+			$index_exists = true;
+		} else {
+			$index_dir    = $output_dir;
+			$index_exists = false;
+		}
 
 		if ( ! $index_exists ) {
 			if ( current_user_can( 'manage_options' ) ) {
@@ -53,12 +66,8 @@ class Scolta_Shortcode {
 			return ''; // Hide search box for non-admins when index doesn't exist.
 		}
 
-		$config = ScoltaConfig::fromArray( $settings );
-
-		// Determine the Pagefind index URL path.
-		// The output dir is an absolute filesystem path — convert to URL.
-		$output_dir   = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$pagefind_url = self::dir_to_url( $output_dir );
+		$config       = ScoltaConfig::fromArray( $settings );
+		$pagefind_url = self::dir_to_url( $index_dir );
 
 		// Enqueue the shared scolta.js and scolta.css from the Composer package.
 		$scolta_js_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/js/scolta.js';
@@ -83,7 +92,7 @@ class Scolta_Shortcode {
 		}
 
 		// Enqueue Pagefind UI CSS (from the built index).
-		$pagefind_css = $output_dir . '/pagefind-ui.css';
+		$pagefind_css = $index_dir . '/pagefind-ui.css';
 		if ( file_exists( $pagefind_css ) ) {
 			wp_enqueue_style(
 				'scolta-pagefind-ui',
