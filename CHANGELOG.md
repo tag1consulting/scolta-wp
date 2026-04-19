@@ -7,6 +7,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [0.2.4] - Unreleased
 
 ### Fixed
+- **Version strings**: Plugin header, `SCOLTA_VERSION` constant, and `composer.json` all bumped to `0.2.4-dev`; `VersionConsistencyTest` guards against future drift.
+- **CLI handler invocation**: Added `CliIndexerDispatchTest` confirming `do_build_php()` and `do_build_binary()` are actually invoked. `do_build_php`/`do_build_binary` promoted from `private` to `protected` to allow the test-double subclass.
+- **Admin rebuild notice persistence**: Notice no longer vanishes after first page view. Transient is now read without immediate deletion; per-user dismissal is tracked via user meta (`scolta_dismissed_rebuild_notice`) keyed to a unique `notice_id`. TTL extended to 7 days.
 - **CLI indexer dispatch**: `wp scolta build` now correctly uses the admin-configured indexer when no `--indexer` flag is passed. The WP-CLI docblock had `default: auto` in the `[--indexer]` parameter block, causing WP-CLI to inject `$assoc_args['indexer'] = 'auto'` on every invocation — making the admin setting permanently unreachable. Removed the `default:` line so the flag is only set when explicitly passed.
 - **`rebuild-index` with PHP pipeline**: `wp scolta rebuild-index` now emits a clear error when the active indexer is set to PHP, explaining that the command is binary-only (the PHP pipeline writes the index directly; no HTML staging files exist to re-index). Suggests `wp scolta build` instead.
 - **Admin "Exported HTML files" counter**: The dashboard widget no longer shows a misleading `0` for sites using the PHP indexer. The HTML file count row is now hidden when the PHP pipeline is active (forced or auto-resolved), since the PHP indexer writes the index format directly without intermediate HTML staging files.

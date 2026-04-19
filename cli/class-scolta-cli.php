@@ -125,7 +125,7 @@ class Scolta_CLI {
 	 * @param array $assoc_args CLI associative arguments.
 	 * @param array $settings   Plugin settings.
 	 */
-	private function do_build_php( array $assoc_args, array $settings ): void {
+	protected function do_build_php( array $assoc_args, array $settings ): void {
 		$force      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
 		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 
@@ -213,7 +213,7 @@ class Scolta_CLI {
 	 * @param array        $settings   Plugin settings.
 	 * @param ScoltaConfig $config     Scolta configuration.
 	 */
-	private function do_build_binary( array $args, array $assoc_args, array $settings, ScoltaConfig $config ): void {
+	protected function do_build_binary( array $args, array $assoc_args, array $settings, ScoltaConfig $config ): void {
 		$incremental   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'incremental', false );
 		$skip_pagefind = \WP_CLI\Utils\get_flag_value( $assoc_args, 'skip-pagefind', false );
 
