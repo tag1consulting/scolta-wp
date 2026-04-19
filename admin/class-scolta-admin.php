@@ -1382,7 +1382,14 @@ class Scolta_Admin {
 			$raw_items = \Scolta_Content_Gatherer::gather();
 
 			if ( empty( $raw_items ) ) {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_content', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
+				set_transient(
+					'scolta_rebuild_notice',
+					array(
+						'result' => 'no_content',
+						'notice_id' => $notice_id,
+					),
+					DAY_IN_SECONDS * 7
+				);
 				wp_safe_redirect( $redirect );
 				exit;
 			}
@@ -1391,7 +1398,14 @@ class Scolta_Admin {
 			$items    = $exporter->exportToItems( $raw_items );
 
 			if ( empty( $items ) ) {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_items', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
+				set_transient(
+					'scolta_rebuild_notice',
+					array(
+						'result' => 'no_items',
+						'notice_id' => $notice_id,
+					),
+					DAY_IN_SECONDS * 7
+				);
 				wp_safe_redirect( $redirect );
 				exit;
 			}
@@ -1418,11 +1432,25 @@ class Scolta_Admin {
 				set_transient( 'scolta_rebuild_notice', $notice, DAY_IN_SECONDS * 7 );
 				wp_safe_redirect( $redirect );
 			} else {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'error', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
+				set_transient(
+					'scolta_rebuild_notice',
+					array(
+						'result' => 'error',
+						'notice_id' => $notice_id,
+					),
+					DAY_IN_SECONDS * 7
+				);
 				wp_safe_redirect( $redirect );
 			}
 		} catch ( \Throwable $e ) {
-			set_transient( 'scolta_rebuild_notice', array( 'result' => 'error', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
+			set_transient(
+				'scolta_rebuild_notice',
+				array(
+					'result' => 'error',
+					'notice_id' => $notice_id,
+				),
+				DAY_IN_SECONDS * 7
+			);
 			wp_safe_redirect( $redirect );
 		}
 
