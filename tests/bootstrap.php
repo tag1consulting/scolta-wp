@@ -449,6 +449,48 @@ if (!function_exists('wp_salt')) {
     }
 }
 
+if (!defined('DAY_IN_SECONDS')) {
+    define('DAY_IN_SECONDS', 86400);
+}
+
+if (!function_exists('get_current_user_id')) {
+    function get_current_user_id(): int {
+        return $GLOBALS['test_current_user_id'] ?? 1;
+    }
+}
+if (!function_exists('update_user_meta')) {
+    function update_user_meta(int $user_id, string $meta_key, $meta_value, $prev_value = ''): bool {
+        $GLOBALS['test_user_meta'][$user_id][$meta_key] = $meta_value;
+        return true;
+    }
+}
+if (!function_exists('get_user_meta')) {
+    function get_user_meta(int $user_id, string $meta_key = '', bool $single = false) {
+        $val = $GLOBALS['test_user_meta'][$user_id][$meta_key] ?? '';
+        return $single ? $val : [$val];
+    }
+}
+if (!function_exists('delete_user_meta')) {
+    function delete_user_meta(int $user_id, string $meta_key, $meta_value = ''): bool {
+        unset($GLOBALS['test_user_meta'][$user_id][$meta_key]);
+        return true;
+    }
+}
+if (!function_exists('wp_nonce_url')) {
+    function wp_nonce_url(string $actionurl, $action = -1, string $name = '_wpnonce'): string {
+        return $actionurl . '&' . $name . '=test-nonce-' . md5((string) $action);
+    }
+}
+if (!function_exists('wp_safe_redirect')) {
+    function wp_safe_redirect(string $location, int $status = 302, string $x_redirect_by = 'WordPress'): bool {
+        $GLOBALS['test_last_redirect'] = $location;
+        return true;
+    }
+}
+if (!function_exists('urlencode')) {
+    // Native PHP function — never missing, but guard silences IDE warnings.
+}
+
 // WP_Query stub (minimal).
 if (!class_exists('WP_Query')) {
     class WP_Query {

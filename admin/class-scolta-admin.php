@@ -32,6 +32,9 @@ class Scolta_Admin {
 		// Admin POST handler for the "Rebuild Now" button in the status summary.
 		add_action( 'admin_post_scolta_rebuild_now', array( self::class, 'handle_rebuild_now' ) );
 
+		// Admin POST handler for dismissing the rebuild result notice.
+		add_action( 'admin_post_scolta_dismiss_rebuild_notice', array( self::class, 'handle_dismiss_rebuild_notice' ) );
+
 		// Show rebuild result notices.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_rebuild_notice' ) );
 	}
@@ -1085,10 +1088,13 @@ class Scolta_Admin {
 	 * Show a notice after a "Rebuild Index Now" form submission.
 	 */
 	/**
-	 * Show a one-time notice after a "Rebuild Index Now" form submission.
+	 * Show a persistent notice after a "Rebuild Index Now" form submission.
 	 *
-	 * Reads from a short-lived transient set by handle_rebuild_now().
-	 * The transient is deleted immediately so the notice only appears once.
+	 * Reads from a transient set by handle_rebuild_now() with a 7-day TTL.
+	 * The notice persists across page loads until the user explicitly dismisses
+	 * it (server-side) or a new rebuild starts (which replaces the notice_id).
+	 * Per-user dismissal is tracked in user meta so different admins can each
+	 * see and dismiss the notice independently.
 	 */
 	public static function maybe_show_rebuild_notice(): void {
 		$notice = get_transient( 'scolta_rebuild_notice' );
@@ -1096,8 +1102,27 @@ class Scolta_Admin {
 			return;
 		}
 
-		// Delete immediately — notice should display exactly once.
-		delete_transient( 'scolta_rebuild_notice' );
+		// Per-user dismissal: if this user already dismissed this notice_id, skip.
+		$notice_id = $notice['notice_id'] ?? '';
+		if ( $notice_id !== '' ) {
+			$dismissed = get_user_meta( get_current_user_id(), 'scolta_dismissed_rebuild_notice', true );
+			if ( $dismissed === $notice_id ) {
+				return;
+			}
+		}
+
+		// Build the server-side dismiss URL.
+		$dismiss_url = '';
+		if ( $notice_id !== '' ) {
+			$dismiss_url = wp_nonce_url(
+				admin_url( 'admin-post.php?action=scolta_dismiss_rebuild_notice&scolta_notice_id=' . urlencode( $notice_id ) ),
+				'scolta_dismiss_' . $notice_id
+			);
+		}
+
+		$dismiss_link = $dismiss_url
+			? ' <a href="' . esc_url( $dismiss_url ) . '" style="margin-left:1em">' . esc_html__( 'Dismiss', 'scolta' ) . '</a>'
+			: '';
 
 		$result = $notice['result'] ?? '';
 
@@ -1111,20 +1136,44 @@ class Scolta_Admin {
 					$pages
 				)
 			);
+			echo wp_kses_post( $dismiss_link );
 			echo '</p></div>';
 		} elseif ( $result === 'no_content' ) {
 			echo '<div class="notice notice-warning is-dismissible"><p>';
 			echo esc_html__( 'Scolta rebuild: no published content found. Check your post types setting.', 'scolta' );
+			echo wp_kses_post( $dismiss_link );
 			echo '</p></div>';
 		} elseif ( $result === 'no_items' ) {
 			echo '<div class="notice notice-warning is-dismissible"><p>';
 			echo esc_html__( 'Scolta rebuild: no items passed the content filter. Your posts may be too short.', 'scolta' );
+			echo wp_kses_post( $dismiss_link );
 			echo '</p></div>';
 		} else {
 			echo '<div class="notice notice-error is-dismissible"><p>';
 			echo esc_html__( 'Scolta rebuild failed. Try running wp scolta build from the command line for more details.', 'scolta' );
+			echo wp_kses_post( $dismiss_link );
 			echo '</p></div>';
 		}
+	}
+
+	/**
+	 * Handle the admin-post action for dismissing the rebuild notice.
+	 *
+	 * Sets user meta so maybe_show_rebuild_notice() skips this notice_id
+	 * for the current user on all future page loads.
+	 */
+	public static function handle_dismiss_rebuild_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to dismiss this notice.', 'scolta' ), 403 );
+		}
+
+		$notice_id = sanitize_key( $_GET['scolta_notice_id'] ?? '' );
+		check_admin_referer( 'scolta_dismiss_' . $notice_id );
+
+		update_user_meta( get_current_user_id(), 'scolta_dismissed_rebuild_notice', $notice_id );
+
+		wp_safe_redirect( admin_url( 'options-general.php?page=scolta' ) );
+		exit;
 	}
 
 	/**
@@ -1322,11 +1371,18 @@ class Scolta_Admin {
 
 		$redirect = admin_url( 'options-general.php?page=scolta' );
 
+		// Each rebuild gets a unique ID so per-user dismissals of old notices
+		// don't suppress the new one.
+		$notice_id = uniqid( 'scolta_rebuild_', true );
+
+		// Clear any previous notice (and its dismissal state — new notice_id handles that).
+		delete_transient( 'scolta_rebuild_notice' );
+
 		try {
 			$raw_items = \Scolta_Content_Gatherer::gather();
 
 			if ( empty( $raw_items ) ) {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_content' ), 60 );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_content', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
 				wp_safe_redirect( $redirect );
 				exit;
 			}
@@ -1335,7 +1391,7 @@ class Scolta_Admin {
 			$items    = $exporter->exportToItems( $raw_items );
 
 			if ( empty( $items ) ) {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_items' ), 60 );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'no_items', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
 				wp_safe_redirect( $redirect );
 				exit;
 			}
@@ -1355,17 +1411,18 @@ class Scolta_Admin {
 				$generation = (int) get_option( 'scolta_generation', 0 );
 				update_option( 'scolta_generation', $generation + 1 );
 				$notice = array(
-					'result' => 'ok',
-					'pages'  => $result->pageCount,
+					'result'    => 'ok',
+					'pages'     => $result->pageCount,
+					'notice_id' => $notice_id,
 				);
-				set_transient( 'scolta_rebuild_notice', $notice, 60 );
+				set_transient( 'scolta_rebuild_notice', $notice, DAY_IN_SECONDS * 7 );
 				wp_safe_redirect( $redirect );
 			} else {
-				set_transient( 'scolta_rebuild_notice', array( 'result' => 'error' ), 60 );
+				set_transient( 'scolta_rebuild_notice', array( 'result' => 'error', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
 				wp_safe_redirect( $redirect );
 			}
 		} catch ( \Throwable $e ) {
-			set_transient( 'scolta_rebuild_notice', array( 'result' => 'error' ), 60 );
+			set_transient( 'scolta_rebuild_notice', array( 'result' => 'error', 'notice_id' => $notice_id ), DAY_IN_SECONDS * 7 );
 			wp_safe_redirect( $redirect );
 		}
 
