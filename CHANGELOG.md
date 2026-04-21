@@ -4,7 +4,7 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
-## [0.2.4] - Unreleased
+## [0.2.4] - 2026-04-21
 
 ### Changed
 - Inherits all scolta-php 0.2.4 fixes and features (phrase-proximity scoring, WASM config key fix, quoted-phrase forced-mode, second WASM rebuild)
