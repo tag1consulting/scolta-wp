@@ -98,15 +98,36 @@ class AdminLlmConnectionTest extends TestCase {
 	// -------------------------------------------------------------------
 
 	public function test_no_api_key_returns_error(): void {
-		// Seed settings with no API key and ensure env is clear.
+		// Seed settings with no API key and clear all env-var sources.
 		update_option( 'scolta_settings', array( 'ai_provider' => 'anthropic' ) );
 
-		// Simulate the no-key guard from the handler.
-		$api_key = Scolta_Ai_Service::get_api_key();
-		$has_wp_ai = class_exists( '\WordPress\AI\Client' );
-		$would_error = empty( $api_key ) && ! $has_wp_ai;
+		$saved_env    = getenv( 'SCOLTA_API_KEY' );
+		$saved_env_g  = $_ENV['SCOLTA_API_KEY'] ?? null;
+		$saved_server = $_SERVER['SCOLTA_API_KEY'] ?? null;
 
-		$this->assertTrue( $would_error, 'Handler must return an error when no API key is configured' );
+		putenv( 'SCOLTA_API_KEY' );
+		unset( $_ENV['SCOLTA_API_KEY'], $_SERVER['SCOLTA_API_KEY'] );
+
+		try {
+			// Simulate the no-key guard from the handler.
+			$api_key   = Scolta_Ai_Service::get_api_key();
+			$has_wp_ai = class_exists( '\WordPress\AI\Client' );
+			$this->assertTrue(
+				empty( $api_key ) && ! $has_wp_ai,
+				'Handler must return an error when no API key is configured'
+			);
+		} finally {
+			// Restore env so other tests are unaffected.
+			if ( $saved_env !== false ) {
+				putenv( "SCOLTA_API_KEY=$saved_env" );
+			}
+			if ( $saved_env_g !== null ) {
+				$_ENV['SCOLTA_API_KEY'] = $saved_env_g;
+			}
+			if ( $saved_server !== null ) {
+				$_SERVER['SCOLTA_API_KEY'] = $saved_server;
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------
