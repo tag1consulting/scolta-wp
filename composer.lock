@@ -1060,7 +1060,7 @@
             "dist": {
                 "type": "path",
                 "url": "../scolta-php",
-                "reference": "a875045a4ad1ab3ce96543e4b054719123b72f03"
+                "reference": "b793c78b63918b8840dc0042d9d3ba86bea34cd2"
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",

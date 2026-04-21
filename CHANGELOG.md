@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [0.2.4] - Unreleased
 
+### Changed
+- Inherits all scolta-php 0.2.4 fixes and features (phrase-proximity scoring, WASM config key fix, quoted-phrase forced-mode, second WASM rebuild)
+
 ### Added
 - **REST API smoke test suite** (`tests/RestApiSmokeTest.php`): Eight test methods covering all six registered WP REST routes (`/expand-query`, `/summarize`, `/followup`, `/health`, `/build-progress`, `/rebuild-now`). Guards against handler crashes, verifies valid HTTP status codes, asserts `/health` and `/build-progress` return 200 with array bodies, and asserts `/rebuild-now` returns 409 when a build lock is already held. Previously, only four routes were covered; `build-progress` and `rebuild-now` had no handler-invocation tests.
 
