@@ -29,6 +29,9 @@ defined( 'ABSPATH' ) || exit;
 use Tag1\Scolta\Binary\PagefindBinary;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Export\ContentExporter;
+use Tag1\Scolta\Index\BuildIntent;
+use Tag1\Scolta\Index\IndexBuildOrchestrator;
+use Tag1\Scolta\Index\MemoryBudget;
 use Tag1\Scolta\Index\PhpIndexer;
 
 class Scolta_CLI {
@@ -69,11 +72,30 @@ class Scolta_CLI {
 	 * : Skip fingerprint check and rebuild even if content hasn't changed.
 	 *   Only applies to the PHP indexer pipeline.
 	 *
+	 * [--memory-budget=<profile>]
+	 * : Memory profile for the PHP indexer: conservative, balanced, or aggressive.
+	 *   Default: conservative (peak RSS ~96 MB).
+	 * ---
+	 * default: conservative
+	 * options:
+	 *   - conservative
+	 *   - balanced
+	 *   - aggressive
+	 * ---
+	 *
+	 * [--resume]
+	 * : Resume a previously interrupted PHP index build from the last committed chunk.
+	 *
+	 * [--restart]
+	 * : Discard any interrupted state and force a clean rebuild.
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp scolta build
 	 *     wp scolta build --indexer=php
 	 *     wp scolta build --indexer=php --force
+	 *     wp scolta build --indexer=php --memory-budget=balanced
+	 *     wp scolta build --indexer=php --resume
 	 *     wp scolta build --incremental
 	 *
 	 * @subcommand build
@@ -120,88 +142,65 @@ class Scolta_CLI {
 	}
 
 	/**
-	 * PHP indexer pipeline: gather → filter → chunk → processChunk → finalize.
+	 * PHP indexer pipeline via IndexBuildOrchestrator.
 	 *
 	 * @param array $assoc_args CLI associative arguments.
 	 * @param array $settings   Plugin settings.
 	 */
 	protected function do_build_php( array $assoc_args, array $settings ): void {
 		$force      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
+		$resume     = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
+		$restart    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
+		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', 'conservative' );
 		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$state_dir  = $this->get_state_dir();
+		$budget     = MemoryBudget::fromString( $budget_str );
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
-		// Step 1: Gather content.
-		\WP_CLI::log( 'Step 1: Gathering content...' );
 		$raw_items = \Scolta_Content_Gatherer::gather();
-		\WP_CLI::log( sprintf( '  Found %d published items.', count( $raw_items ) ) );
-
 		if ( count( $raw_items ) === 0 ) {
 			\WP_CLI::warning( 'No published content found. Check post_types setting.' );
 			return;
 		}
 
-		// Step 2: Filter by minimum content length.
-		\WP_CLI::log( 'Step 2: Filtering content...' );
 		$exporter = new ContentExporter( $output_dir );
 		$items    = $exporter->exportToItems( $raw_items );
-		$skipped  = count( $raw_items ) - count( $items );
-		\WP_CLI::log( sprintf( '  %d items pass filter, %d skipped (insufficient content).', count( $items ), $skipped ) );
-
 		if ( count( $items ) === 0 ) {
 			\WP_CLI::warning( 'No items passed content length filter. Nothing to index.' );
 			return;
 		}
 
-		// Step 3: Fingerprint check.
-		$state_dir = $this->get_state_dir();
-		$indexer   = new PhpIndexer( $state_dir, $output_dir, $this->get_hmac_secret() );
-
-		if ( ! $force ) {
-			$fingerprint = $indexer->shouldBuild( $items );
-			if ( $fingerprint === null ) {
+		if ( ! $force && ! $resume && ! $restart ) {
+			$indexer = new PhpIndexer( $state_dir, $output_dir, $this->get_hmac_secret() );
+			if ( $indexer->shouldBuild( $items ) === null ) {
 				\WP_CLI::success( 'Content unchanged since last build. Use --force to rebuild anyway.' );
 				return;
 			}
-			\WP_CLI::log( '  Content fingerprint changed — rebuilding.' );
-		} else {
-			\WP_CLI::log( '  Forced rebuild — skipping fingerprint check.' );
 		}
 
-		// Step 4: Process chunks.
-		\WP_CLI::log( 'Step 3: Indexing content...' );
-		$chunks       = array_chunk( $items, 100 );
-		$total_chunks = count( $chunks );
+		$intent = match ( true ) {
+			(bool) $resume  => BuildIntent::resume( $budget ),
+			(bool) $restart => BuildIntent::restart( count( $items ), $budget ),
+			default         => BuildIntent::fresh( count( $items ), $budget ),
+		};
 
-		$progress = \WP_CLI\Utils\make_progress_bar( 'Indexing', $total_chunks );
-		foreach ( $chunks as $i => $chunk ) {
-			$chunk_start = microtime( true );
-			$indexer->processChunk( $chunk, $i, count( $items ) );
-			$elapsed = round( microtime( true ) - $chunk_start, 1 );
-			\WP_CLI::log( sprintf( '  Chunk %d/%d: %ss (%d items)', $i + 1, $total_chunks, $elapsed, count( $chunk ) ) );
-			$progress->tick();
-		}
-		$progress->finish();
+		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir, $this->get_hmac_secret() );
+		$report       = $orchestrator->build( $intent, $items );
 
-		// Step 5: Finalize.
-		\WP_CLI::log( 'Step 4: Finalizing index...' );
-		$result = $indexer->finalize();
-
-		if ( $result->success ) {
-			// Increment generation counter to invalidate cached expansions/summaries.
+		if ( $report->success ) {
 			$generation = (int) get_option( 'scolta_generation', 0 );
 			update_option( 'scolta_generation', $generation + 1 );
-
 			\WP_CLI::success(
 				sprintf(
-					'PHP indexer complete: %d pages indexed, %d files written in %.1fs.',
-					$result->pageCount,
-					$result->fileCount,
-					$result->elapsedSeconds
+					'PHP indexer complete: %d pages in %.1fs (%s peak RAM).',
+					$report->pagesProcessed,
+					$report->durationSeconds,
+					$report->peakMemoryMb()
 				)
 			);
 		} else {
-			\WP_CLI::error( $result->error ?? $result->message );
+			\WP_CLI::error( $report->error ?? 'Unknown indexer error' );
 		}
 	}
 
@@ -516,11 +515,11 @@ class Scolta_CLI {
 
 		// Indexer selection and active state.
 		\WP_CLI::log( '--- Indexer ---' );
-		$resolver      = new PagefindBinary(
+		$resolver        = new PagefindBinary(
 			configuredPath: $settings['pagefind_binary'] ?? null,
 			projectDir: SCOLTA_PLUGIN_DIR,
 		);
-		$binary_status  = $resolver->status();
+		$binary_status   = $resolver->status();
 		$indexer_setting = $settings['indexer'] ?? 'auto';
 		if ( $indexer_setting === 'php' ) {
 			$active_indexer = 'php (forced)';
