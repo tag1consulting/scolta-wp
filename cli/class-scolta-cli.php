@@ -514,17 +514,30 @@ class Scolta_CLI {
 			\WP_CLI::log( "  Path: {$output_dir} (no index built yet)" );
 		}
 
-		// Pagefind binary.
-		\WP_CLI::log( '--- Pagefind Binary ---' );
+		// Indexer selection and active state.
+		\WP_CLI::log( '--- Indexer ---' );
 		$resolver      = new PagefindBinary(
 			configuredPath: $settings['pagefind_binary'] ?? null,
 			projectDir: SCOLTA_PLUGIN_DIR,
 		);
-		$binary_status = $resolver->status();
-		if ( $binary_status['available'] ) {
-			\WP_CLI::log( "  {$binary_status['message']}" );
+		$binary_status  = $resolver->status();
+		$indexer_setting = $settings['indexer'] ?? 'auto';
+		if ( $indexer_setting === 'php' ) {
+			$active_indexer = 'php (forced)';
+		} elseif ( $indexer_setting === 'binary' ) {
+			$active_indexer = $binary_status['available'] ? 'binary' : 'binary (not found — check path)';
 		} else {
-			\WP_CLI::warning( $binary_status['message'] );
+			$active_indexer = $binary_status['available'] ? 'binary (auto-detected)' : 'php (binary not found)';
+		}
+		\WP_CLI::log( "  Active indexer: {$active_indexer}" );
+		if ( $binary_status['available'] ) {
+			\WP_CLI::log( "  Binary:         {$binary_status['message']}" );
+		} else {
+			\WP_CLI::warning( "  Binary:         NOT AVAILABLE" );
+			\WP_CLI::log( "  {$binary_status['message']}" );
+			if ( $active_indexer !== 'php (forced)' ) {
+				\WP_CLI::log( '  To upgrade: npm install -g pagefind  OR  wp scolta download-pagefind' );
+			}
 		}
 
 		// AI provider.
