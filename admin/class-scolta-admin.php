@@ -399,13 +399,17 @@ class Scolta_Admin {
 
 	public static function render_memory_budget_field(): void {
 		$profile    = self::get_setting( 'memory_budget_profile', 'conservative' );
-		$suggestion = \Tag1\Scolta\Index\MemoryBudgetSuggestion::suggest();
+		$limit_text = \Tag1\Scolta\Index\MemoryBudgetSuggestion::getMemoryLimitText();
+		$fit        = \Tag1\Scolta\Index\MemoryBudgetSuggestion::checkProfileFit( $profile );
 		$options    = array(
 			'conservative' => __( 'Conservative — peak ≤ 96 MB (default, safe for shared hosting)', 'scolta' ),
 			'balanced'     => __( 'Balanced — ~384 MB (recommended for dedicated VMs)', 'scolta' ),
 			'aggressive'   => __( 'Aggressive — ~1 GB (high-memory servers only)', 'scolta' ),
 		);
 		?>
+		<p class="description" style="margin-bottom:8px">
+			<?php esc_html_e( 'Scolta\'s memory budget tells Scolta how much RAM to use while building the search index. It never exceeds the PHP memory limit your host already allows. You do not need to edit php.ini unless you want to use a profile that requires more memory than your host provides.', 'scolta' ); ?>
+		</p>
 		<select name="scolta_settings[memory_budget_profile]" id="scolta_memory_budget_profile">
 			<?php foreach ( $options as $val => $label ) : ?>
 				<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $profile, $val ); ?>><?php echo esc_html( $label ); ?></option>
@@ -414,11 +418,19 @@ class Scolta_Admin {
 		<p class="description">
 			<?php
 			printf(
-				/* translators: %s: Auto-detected memory recommendation sentence */
-				esc_html__( 'Controls peak RAM used during PHP index builds. Detected: %s Can be overridden per-run with --memory-budget on wp scolta build.', 'scolta' ),
-				esc_html( $suggestion['reason'] )
+				/* translators: %s: Detected PHP memory_limit value e.g. "256 MB" */
+				esc_html__( 'Your current PHP memory limit is %s. The conservative profile fits within 128 MB and is safe for most shared hosts.', 'scolta' ),
+				esc_html( $limit_text )
 			);
 			?>
+		</p>
+		<?php if ( 'warn' === $fit['status'] ) : ?>
+		<p class="description" style="color:#d63638">
+			<?php echo esc_html( $fit['warning'] ); ?>
+		</p>
+		<?php endif; ?>
+		<p class="description">
+			<?php esc_html_e( 'Can be overridden per-run with --memory-budget on wp scolta build.', 'scolta' ); ?>
 		</p>
 		<?php
 	}

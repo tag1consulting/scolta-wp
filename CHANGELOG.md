@@ -4,6 +4,16 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
+## [0.3.1] - 2026-04-23
+
+### Fixed
+- **Release packaging**: Release workflow now triggers on both `v0.x.x` and bare `0.x.x` tag formats. The 0.3.0 release was tagged without the `v` prefix, so no workflow ran and no binary assets were attached — making every download fatal on activation (missing `vendor/autoload.php`). Workflow now accepts both formats.
+
+### Added
+- **Zip structure regression test**: New `validate-zip` CI job downloads the release asset after each release, asserts the top-level directory is `scolta-wp/`, and asserts `vendor/autoload.php` and `scolta.php` are present. Prevents future broken releases from shipping undetected.
+- **Memory budget profile selector**: Admin settings page (Pagefind section) now includes a Memory Budget select field so admins can persist their preferred profile without using the `--memory-budget` CLI flag. `wp scolta build` reads this value as the default.
+- **Memory budget UI clarity**: The memory budget field now explains that the budget is advisory within the existing PHP `memory_limit` — admins do not need to edit `php.ini`. The current PHP memory limit is displayed inline. A warning appears when the selected profile's target RAM exceeds 70% of the detected `memory_limit`.
+
 ## [0.3.0] - 2026-04-23
 
 ### Added
