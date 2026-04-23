@@ -533,7 +533,7 @@ class Scolta_CLI {
 		if ( $binary_status['available'] ) {
 			\WP_CLI::log( "  Binary:         {$binary_status['message']}" );
 		} else {
-			\WP_CLI::warning( "  Binary:         NOT AVAILABLE" );
+			\WP_CLI::warning( '  Binary:         NOT AVAILABLE' );
 			\WP_CLI::log( "  {$binary_status['message']}" );
 			if ( $active_indexer !== 'php (forced)' ) {
 				\WP_CLI::log( '  To upgrade: npm install -g pagefind  OR  wp scolta download-pagefind' );
