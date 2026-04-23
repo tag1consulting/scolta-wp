@@ -151,7 +151,8 @@ class Scolta_CLI {
 		$force      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
 		$resume     = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
 		$restart    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
-		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', 'conservative' );
+		$saved_profile = $settings['memory_budget_profile'] ?? 'conservative';
+		$budget_str    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $saved_profile );
 		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 		$state_dir  = $this->get_state_dir();
 		$budget     = MemoryBudget::fromString( $budget_str );

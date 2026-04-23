@@ -91,6 +91,7 @@ function scolta_activate(): void {
 		'build_dir'                  => wp_upload_dir()['basedir'] . '/scolta/build',
 		'output_dir'                 => wp_upload_dir()['basedir'] . '/scolta/pagefind',
 		'indexer'                    => 'auto',
+		'memory_budget_profile'      => 'conservative',
 		'auto_rebuild'               => true,
 		'post_types'                 => array( 'post', 'page' ),
 		'cache_ttl'                  => 2592000,

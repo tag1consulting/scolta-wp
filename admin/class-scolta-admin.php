@@ -95,6 +95,7 @@ class Scolta_Admin {
 		add_settings_field( 'output_dir', __( 'Output Directory', 'scolta' ), array( self::class, 'render_output_dir_field' ), 'scolta', 'scolta_pagefind_section' );
 		add_settings_field( 'auto_rebuild', __( 'Auto Rebuild', 'scolta' ), array( self::class, 'render_auto_rebuild_field' ), 'scolta', 'scolta_pagefind_section' );
 		add_settings_field( 'auto_rebuild_delay', __( 'Rebuild Delay (seconds)', 'scolta' ), array( self::class, 'render_auto_rebuild_delay_field' ), 'scolta', 'scolta_pagefind_section' );
+		add_settings_field( 'memory_budget_profile', __( 'Memory Budget', 'scolta' ), array( self::class, 'render_memory_budget_field' ), 'scolta', 'scolta_pagefind_section' );
 
 		// --- Section: Scoring ---
 		add_settings_section( 'scolta_scoring_section', __( 'Scoring', 'scolta' ), array( self::class, 'render_scoring_section' ), 'scolta' );
@@ -393,6 +394,32 @@ class Scolta_Admin {
 			<option value="binary" <?php selected( $value, 'binary' ); ?>><?php esc_html_e( 'Binary (requires Pagefind CLI)', 'scolta' ); ?></option>
 		</select>
 		<p class="description"><?php esc_html_e( 'The PHP indexer builds the search index without requiring the Pagefind binary. Auto selects PHP when the binary is unavailable.', 'scolta' ); ?></p>
+		<?php
+	}
+
+	public static function render_memory_budget_field(): void {
+		$profile    = self::get_setting( 'memory_budget_profile', 'conservative' );
+		$suggestion = \Tag1\Scolta\Index\MemoryBudgetSuggestion::suggest();
+		$options    = array(
+			'conservative' => __( 'Conservative — peak ≤ 96 MB (default, safe for shared hosting)', 'scolta' ),
+			'balanced'     => __( 'Balanced — ~384 MB (recommended for dedicated VMs)', 'scolta' ),
+			'aggressive'   => __( 'Aggressive — ~1 GB (high-memory servers only)', 'scolta' ),
+		);
+		?>
+		<select name="scolta_settings[memory_budget_profile]" id="scolta_memory_budget_profile">
+			<?php foreach ( $options as $val => $label ) : ?>
+				<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $profile, $val ); ?>><?php echo esc_html( $label ); ?></option>
+			<?php endforeach; ?>
+		</select>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: Auto-detected memory recommendation sentence */
+				esc_html__( 'Controls peak RAM used during PHP index builds. Detected: %s Can be overridden per-run with --memory-budget on wp scolta build.', 'scolta' ),
+				esc_html( $suggestion['reason'] )
+			);
+			?>
+		</p>
 		<?php
 	}
 
@@ -795,6 +822,11 @@ class Scolta_Admin {
 		$clean['indexer'] = in_array( $input['indexer'] ?? '', array( 'auto', 'php', 'binary' ), true )
 			? $input['indexer']
 			: 'auto';
+
+		// Memory budget.
+		$clean['memory_budget_profile'] = in_array( $input['memory_budget_profile'] ?? '', array( 'conservative', 'balanced', 'aggressive' ), true )
+			? $input['memory_budget_profile']
+			: 'conservative';
 
 		// Pagefind paths.
 		$clean['pagefind_binary']    = sanitize_text_field( $input['pagefind_binary'] ?? 'pagefind' );
