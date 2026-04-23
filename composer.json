@@ -1,6 +1,6 @@
 {
     "name": "tag1/scolta-wp",
-    "version": "0.2.5-dev",
+    "version": "0.3.0-dev",
     "description": "Scolta AI Search for WordPress — zero-infrastructure AI-powered search with Pagefind",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
@@ -49,7 +49,10 @@
             "dealerdirect/phpcodesniffer-composer-installer": true
         },
         "audit": {
-            "ignore": ["PKSA-5jz8-6tcw-pbk4", "PKSA-z3gr-8qht-p93v"]
+            "ignore": [
+                "PKSA-5jz8-6tcw-pbk4",
+                "PKSA-z3gr-8qht-p93v"
+            ]
         }
     },
     "extra": {
