@@ -4,6 +4,17 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
+## [0.3.0] - Unreleased
+
+### Added
+- **`--memory-budget=<profile>` flag**: Pass `conservative` (default), `balanced`, or `aggressive` to `wp scolta build`.
+- **`--resume` flag**: Resume a previously interrupted PHP index build.
+- **`--restart` flag**: Discard interrupted state and force a clean rebuild.
+
+### Changed
+- **`do_build_php()`** rewritten to use `IndexBuildOrchestrator::build()` — 85 lines down to ~40.
+- Inherits all scolta-php 0.3.0 improvements: `MemoryBudget`, `BuildIntent`, `BuildCoordinator`, streaming pre-merge fix.
+
 ## [0.2.5] - Unreleased
 
 ### Fixed
