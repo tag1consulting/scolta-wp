@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml)
 
-Scolta is a browser-side search engine: the index lives in static files, scoring runs in the browser via WebAssembly, and an optional AI layer handles query expansion and summarization. No search server required. "Scolta" is archaic Italian for sentinel — someone watching for what matters.
+Scolta is a scoring, ranking, and AI layer built on [Pagefind](https://pagefind.app/). Pagefind is the search engine — it builds the static index, runs the browser-side WASM search, produces word-position data, and generates excerpts. Scolta takes Pagefind's results and re-ranks them with configurable title/content/recency/priority boosts, then optionally passes them through an AI layer for query expansion, summarization, and follow-up generation. No search server required. "Scolta" is archaic Italian for sentinel — someone watching for what matters.
 
 This plugin is the WordPress adapter. It provides WP-CLI commands, a Settings API page, a `[scolta_search]` shortcode, REST API endpoints, and content change tracking.
 
@@ -358,6 +358,10 @@ cli/
 vendor/
   tag1/scolta-php/                      Shared PHP library + assets
 ```
+
+## Credits
+
+Scolta is built on [Pagefind](https://pagefind.app/) by [CloudCannon](https://cloudcannon.com/). Without Pagefind, Scolta has no search to score — the index format, WASM search engine, word-position data, and excerpt generation are all Pagefind's. Scolta's contribution is the layer that sits on top: configurable scoring, multi-adapter ranking parity, AI features, and platform glue.
 
 ## License
 
