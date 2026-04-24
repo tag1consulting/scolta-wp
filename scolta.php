@@ -53,6 +53,8 @@ if ( is_admin() ) {
 
 // WP-CLI commands.
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-wp-cli-logger.php';
+	require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-wp-cli-progress-reporter.php';
 	require_once SCOLTA_PLUGIN_DIR . 'cli/class-scolta-cli.php';
 }
 
