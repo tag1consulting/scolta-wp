@@ -27,11 +27,11 @@
 defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Binary\PagefindBinary;
+use Tag1\Scolta\Config\MemoryBudgetConfig;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Export\ContentExporter;
-use Tag1\Scolta\Index\BuildIntent;
+use Tag1\Scolta\Index\BuildIntentFactory;
 use Tag1\Scolta\Index\IndexBuildOrchestrator;
-use Tag1\Scolta\Index\MemoryBudget;
 
 class Scolta_CLI {
 
@@ -86,6 +86,11 @@ class Scolta_CLI {
 	 *
 	 * [--restart]
 	 * : Discard any interrupted state and force a clean rebuild.
+	 *
+	 * [--strict-errors]
+	 * : Make PSR-3 error/critical/alert/emergency log calls exit via WP_CLI::error()
+	 *   instead of continuing with a warning. Useful in CI where you want a non-zero
+	 *   exit code on any indexer error.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -150,16 +155,18 @@ class Scolta_CLI {
 		$force         = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
 		$resume        = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
 		$restart       = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
-		$saved_profile = $settings['memory_budget_profile'] ?? 'conservative';
-		$budget_str    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $saved_profile );
-		$output_dir    = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$state_dir     = $this->get_state_dir();
+		$strict_errors = \WP_CLI\Utils\get_flag_value( $assoc_args, 'strict-errors', false );
+		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$state_dir  = $this->get_state_dir();
 
-		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
-		$saved_chunk = $settings['chunk_size'] ?? '';
-		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
-		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
-		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
+		$budget = MemoryBudgetConfig::fromCliAndConfig(
+			\WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null ) ?: null,
+			\WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null ) ?: null,
+			fn() => array(
+				'profile'    => $settings['memory_budget_profile'] ?? 'conservative',
+				'chunk_size' => $settings['chunk_size'] ?? null,
+			),
+		);
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
@@ -173,13 +180,9 @@ class Scolta_CLI {
 		$exporter = new ContentExporter( $output_dir );
 		$items    = $exporter->filterItems( \Scolta_Content_Gatherer::gather() );
 
-		$intent = match ( true ) {
-			(bool) $resume  => BuildIntent::resume( $budget ),
-			(bool) $restart => BuildIntent::restart( $total_count, $budget ),
-			default         => BuildIntent::fresh( $total_count, $budget ),
-		};
+		$intent = BuildIntentFactory::fromFlags( (bool) $resume, (bool) $restart, $total_count, $budget );
 
-		$logger       = new \Scolta_WP_CLI_Logger();
+		$logger       = new \Scolta_WP_CLI_Logger( (bool) $strict_errors );
 		$reporter     = new \Scolta_WP_CLI_Progress_Reporter();
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir, $this->get_hmac_secret() );
 		$report       = $orchestrator->build( $intent, $items, $logger, $reporter );
@@ -361,15 +364,16 @@ class Scolta_CLI {
 	 * @param array $assoc_args CLI associative arguments.
 	 */
 	private function do_diagnose( array $assoc_args ): void {
-		$limit      = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
-		$settings   = get_option( 'scolta_settings', array() );
-		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $settings['memory_budget_profile'] ?? 'conservative' );
-
-		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
-		$saved_chunk = $settings['chunk_size'] ?? '';
-		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
-		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
-		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
+		$limit    = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
+		$settings = get_option( 'scolta_settings', array() );
+		$budget   = MemoryBudgetConfig::fromCliAndConfig(
+			\WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null ) ?: null,
+			\WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null ) ?: null,
+			fn() => array(
+				'profile'    => $settings['memory_budget_profile'] ?? 'conservative',
+				'chunk_size' => $settings['chunk_size'] ?? null,
+			),
+		);
 
 		\WP_CLI::log( '' );
 		\WP_CLI::log( '=== Scolta PHP Indexer Diagnostics ===' );
@@ -448,12 +452,12 @@ class Scolta_CLI {
 		}
 
 		// Phase 3: indexer — tokenize, stem, chunk, merge, write.
-		\WP_CLI::log( 'Phase 3/3  indexer  [tokenize, stem, chunk, merge, write — ' . $budget_str . ' budget]' );
+		\WP_CLI::log( 'Phase 3/3  indexer  [tokenize, stem, chunk, merge, write — ' . $budget->profile() . ' budget]' );
 		$state_dir  = sys_get_temp_dir() . '/scolta-diag-state-' . uniqid();
 		$output_dir = sys_get_temp_dir() . '/scolta-diag-out-' . uniqid();
 
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir );
-		$intent       = BuildIntent::fresh( $passed, $budget );
+		$intent       = BuildIntentFactory::fromFlags( false, false, $passed, $budget );
 
 		$t0         = microtime( true );
 		$orchestrator->build( $intent, $filtered );

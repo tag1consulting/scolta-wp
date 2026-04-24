@@ -17,11 +17,28 @@ use Psr\Log\AbstractLogger;
  * - debug   → WP_CLI::debug() (visible only with --debug)
  * - info / notice → WP_CLI::log()
  * - warning → WP_CLI::warning()
- * - error and above → WP_CLI::warning() with an [error] prefix (non-fatal)
+ * - error and above → WP_CLI::warning() with an [error] prefix by default;
+ *   or WP_CLI::error() (process-exits) when $strictErrors is true.
  *
  * @since 0.3.2
  */
 class Scolta_WP_CLI_Logger extends AbstractLogger {
+
+	/**
+	 * Whether error/critical/alert/emergency should call WP_CLI::error() (exits).
+	 *
+	 * Default false so a single chunk error doesn't abort a long build.
+	 *
+	 * @var bool
+	 */
+	private bool $strict_errors;
+
+	/**
+	 * @param bool $strict_errors When true, PSR-3 error and above call WP_CLI::error() (exits).
+	 */
+	public function __construct( bool $strict_errors = false ) {
+		$this->strict_errors = $strict_errors;
+	}
 
 	/**
 	 * Log a message at the given level.
@@ -32,12 +49,19 @@ class Scolta_WP_CLI_Logger extends AbstractLogger {
 	 */
 	public function log( $level, $message, array $context = array() ): void {
 		$formatted = $this->interpolate( (string) $message, $context );
+		$is_error  = in_array( (string) $level, array( 'error', 'critical', 'alert', 'emergency' ), true );
+		if ( $is_error ) {
+			if ( $this->strict_errors ) {
+				\WP_CLI::error( $formatted );
+			} else {
+				\WP_CLI::warning( '[error] ' . $formatted );
+			}
+			return;
+		}
 		match ( (string) $level ) {
-			'debug'                              => \WP_CLI::debug( $formatted, 'scolta' ),
-			'warning'                            => \WP_CLI::warning( $formatted ),
-			'error', 'critical', 'alert',
-			'emergency'                          => \WP_CLI::warning( '[error] ' . $formatted ),
-			default                              => \WP_CLI::log( $formatted ),
+			'debug'   => \WP_CLI::debug( $formatted, 'scolta' ),
+			'warning' => \WP_CLI::warning( $formatted ),
+			default   => \WP_CLI::log( $formatted ),
 		};
 	}
 

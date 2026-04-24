@@ -36,11 +36,14 @@ class Scolta_WP_CLI_Progress_Reporter implements ProgressReporterInterface {
 	 * Advance the progress bar.
 	 *
 	 * @param int         $steps  Number of steps completed.
-	 * @param string|null $detail Optional detail string (unused by WP-CLI bar).
+	 * @param string|null $detail Optional chunk detail; shown via --debug.
 	 */
 	public function advance( int $steps = 1, ?string $detail = null ): void {
 		if ( null !== $this->bar ) {
 			$this->bar->tick( $steps );
+		}
+		if ( null !== $detail ) {
+			\WP_CLI::debug( $detail, 'scolta' );
 		}
 	}
 

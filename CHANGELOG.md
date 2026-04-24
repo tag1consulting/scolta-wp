@@ -4,6 +4,17 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
+## [Unreleased]
+
+### Added
+- **`Scolta_Logger`**: PSR-3 fallback logger for non-CLI contexts (cron, Action Scheduler, AJAX). Routes warning/error/critical to `error_log()`; info and debug are dropped. Loaded unconditionally so `IndexBuildOrchestrator` output is not silently discarded in background builds.
+- **`--strict-errors` flag on `wp scolta build`**: Makes `Scolta_WP_CLI_Logger` route PSR-3 error/critical/alert/emergency to `WP_CLI::error()` (exits with non-zero) instead of the default `WP_CLI::warning()` (non-fatal). Useful in CI pipelines.
+- **Chunk detail via `--debug`**: `Scolta_WP_CLI_Progress_Reporter::advance()` now passes the detail string (e.g. `"Chunk 5 (100 pages)"`) to `WP_CLI::debug()`, visible with `--debug`.
+
+### Changed
+- **`wp scolta build` and `wp scolta diagnose`**: Budget and chunk-size resolution now delegated to `MemoryBudgetConfig::fromCliAndConfig()` (scolta-php), removing ~8 lines of duplicated precedence logic from each command.
+- **`do_build_php()` intent construction**: Replaced inline `match(true)` with `BuildIntentFactory::fromFlags()` (scolta-php).
+
 ## [0.3.2] - 2026-04-24
 
 Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 44,107-page real-world WordPress deployment.
