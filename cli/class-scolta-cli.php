@@ -154,14 +154,12 @@ class Scolta_CLI {
 		$budget_str    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $saved_profile );
 		$output_dir    = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 		$state_dir     = $this->get_state_dir();
-		$budget        = MemoryBudget::fromString( $budget_str );
 
 		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
 		$saved_chunk = $settings['chunk_size'] ?? '';
-		$chunk_size  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
-		if ( '' !== (string) $chunk_size && null !== $chunk_size ) {
-			$budget = $budget->withChunkSize( max( 1, (int) $chunk_size ) );
-		}
+		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
+		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
@@ -366,14 +364,12 @@ class Scolta_CLI {
 		$limit      = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
 		$settings   = get_option( 'scolta_settings', array() );
 		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $settings['memory_budget_profile'] ?? 'conservative' );
-		$budget     = MemoryBudget::fromString( $budget_str );
 
 		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
 		$saved_chunk = $settings['chunk_size'] ?? '';
-		$chunk_size  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
-		if ( '' !== (string) $chunk_size && null !== $chunk_size ) {
-			$budget = $budget->withChunkSize( max( 1, (int) $chunk_size ) );
-		}
+		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
+		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
 
 		\WP_CLI::log( '' );
 		\WP_CLI::log( '=== Scolta PHP Indexer Diagnostics ===' );
