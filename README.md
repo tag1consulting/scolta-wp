@@ -2,9 +2,77 @@
 
 [![CI](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml/badge.svg)](https://github.com/tag1consulting/scolta-wp/actions/workflows/ci.yml)
 
-Scolta is a scoring, ranking, and AI layer built on [Pagefind](https://pagefind.app/). Pagefind is the search engine — it builds the static index, runs the browser-side WASM search, produces word-position data, and generates excerpts. Scolta takes Pagefind's results and re-ranks them with configurable title/content/recency/priority boosts, then optionally passes them through an AI layer for query expansion, summarization, and follow-up generation. No search server required. "Scolta" is archaic Italian for sentinel — someone watching for what matters.
+WordPress 6.x plugin — WP-CLI commands, Settings API page, `[scolta_search]` shortcode, and AI-powered search built on Pagefind.
 
-This plugin is the WordPress adapter. It provides WP-CLI commands, a Settings API page, a `[scolta_search]` shortcode, REST API endpoints, and content change tracking.
+## Status
+
+Beta. Scolta is installable and in active use on WordPress sites. The plugin API documented here will not break within the 0.x minor series without a deprecation notice. Expect breaking changes before 1.0. Test in staging before deploying to production. File bugs at the repo issue tracker.
+
+## What Is Scolta?
+
+Scolta is a scoring, ranking, and AI layer built on [Pagefind](https://pagefind.app/). Pagefind is the search engine: it builds a static inverted index at publish time, runs a browser-side WASM search engine, produces word-position data, and generates highlighted excerpts. Scolta takes Pagefind's result set and re-ranks it with configurable boosts — title match weight, content match weight, recency decay curves, and phrase-proximity multipliers. No search server required. Queries resolve in the visitor's browser against a pre-built static index.
+
+This plugin is the WordPress adapter. It provides WP-CLI commands for building and maintaining the index, a Settings API admin page, a `[scolta_search]` shortcode, content change tracking, and REST API endpoints for the AI features. The actual scoring, indexing logic, memory management, and AI communication live in [scolta-php](https://github.com/tag1consulting/scolta-php), which this plugin depends on via Composer. Scoring runs client-side via the `scolta.js` browser asset and the pre-built WASM module shipped with scolta-php.
+
+The LLM tier — query expansion, result summarization, follow-up questions — is optional. When enabled, it sends the query text and selected result excerpts to a configured LLM provider (Anthropic, OpenAI, or a self-hosted Ollama endpoint). The base search tier shares nothing with any third party.
+
+## Running Example
+
+The examples in this README and the other Scolta repos use a recipe catalog as the concrete data set. Recipes are a good showcase because recipe vocabulary has genuine cross-dialect mismatches:
+
+- A search for `aubergine parmesan` should surface *Eggplant Parmigiana*.
+- A search for `chinese noodle soup` should surface *Lanzhou Beef Noodles*, *Wonton Soup*, and *Dan Dan Noodles*.
+- A search for `gluten free pasta` should surface *Zucchini Spaghetti with Pesto* and *Rice Noodle Stir-Fry*.
+- A search for `quick dinner under 30 min` should surface *Pad Kra Pao*, *Dan Dan Noodles*, and *Steak Frites*.
+
+Here is how to model and index the recipe catalog in WordPress:
+
+**1. Register a `recipe` custom post type** with custom fields: `_recipe_cuisine`, `_recipe_diet`, `_recipe_cook_time`.
+
+```php
+// In your theme's functions.php or a plugin
+register_post_type('recipe', [
+    'label'       => 'Recipes',
+    'public'      => true,
+    'has_archive' => true,
+    'supports'    => ['title', 'editor', 'custom-fields'],
+]);
+```
+
+**2. Add the `scolta_content_item` filter** to include the regional synonyms in the indexed content:
+
+```php
+add_filter('scolta_content_item', function ($item, $post) {
+    if ($post->post_type !== 'recipe') {
+        return $item;
+    }
+    $cuisine = get_post_meta($post->ID, '_recipe_cuisine', true);
+    $diet    = get_post_meta($post->ID, '_recipe_diet', true);
+
+    return new \Tag1\Scolta\Export\ContentItem(
+        id:       $item->id,
+        title:    $item->title,
+        bodyHtml: $item->bodyHtml
+                . '<p>Cuisine: ' . esc_html($cuisine) . '</p>'
+                . '<p>Diet: ' . esc_html($diet) . '</p>',
+        url:      $item->url,
+        date:     $item->date,
+        siteName: $item->siteName,
+    );
+}, 10, 2);
+```
+
+**3. Enable the recipe post type** in Settings > Scolta > Content > Post types to index.
+
+**4. Build the index**:
+
+```bash
+wp scolta build
+```
+
+**5. Add `[scolta_search]` to any page.** Visit the page and search for `aubergine parmesan`. Scolta surfaces *Eggplant Parmigiana* because Pagefind's stemmer matches both "aubergine" and "eggplant" in the indexed content, and Scolta's title boost lifts the most relevant result.
+
+The recipe fixture HTML files live in [scolta-php](https://github.com/tag1consulting/scolta-php) at `tests/fixtures/recipes/` if you want a pre-built data set without a WordPress database.
 
 ## Quick Install
 
@@ -27,7 +95,7 @@ Add to `wp-config.php`:
 define('SCOLTA_API_KEY', 'sk-ant-...');
 ```
 
-With an API key configured, search queries are automatically expanded with related terms, results include an AI summary, and users can ask follow-up questions.
+With an API key configured, search queries are automatically expanded with related terms, results include an AI summary, and visitors can ask follow-up questions.
 
 ## Verify It Works
 
@@ -42,6 +110,45 @@ wp scolta status
 ```
 
 The REST health endpoint also reports current state: `GET /wp-json/scolta/v1/health`
+
+## What Scolta Replaces (and What It Doesn't)
+
+Scolta is a practical replacement for hosted search SaaS (Algolia, Coveo, SearchStax) and for WordPress search plugins that drive Elasticsearch or Solr (SearchWP with Elasticsearch, ElasticPress) when the use case is content search on a WordPress site.
+
+Scolta is not a replacement for:
+
+- Plugins that enforce per-post access control at the search layer (membership sites where search results must respect individual user permissions).
+- Elasticsearch setups used for log analytics, WooCommerce inventory search at scale, or complex aggregation queries.
+- Vector databases used as a general retrieval layer for RAG pipelines.
+- Enterprise search with audit logging, retention policies, or SSO-gated content visibility.
+
+If ElasticPress or SearchWP is serving basic full-text search on a content site with no per-post ACL, Scolta is a simpler replacement that works on managed WordPress hosting without a search server.
+
+## Memory and Scale
+
+The default memory profile is `conservative`, which targets a peak RSS under 96 MB and works on shared hosting with a 128 MB PHP `memory_limit`. Scolta never silently upgrades to a larger profile.
+
+The Settings > Scolta page shows the detected PHP `memory_limit` and suggests a profile. The profile selection is always left to the admin.
+
+Pass the profile via the WP-CLI:
+
+```bash
+wp scolta build --memory-budget=balanced
+```
+
+Available profiles: `conservative` (default, ≤96 MB), `balanced` (≤200 MB), `aggressive` (≤384 MB). Higher budget means fewer, larger index chunks and faster builds.
+
+Tested ceiling at the `conservative` profile: 50,000 pages. Higher counts likely work; not certified yet.
+
+## AI Features and Privacy
+
+Scolta's AI tier is optional. When enabled:
+
+- The LLM receives: the query text, and the titles and excerpts of the top N results (default: 5, configurable via `ai_summary_top_n`).
+- The LLM does not receive: the full index contents, full page text, user session data, or visitor identity.
+- Which provider receives the query data depends on your `ai_provider` setting: `anthropic`, `openai`, or a self-hosted endpoint via `ai_base_url`.
+
+The base search tier — Pagefind index lookup and Scolta WASM scoring — runs entirely in the visitor's browser with no server-side involvement beyond serving static index files.
 
 ## Configuration
 
@@ -62,7 +169,7 @@ Configure at **Settings > Scolta > AI Provider**, or via `wp-config.php` constan
 | Max follow-ups | `max_follow_ups` | `3` | Follow-up questions allowed per session |
 | AI languages | `ai_languages` | `['en']` | Languages the AI responds in (matches user query language) |
 
-These are stored in the `scolta_settings` WordPress option. Use **Settings > Scolta** to edit them in wp-admin, or update programmatically:
+These are stored in the `scolta_settings` WordPress option. Use **Settings > Scolta** to edit them, or update programmatically:
 
 ```php
 $settings = get_option('scolta_settings', []);
@@ -110,6 +217,16 @@ $settings['title_all_terms_multiplier'] = 2.5;
 update_option('scolta_settings', $settings);
 ```
 
+**Recipe catalog** (no recency, title precision matters):
+
+```php
+$settings = get_option('scolta_settings', []);
+$settings['recency_strategy']           = 'none';
+$settings['title_match_boost']          = 1.5;
+$settings['title_all_terms_multiplier'] = 2.0;
+update_option('scolta_settings', $settings);
+```
+
 ### Display
 
 Configure at **Settings > Scolta > Display**.
@@ -129,28 +246,26 @@ Configure at **Settings > Scolta > Content**.
 | Site name | `site_name` | blog name | Included in AI prompts so the AI knows what site it's searching |
 | Site description | `site_description` | `website` | Brief description for AI context |
 
-The AI uses your site name and description to give contextually relevant answers. A search on "pricing" will produce very different AI summaries on a SaaS product site vs. a news outlet.
-
 ### Custom Prompts
 
-Override the built-in AI prompts at **Settings > Scolta > Custom Prompts**, or use the `scolta_prompt` filter in code:
+Override the built-in AI prompts at **Settings > Scolta > Custom Prompts**, or use the `scolta_prompt` filter:
 
 ```php
 add_filter('scolta_prompt', function (string $prompt, string $promptName, array $context): string {
     if ($promptName === 'summarize') {
-        $prompt .= "\n\nAlways mention our 30-day return policy.";
+        $prompt .= "\n\nFocus on cuisine type and dietary information.";
     }
     return $prompt;
 }, 10, 3);
 ```
 
-`$promptName` is one of `expand_query`, `summarize`, or `follow_up`. See [ENRICHMENT.md](../../packages/scolta-php/docs/ENRICHMENT.md) for advanced use cases (vertical examples, multi-tenant, compliance).
+`$promptName` is one of `expand_query`, `summarize`, or `follow_up`.
 
 ## Debugging
 
 ### "Pagefind binary not found"
 
-On managed hosting (WP Engine, Kinsta, Flywheel, Pantheon), `exec()` is disabled and the binary cannot run. The plugin falls back to the PHP indexer automatically. To confirm:
+On managed hosting (WP Engine, Kinsta, Flywheel, Pantheon), `exec()` is disabled and the binary cannot run. The plugin falls back to the PHP indexer automatically — the search experience is identical. To confirm:
 
 ```bash
 wp scolta check-setup
@@ -162,6 +277,8 @@ If you want the binary on a host that supports it:
 ```bash
 wp scolta download-pagefind
 ```
+
+The PHP indexer supports 14 languages via Snowball stemming. The Pagefind binary supports 33+ languages and is 5–10× faster for large sites, but requires Node.js ≥ 18 or a direct binary download.
 
 ### "AI features not working"
 
@@ -192,22 +309,12 @@ update_option('scolta_settings', $settings);
 
 ### "Expanded queries return irrelevant results"
 
-Lower `expand_primary_weight` to give more weight to the original query, or disable expansion entirely:
+Lower `expand_primary_weight` to give more weight to the original query, or disable expansion:
 
 ```php
 $settings = get_option('scolta_settings', []);
-$settings['expand_primary_weight'] = 0.9;  // closer to 1.0 = original query dominates
+$settings['expand_primary_weight'] = 0.9;
 // or: $settings['ai_expand_query'] = false;
-update_option('scolta_settings', $settings);
-```
-
-### "AI features are slow"
-
-Check which model is configured — smaller models respond faster. Check cache TTL — cached expansions are instant:
-
-```php
-$settings = get_option('scolta_settings', []);
-$settings['cache_ttl'] = 2592000;  // 30 days (default)
 update_option('scolta_settings', $settings);
 ```
 
@@ -234,18 +341,19 @@ Run `wp scolta check-setup` from CLI to check for configuration issues. If the a
 ## WP-CLI Commands
 
 ```bash
-wp scolta build                    # Full build: mark all content, export HTML, run indexer
-wp scolta build --incremental      # Only process tracked changes
-wp scolta build --skip-pagefind    # Export HTML without rebuilding index
-wp scolta build --indexer=php      # Force PHP indexer regardless of setting
-wp scolta build --force            # Skip fingerprint check, force full rebuild
-wp scolta export                   # Export content to HTML only
-wp scolta export --incremental     # Only export tracked changes
-wp scolta rebuild-index            # Rebuild index from existing HTML files
-wp scolta status                   # Show tracker, content, index, and AI status
-wp scolta clear-cache              # Clear Scolta AI response caches
-wp scolta download-pagefind        # Download the Pagefind binary for your platform
-wp scolta check-setup              # Verify PHP, indexer, and configuration
+wp scolta build                          # Full build: mark all content, export HTML, run indexer
+wp scolta build --incremental            # Only process tracked changes
+wp scolta build --skip-pagefind          # Export HTML without rebuilding index
+wp scolta build --indexer=php            # Force PHP indexer regardless of setting
+wp scolta build --force                  # Skip fingerprint check, force full rebuild
+wp scolta build --memory-budget=balanced # Use balanced memory profile
+wp scolta export                         # Export content to HTML only
+wp scolta export --incremental           # Only export tracked changes
+wp scolta rebuild-index                  # Rebuild index from existing HTML files
+wp scolta status                         # Show tracker, content, index, and AI status
+wp scolta clear-cache                    # Clear Scolta AI response caches
+wp scolta download-pagefind              # Download the Pagefind binary for your platform
+wp scolta check-setup                    # Verify PHP, indexer, and configuration
 ```
 
 ## REST API Endpoints
@@ -288,7 +396,7 @@ add_filter('scolta_content_item', function ($item, $post) {
 
 ### Upgrade to the Pagefind binary indexer
 
-The plugin auto-selects the PHP indexer on managed hosts. On hosts that support binaries, the Pagefind binary is 5–10× faster:
+The plugin auto-selects the PHP indexer on managed hosts. On hosts that support binaries, the Pagefind binary is 5–10× faster. The search experience is identical either way — both produce a Pagefind-compatible index.
 
 ```bash
 wp scolta download-pagefind
@@ -296,7 +404,7 @@ wp scolta download-pagefind
 npm install -g pagefind
 ```
 
-Change **Settings > Scolta > Indexer** to "Auto" or "Binary" and rebuild. See [scolta-php README](../scolta-php/README.md) for a full indexer comparison table.
+Change **Settings > Scolta > Indexer** to "Auto" or "Binary" and rebuild.
 
 ### Enable Action Scheduler for background indexing
 
@@ -366,3 +474,10 @@ Scolta is built on [Pagefind](https://pagefind.app/) by [CloudCannon](https://cl
 ## License
 
 GPL-2.0-or-later
+
+## Related Packages
+
+- [scolta-core](https://github.com/tag1consulting/scolta-core) — Rust/WASM scoring, ranking, and AI layer that runs in the browser.
+- [scolta-php](https://github.com/tag1consulting/scolta-php) — PHP library that indexes content into Pagefind-compatible indexes, plus the shared orchestration and AI client.
+- [scolta-drupal](https://github.com/tag1consulting/scolta-drupal) — Drupal 10/11 Search API backend with Drush commands, admin settings form, and a search block.
+- [scolta-laravel](https://github.com/tag1consulting/scolta-laravel) — Laravel 11/12 package with Artisan commands, a `Searchable` trait for Eloquent models, and a Blade search component.

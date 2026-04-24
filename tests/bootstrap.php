@@ -448,6 +448,9 @@ if (!function_exists('wp_salt')) {
         return 'test-salt-' . $scheme;
     }
 }
+if (!function_exists('wp_cache_flush_group')) {
+    function wp_cache_flush_group(string $group): bool { return true; }
+}
 
 if (!defined('DAY_IN_SECONDS')) {
     define('DAY_IN_SECONDS', 86400);

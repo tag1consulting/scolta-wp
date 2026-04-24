@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0d776534c4773efcf296e95fc9e3f6ef",
+    "content-hash": "6cf6792827e0e25b8f6523bf388066c6",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -1056,11 +1056,11 @@
         },
         {
             "name": "tag1/scolta-php",
-            "version": "0.3.1-dev",
+            "version": "0.3.2-dev",
             "dist": {
                 "type": "path",
                 "url": "../scolta-php",
-                "reference": "ba1b102a462299b846f1dd1c93ee307a0948ec50"
+                "reference": "c44eea7274c6757ec369a404ec284921064bc359"
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",

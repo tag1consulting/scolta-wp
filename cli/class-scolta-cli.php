@@ -32,7 +32,6 @@ use Tag1\Scolta\Export\ContentExporter;
 use Tag1\Scolta\Index\BuildIntent;
 use Tag1\Scolta\Index\IndexBuildOrchestrator;
 use Tag1\Scolta\Index\MemoryBudget;
-use Tag1\Scolta\Index\PhpIndexer;
 
 class Scolta_CLI {
 
@@ -159,35 +158,26 @@ class Scolta_CLI {
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
-		$raw_items = \Scolta_Content_Gatherer::gather();
-		if ( count( $raw_items ) === 0 ) {
+		$total_count = \Scolta_Content_Gatherer::gather_count();
+		if ( 0 === $total_count ) {
 			\WP_CLI::warning( 'No published content found. Check post_types setting.' );
 			return;
 		}
 
+		// Stream content one post at a time — no full pre-load into RAM.
 		$exporter = new ContentExporter( $output_dir );
-		$items    = $exporter->exportToItems( $raw_items );
-		if ( count( $items ) === 0 ) {
-			\WP_CLI::warning( 'No items passed content length filter. Nothing to index.' );
-			return;
-		}
-
-		if ( ! $force && ! $resume && ! $restart ) {
-			$indexer = new PhpIndexer( $state_dir, $output_dir, $this->get_hmac_secret() );
-			if ( $indexer->shouldBuild( $items ) === null ) {
-				\WP_CLI::success( 'Content unchanged since last build. Use --force to rebuild anyway.' );
-				return;
-			}
-		}
+		$items    = $exporter->filterItems( \Scolta_Content_Gatherer::gather() );
 
 		$intent = match ( true ) {
 			(bool) $resume  => BuildIntent::resume( $budget ),
-			(bool) $restart => BuildIntent::restart( count( $items ), $budget ),
-			default         => BuildIntent::fresh( count( $items ), $budget ),
+			(bool) $restart => BuildIntent::restart( $total_count, $budget ),
+			default         => BuildIntent::fresh( $total_count, $budget ),
 		};
 
+		$logger       = new \Scolta_WP_CLI_Logger();
+		$reporter     = new \Scolta_WP_CLI_Progress_Reporter();
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir, $this->get_hmac_secret() );
-		$report       = $orchestrator->build( $intent, $items );
+		$report       = $orchestrator->build( $intent, $items, $logger, $reporter );
 
 		if ( $report->success ) {
 			$generation = (int) get_option( 'scolta_generation', 0 );
