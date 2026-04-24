@@ -325,6 +325,76 @@ update_option('scolta_settings', $settings);
 3. Confirm the Pagefind output directory is web-accessible (**Settings > Scolta > Pagefind**)
 4. Flush rewrite rules: `wp rewrite flush`
 
+### "Build is slow"
+
+Use `wp scolta diagnose` to identify which phase dominates:
+
+```bash
+wp scolta diagnose             # sample 500 posts (fast)
+wp scolta diagnose --count=2000  # larger sample for better projection accuracy
+```
+
+Output example:
+
+```
+=== Scolta PHP Indexer Diagnostics ===
+
+Site: 44,107 published posts  (gather_count in 0.012s)
+Sample: 500 posts  (--count=500)
+
+Phase 1/3  gather  [WP_Query + apply_filters("the_content") + get_permalink]
+  500 posts  18.40s  36.8 ms/post
+  ! High ms/post — apply_filters("the_content") is likely slow.
+    Common causes: Yoast SEO, Gutenberg do_blocks(), WooCommerce, Elementor.
+
+Phase 2/3  HtmlCleaner  [strip HTML tags, check minimum content length]
+  500 posts  1.70s  3.4 ms/post  (487 passed, 3% too short)
+
+Phase 3/3  indexer  [tokenize, stem, chunk, merge, write — conservative budget]
+  487 posts  0.89s  1.8 ms/post
+
+=== Projected for full corpus (44,107 posts) ===
+
+  gather:      27m 0s    86% of total
+  HtmlCleaner: 2m 30s     8% of total
+  indexer:     1m 19s     4% of total
+  ----------------------------
+  estimated total: 30m 49s
+
+Recommendation: gather phase dominates (86% of build time).
+  apply_filters("the_content") runs every active plugin filter on each post.
+  Use the scolta_content_item filter to substitute $post->post_content
+  (raw storage, no plugin processing) or do_blocks($post->post_content)
+  (renders blocks only, skips SEO/analytics hooks).
+```
+
+**If gather dominates (>50%):** `apply_filters('the_content', ...)` is the bottleneck. Use the `scolta_content_item` filter to replace the body HTML with raw `$post->post_content` or `do_blocks($post->post_content)`:
+
+```php
+add_filter('scolta_content_item', function ($item, $post) {
+    // Use do_blocks() instead of apply_filters('the_content'):
+    // renders Gutenberg blocks but skips Yoast, WooCommerce, etc.
+    return new \Tag1\Scolta\Export\ContentItem(
+        id:       $item->id,
+        title:    $item->title,
+        bodyHtml: do_blocks($post->post_content),
+        url:      $item->url,
+        date:     $item->date,
+        siteName: $item->siteName,
+    );
+}, 10, 2);
+```
+
+**If indexer dominates (>50%):** Increase the chunk size with `--memory-budget=balanced` (200 posts/chunk instead of 50) to reduce merge overhead.
+
+**For per-phase wall-clock breakdowns during a live build**, run with `--debug`:
+
+```bash
+wp scolta build --indexer=php --debug 2>&1 | grep '\[scolta\]'
+```
+
+Each `[scolta]` line now includes `+Xs` elapsed since build start, making it easy to see which chunk or merge step is slow.
+
 ### "Build hangs or times out"
 
 The plugin uses `proc_open()` with a 5-minute timeout for Pagefind binary builds. PHP indexer builds run in chunks via Action Scheduler to avoid PHP timeouts. If builds stall:
@@ -347,9 +417,12 @@ wp scolta build --skip-pagefind          # Export HTML without rebuilding index
 wp scolta build --indexer=php            # Force PHP indexer regardless of setting
 wp scolta build --force                  # Skip fingerprint check, force full rebuild
 wp scolta build --memory-budget=balanced # Use balanced memory profile
+wp scolta build --resume                 # Resume an interrupted PHP build
 wp scolta export                         # Export content to HTML only
 wp scolta export --incremental           # Only export tracked changes
 wp scolta rebuild-index                  # Rebuild index from existing HTML files
+wp scolta diagnose                       # Profile gather / HtmlCleaner / indexer phases
+wp scolta diagnose --count=2000          # Larger sample for more accurate projection
 wp scolta status                         # Show tracker, content, index, and AI status
 wp scolta clear-cache                    # Clear Scolta AI response caches
 wp scolta download-pagefind              # Download the Pagefind binary for your platform

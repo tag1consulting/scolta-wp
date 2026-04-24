@@ -285,8 +285,8 @@ class CliValidationTest extends TestCase {
             return $m->getDeclaringClass()->getName() === 'Scolta_CLI';
         });
 
-        // 7 public command methods: build, export, rebuild_index, status,
-        // clear_cache, check_setup, download_pagefind
-        $this->assertCount(7, $ownMethods);
+        // 9 public command methods: build, export, rebuild_index, status,
+        // clear_cache, check_setup, download_pagefind, diagnose, format_duration
+        $this->assertCount(9, $ownMethods);
     }
 }
