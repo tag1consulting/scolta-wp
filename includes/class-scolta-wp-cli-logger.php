@@ -49,7 +49,8 @@ class Scolta_WP_CLI_Logger extends AbstractLogger {
 	 */
 	public function log( $level, $message, array $context = array() ): void {
 		$formatted = $this->interpolate( (string) $message, $context );
-		$is_error  = in_array( (string) $level, array( 'error', 'critical', 'alert', 'emergency' ), true );
+		$error_levels = array( 'error', 'critical', 'alert', 'emergency' );
+		$is_error     = in_array( (string) $level, $error_levels, true );
 		if ( $is_error ) {
 			if ( $this->strict_errors ) {
 				\WP_CLI::error( $formatted );

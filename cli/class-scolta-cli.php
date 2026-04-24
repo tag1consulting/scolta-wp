@@ -159,9 +159,11 @@ class Scolta_CLI {
 		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
 		$state_dir  = $this->get_state_dir();
 
-		$budget = MemoryBudgetConfig::fromCliAndConfig(
-			\WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null ) ?: null,
-			\WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null ) ?: null,
+		$budget_opt = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
+		$chunk_opt  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null );
+		$budget     = MemoryBudgetConfig::fromCliAndConfig(
+			null !== $budget_opt ? (string) $budget_opt : null,
+			null !== $chunk_opt ? (string) $chunk_opt : null,
 			fn() => array(
 				'profile'    => $settings['memory_budget_profile'] ?? 'conservative',
 				'chunk_size' => $settings['chunk_size'] ?? null,
@@ -364,11 +366,13 @@ class Scolta_CLI {
 	 * @param array $assoc_args CLI associative arguments.
 	 */
 	private function do_diagnose( array $assoc_args ): void {
-		$limit    = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
-		$settings = get_option( 'scolta_settings', array() );
-		$budget   = MemoryBudgetConfig::fromCliAndConfig(
-			\WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null ) ?: null,
-			\WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null ) ?: null,
+		$limit        = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
+		$settings     = get_option( 'scolta_settings', array() );
+		$budget_opt   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
+		$chunk_opt    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null );
+		$budget       = MemoryBudgetConfig::fromCliAndConfig(
+			null !== $budget_opt ? (string) $budget_opt : null,
+			null !== $chunk_opt ? (string) $chunk_opt : null,
 			fn() => array(
 				'profile'    => $settings['memory_budget_profile'] ?? 'conservative',
 				'chunk_size' => $settings['chunk_size'] ?? null,

@@ -33,8 +33,9 @@ class Scolta_Logger extends AbstractLogger {
 		if ( in_array( $level, array( 'debug', 'info', 'notice' ), true ) ) {
 			return;
 		}
-		$formatted = '[scolta] [' . strtoupper( $level ) . '] ' . $this->interpolate( (string) $message, $context );
-		error_log( $formatted ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		$msg = '[scolta] [' . strtoupper( $level ) . '] ' . $this->interpolate( (string) $message, $context );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( $msg );
 	}
 
 	/**
