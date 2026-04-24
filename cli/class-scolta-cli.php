@@ -71,16 +71,15 @@ class Scolta_CLI {
 	 * : Skip fingerprint check and rebuild even if content hasn't changed.
 	 *   Only applies to the PHP indexer pipeline.
 	 *
-	 * [--memory-budget=<profile>]
-	 * : Memory profile for the PHP indexer: conservative, balanced, or aggressive.
-	 *   Default: conservative (peak RSS ~96 MB).
-	 * ---
-	 * default: conservative
-	 * options:
-	 *   - conservative
-	 *   - balanced
-	 *   - aggressive
-	 * ---
+	 * [--memory-budget=<budget>]
+	 * : Memory profile or explicit limit for the PHP indexer.
+	 *   Accepts named profiles (conservative, balanced, aggressive) or a raw byte
+	 *   value such as 256M or 1G. Default: the admin setting (conservative).
+	 *
+	 * [--chunk-size=<n>]
+	 * : Pages per chunk during a PHP index build. Overrides the profile default
+	 *   (50/200/500 for conservative/balanced/aggressive). Lower values reduce
+	 *   peak RSS; higher values reduce merge overhead on large corpora.
 	 *
 	 * [--resume]
 	 * : Resume a previously interrupted PHP index build from the last committed chunk.
@@ -94,6 +93,7 @@ class Scolta_CLI {
 	 *     wp scolta build --indexer=php
 	 *     wp scolta build --indexer=php --force
 	 *     wp scolta build --indexer=php --memory-budget=balanced
+	 *     wp scolta build --indexer=php --memory-budget=256M --chunk-size=100
 	 *     wp scolta build --indexer=php --resume
 	 *     wp scolta build --incremental
 	 *
@@ -147,14 +147,21 @@ class Scolta_CLI {
 	 * @param array $settings   Plugin settings.
 	 */
 	protected function do_build_php( array $assoc_args, array $settings ): void {
-		$force      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
-		$resume     = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
-		$restart    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
+		$force         = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
+		$resume        = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
+		$restart       = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
 		$saved_profile = $settings['memory_budget_profile'] ?? 'conservative';
 		$budget_str    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $saved_profile );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$state_dir  = $this->get_state_dir();
-		$budget     = MemoryBudget::fromString( $budget_str );
+		$output_dir    = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$state_dir     = $this->get_state_dir();
+		$budget        = MemoryBudget::fromString( $budget_str );
+
+		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
+		$saved_chunk = $settings['chunk_size'] ?? '';
+		$chunk_size  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		if ( '' !== (string) $chunk_size && null !== $chunk_size ) {
+			$budget = $budget->withChunkSize( max( 1, (int) $chunk_size ) );
+		}
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
@@ -317,15 +324,13 @@ class Scolta_CLI {
 	 * default: 500
 	 * ---
 	 *
-	 * [--memory-budget=<profile>]
-	 * : Memory profile used for the indexer phase.
-	 * ---
-	 * default: conservative
-	 * options:
-	 *   - conservative
-	 *   - balanced
-	 *   - aggressive
-	 * ---
+	 * [--memory-budget=<budget>]
+	 * : Memory profile or explicit limit for the indexer phase.
+	 *   Accepts named profiles (conservative, balanced, aggressive) or a raw byte
+	 *   value such as 256M. Default: the admin setting (conservative).
+	 *
+	 * [--chunk-size=<n>]
+	 * : Pages per chunk for the indexer phase. Overrides the profile default.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -334,6 +339,9 @@ class Scolta_CLI {
 	 *
 	 *     # Larger sample for more accurate projection on a 44k-post site
 	 *     wp scolta diagnose --count=2000
+	 *
+	 *     # Test a custom budget before committing it to settings
+	 *     wp scolta diagnose --count=1000 --memory-budget=256M --chunk-size=100
 	 *
 	 * @subcommand diagnose
 	 */
@@ -359,6 +367,13 @@ class Scolta_CLI {
 		$settings   = get_option( 'scolta_settings', array() );
 		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $settings['memory_budget_profile'] ?? 'conservative' );
 		$budget     = MemoryBudget::fromString( $budget_str );
+
+		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
+		$saved_chunk = $settings['chunk_size'] ?? '';
+		$chunk_size  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		if ( '' !== (string) $chunk_size && null !== $chunk_size ) {
+			$budget = $budget->withChunkSize( max( 1, (int) $chunk_size ) );
+		}
 
 		\WP_CLI::log( '' );
 		\WP_CLI::log( '=== Scolta PHP Indexer Diagnostics ===' );

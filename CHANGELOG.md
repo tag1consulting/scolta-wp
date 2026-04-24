@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **Flexible memory budget and chunk size**: The Memory Budget admin field now accepts profile names (`conservative`, `balanced`, `aggressive`) **or** a raw byte value (`256M`, `1G`) in addition to the three preset profiles. A new **Chunk Size** admin field lets you set pages-per-chunk independently of the memory budget — leave it blank to use the profile default (50/200/500). Both values can also be overridden per-run via `--memory-budget=<budget>` and `--chunk-size=<n>` on `wp scolta build` and `wp scolta diagnose`.
 - **`wp scolta diagnose`**: New WP-CLI command that profiles the PHP indexer pipeline in three isolated phases — gather (WP_Query + `apply_filters('the_content')` + `get_permalink`), HtmlCleaner, and indexer — on a configurable post sample (default 500). Prints per-phase ms/post, projects the full-corpus duration, and emits a recommendation identifying the dominant bottleneck. Use this to determine whether a slow build is caused by WordPress content filters, HTML cleaning, or the indexer itself.
 
 ### Fixed

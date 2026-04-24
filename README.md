@@ -128,15 +128,24 @@ If ElasticPress or SearchWP is serving basic full-text search on a content site 
 
 The default memory profile is `conservative`, which targets a peak RSS under 96 MB and works on shared hosting with a 128 MB PHP `memory_limit`. Scolta never silently upgrades to a larger profile.
 
-The Settings > Scolta page shows the detected PHP `memory_limit` and suggests a profile. The profile selection is always left to the admin.
+The **Settings > Scolta > Memory Budget** field accepts a profile name _or_ an exact byte value:
 
-Pass the profile via the WP-CLI:
+```
+conservative   # peak ≤ 96 MB  — default, safe for shared hosting (50 posts/chunk)
+balanced       # peak ≤ 384 MB — recommended for VMs              (200 posts/chunk)
+aggressive     # peak ≤ 1 GB   — high-memory servers              (500 posts/chunk)
+256M           # custom byte value — routes to the nearest profile's tuning
+```
+
+The **Settings > Scolta > Chunk Size** field sets pages-per-chunk independently of the memory budget. Leave it blank to use the profile default. Lower values reduce peak RAM; higher values reduce merge overhead on large corpora.
+
+Both settings can be overridden per-run:
 
 ```bash
 wp scolta build --memory-budget=balanced
+wp scolta build --memory-budget=256M --chunk-size=100
+wp scolta build --indexer=php --chunk-size=30  # low-RAM override
 ```
-
-Available profiles: `conservative` (default, ≤96 MB), `balanced` (≤200 MB), `aggressive` (≤384 MB). Higher budget means fewer, larger index chunks and faster builds.
 
 Tested ceiling at the `conservative` profile: 50,000 pages. Higher counts likely work; not certified yet.
 
@@ -385,7 +394,7 @@ add_filter('scolta_content_item', function ($item, $post) {
 }, 10, 2);
 ```
 
-**If indexer dominates (>50%):** Increase the chunk size with `--memory-budget=balanced` (200 posts/chunk instead of 50) to reduce merge overhead.
+**If indexer dominates (>50%):** Increase the chunk size to reduce merge overhead. Either use a larger profile (`--memory-budget=balanced`, which sets 200 posts/chunk) or set the chunk size directly (`--chunk-size=200`) while keeping your current memory profile.
 
 **For per-phase wall-clock breakdowns during a live build**, run with `--debug`:
 

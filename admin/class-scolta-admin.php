@@ -96,6 +96,7 @@ class Scolta_Admin {
 		add_settings_field( 'auto_rebuild', __( 'Auto Rebuild', 'scolta' ), array( self::class, 'render_auto_rebuild_field' ), 'scolta', 'scolta_pagefind_section' );
 		add_settings_field( 'auto_rebuild_delay', __( 'Rebuild Delay (seconds)', 'scolta' ), array( self::class, 'render_auto_rebuild_delay_field' ), 'scolta', 'scolta_pagefind_section' );
 		add_settings_field( 'memory_budget_profile', __( 'Memory Budget', 'scolta' ), array( self::class, 'render_memory_budget_field' ), 'scolta', 'scolta_pagefind_section' );
+		add_settings_field( 'chunk_size', __( 'Chunk Size', 'scolta' ), array( self::class, 'render_chunk_size_field' ), 'scolta', 'scolta_pagefind_section' );
 
 		// --- Section: Scoring ---
 		add_settings_section( 'scolta_scoring_section', __( 'Scoring', 'scolta' ), array( self::class, 'render_scoring_section' ), 'scolta' );
@@ -401,20 +402,23 @@ class Scolta_Admin {
 		$profile    = self::get_setting( 'memory_budget_profile', 'conservative' );
 		$limit_text = \Tag1\Scolta\Index\MemoryBudgetSuggestion::getMemoryLimitText();
 		$fit        = \Tag1\Scolta\Index\MemoryBudgetSuggestion::checkProfileFit( $profile );
-		$options    = array(
-			'conservative' => __( 'Conservative — peak ≤ 96 MB (default, safe for shared hosting)', 'scolta' ),
-			'balanced'     => __( 'Balanced — ~384 MB (recommended for dedicated VMs)', 'scolta' ),
-			'aggressive'   => __( 'Aggressive — ~1 GB (high-memory servers only)', 'scolta' ),
-		);
 		?>
 		<p class="description" style="margin-bottom:8px">
-			<?php esc_html_e( 'Scolta\'s memory budget tells Scolta how much RAM to use while building the search index. It never exceeds the PHP memory limit your host already allows. You do not need to edit php.ini unless you want to use a profile that requires more memory than your host provides.', 'scolta' ); ?>
+			<?php esc_html_e( 'How much RAM to use while building the search index. Enter a profile name (conservative, balanced, aggressive) or an exact value like 256M or 1G. It never exceeds the PHP memory limit your host allows.', 'scolta' ); ?>
 		</p>
-		<select name="scolta_settings[memory_budget_profile]" id="scolta_memory_budget_profile">
-			<?php foreach ( $options as $val => $label ) : ?>
-				<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $profile, $val ); ?>><?php echo esc_html( $label ); ?></option>
-			<?php endforeach; ?>
-		</select>
+		<input
+			type="text"
+			name="scolta_settings[memory_budget_profile]"
+			id="scolta_memory_budget_profile"
+			value="<?php echo esc_attr( $profile ); ?>"
+			list="scolta_memory_budget_list"
+			class="regular-text"
+		/>
+		<datalist id="scolta_memory_budget_list">
+			<option value="conservative"><?php esc_html_e( 'Conservative — peak ≤ 96 MB (default, safe for shared hosting)', 'scolta' ); ?></option>
+			<option value="balanced"><?php esc_html_e( 'Balanced — ~384 MB (recommended for dedicated VMs)', 'scolta' ); ?></option>
+			<option value="aggressive"><?php esc_html_e( 'Aggressive — ~1 GB (high-memory servers only)', 'scolta' ); ?></option>
+		</datalist>
 		<p class="description">
 			<?php
 			printf(
@@ -431,6 +435,33 @@ class Scolta_Admin {
 		<?php endif; ?>
 		<p class="description">
 			<?php esc_html_e( 'Can be overridden per-run with --memory-budget on wp scolta build.', 'scolta' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render chunk size field.
+	 *
+	 * @since 0.3.2
+	 */
+	public static function render_chunk_size_field(): void {
+		$chunk_size = self::get_setting( 'chunk_size', '' );
+		?>
+		<input
+			type="number"
+			name="scolta_settings[chunk_size]"
+			id="scolta_chunk_size"
+			value="<?php echo esc_attr( (string) $chunk_size ); ?>"
+			min="1"
+			step="1"
+			class="small-text"
+			placeholder="<?php esc_attr_e( 'profile default', 'scolta' ); ?>"
+		/>
+		<p class="description">
+			<?php esc_html_e( 'Pages indexed per chunk during a PHP build. Leave blank to use the memory budget profile default (50 for conservative, 200 for balanced, 500 for aggressive). Lower values reduce peak RSS; higher values reduce merge overhead on large corpora.', 'scolta' ); ?>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'Can be overridden per-run with --chunk-size on wp scolta build.', 'scolta' ); ?>
 		</p>
 		<?php
 	}
@@ -835,10 +866,17 @@ class Scolta_Admin {
 			? $input['indexer']
 			: 'auto';
 
-		// Memory budget.
-		$clean['memory_budget_profile'] = in_array( $input['memory_budget_profile'] ?? '', array( 'conservative', 'balanced', 'aggressive' ), true )
-			? $input['memory_budget_profile']
-			: 'conservative';
+		// Memory budget — accepts named profiles or raw byte strings (e.g. "256M").
+		$raw_budget = sanitize_text_field( $input['memory_budget_profile'] ?? '' );
+		$clean['memory_budget_profile'] = self::is_valid_memory_budget( $raw_budget ) ? $raw_budget : 'conservative';
+
+		// Chunk size — empty string means "use profile default".
+		$raw_chunk = $input['chunk_size'] ?? '';
+		if ( '' === $raw_chunk || null === $raw_chunk ) {
+			$clean['chunk_size'] = '';
+		} else {
+			$clean['chunk_size'] = max( 1, (int) $raw_chunk );
+		}
 
 		// Pagefind paths.
 		$clean['pagefind_binary']    = sanitize_text_field( $input['pagefind_binary'] ?? 'pagefind' );
@@ -918,6 +956,26 @@ class Scolta_Admin {
 	 * @param string $key       The settings key (e.g., 'prompt_expand_query').
 	 * @return string Sanitized value, or empty if it matches the default.
 	 */
+	/**
+	 * Check whether a memory budget string is a valid profile name or byte value.
+	 *
+	 * Accepts named profiles (conservative, balanced, aggressive) and raw byte
+	 * strings understood by MemoryBudget::fromString(), such as "256M" or "1G".
+	 *
+	 * @param string $value Raw submitted value.
+	 * @return bool True if the value is usable.
+	 */
+	private static function is_valid_memory_budget( string $value ): bool {
+		if ( '' === $value ) {
+			return false;
+		}
+		if ( in_array( $value, array( 'conservative', 'balanced', 'aggressive' ), true ) ) {
+			return true;
+		}
+		// Accept byte strings: digits followed by optional K/M/G suffix.
+		return (bool) preg_match( '/^\d+[KkMmGg]?$/', $value );
+	}
+
 	private static function sanitize_prompt( string $value, string $key ): string {
 		$sanitized = mb_substr( sanitize_textarea_field( $value ), 0, 5000 );
 		$default   = self::get_default_prompt_template( $key );
