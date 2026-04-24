@@ -71,16 +71,15 @@ class Scolta_CLI {
 	 * : Skip fingerprint check and rebuild even if content hasn't changed.
 	 *   Only applies to the PHP indexer pipeline.
 	 *
-	 * [--memory-budget=<profile>]
-	 * : Memory profile for the PHP indexer: conservative, balanced, or aggressive.
-	 *   Default: conservative (peak RSS ~96 MB).
-	 * ---
-	 * default: conservative
-	 * options:
-	 *   - conservative
-	 *   - balanced
-	 *   - aggressive
-	 * ---
+	 * [--memory-budget=<budget>]
+	 * : Memory profile or explicit limit for the PHP indexer.
+	 *   Accepts named profiles (conservative, balanced, aggressive) or a raw byte
+	 *   value such as 256M or 1G. Default: the admin setting (conservative).
+	 *
+	 * [--chunk-size=<n>]
+	 * : Pages per chunk during a PHP index build. Overrides the profile default
+	 *   (50/200/500 for conservative/balanced/aggressive). Lower values reduce
+	 *   peak RSS; higher values reduce merge overhead on large corpora.
 	 *
 	 * [--resume]
 	 * : Resume a previously interrupted PHP index build from the last committed chunk.
@@ -94,6 +93,7 @@ class Scolta_CLI {
 	 *     wp scolta build --indexer=php
 	 *     wp scolta build --indexer=php --force
 	 *     wp scolta build --indexer=php --memory-budget=balanced
+	 *     wp scolta build --indexer=php --memory-budget=256M --chunk-size=100
 	 *     wp scolta build --indexer=php --resume
 	 *     wp scolta build --incremental
 	 *
@@ -147,14 +147,19 @@ class Scolta_CLI {
 	 * @param array $settings   Plugin settings.
 	 */
 	protected function do_build_php( array $assoc_args, array $settings ): void {
-		$force      = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
-		$resume     = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
-		$restart    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
+		$force         = \WP_CLI\Utils\get_flag_value( $assoc_args, 'force', false );
+		$resume        = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
+		$restart       = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
 		$saved_profile = $settings['memory_budget_profile'] ?? 'conservative';
 		$budget_str    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $saved_profile );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$state_dir  = $this->get_state_dir();
-		$budget     = MemoryBudget::fromString( $budget_str );
+		$output_dir    = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$state_dir     = $this->get_state_dir();
+
+		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
+		$saved_chunk = $settings['chunk_size'] ?? '';
+		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
+		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
 
 		\WP_CLI::log( 'Using PHP indexer pipeline.' );
 
@@ -299,6 +304,254 @@ class Scolta_CLI {
 		}
 		\WP_CLI::log( "Using Pagefind: {$binary} (resolved via {$resolver->resolvedVia()})" );
 		$this->run_pagefind( $binary, $build_dir, $output_dir );
+	}
+
+	/**
+	 * Profile PHP indexer performance in three isolated phases.
+	 *
+	 * Runs gather, HTML cleaning, and indexing separately on a sample of real
+	 * posts and prints per-phase timing, a projected full-corpus duration, and
+	 * a recommendation. Use this to identify whether build slowness comes from
+	 * WordPress content filters, HtmlCleaner, or the indexer itself.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--count=<n>]
+	 * : Number of posts to sample.
+	 * ---
+	 * default: 500
+	 * ---
+	 *
+	 * [--memory-budget=<budget>]
+	 * : Memory profile or explicit limit for the indexer phase.
+	 *   Accepts named profiles (conservative, balanced, aggressive) or a raw byte
+	 *   value such as 256M. Default: the admin setting (conservative).
+	 *
+	 * [--chunk-size=<n>]
+	 * : Pages per chunk for the indexer phase. Overrides the profile default.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     # Profile with default 500-post sample
+	 *     wp scolta diagnose
+	 *
+	 *     # Larger sample for more accurate projection on a 44k-post site
+	 *     wp scolta diagnose --count=2000
+	 *
+	 *     # Test a custom budget before committing it to settings
+	 *     wp scolta diagnose --count=1000 --memory-budget=256M --chunk-size=100
+	 *
+	 * @subcommand diagnose
+	 */
+	public function diagnose( array $args, array $assoc_args ): void {
+		$prev = ini_get( 'display_errors' );
+		ini_set( 'display_errors', '0' );
+		try {
+			$this->do_diagnose( $assoc_args );
+		} catch ( \Throwable $e ) {
+			\WP_CLI::error( $e->getMessage() );
+		} finally {
+			ini_set( 'display_errors', $prev );
+		}
+	}
+
+	/**
+	 * Run the three-phase diagnostic.
+	 *
+	 * @param array $assoc_args CLI associative arguments.
+	 */
+	private function do_diagnose( array $assoc_args ): void {
+		$limit      = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
+		$settings   = get_option( 'scolta_settings', array() );
+		$budget_str = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', $settings['memory_budget_profile'] ?? 'conservative' );
+
+		// Chunk size: --chunk-size flag overrides saved setting, which overrides profile default.
+		$saved_chunk = $settings['chunk_size'] ?? '';
+		$raw_chunk   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', $saved_chunk );
+		$chunk_size  = ( '' !== (string) $raw_chunk && null !== $raw_chunk ) ? max( 1, (int) $raw_chunk ) : null;
+		$budget      = MemoryBudget::fromOptions( $budget_str, $chunk_size );
+
+		\WP_CLI::log( '' );
+		\WP_CLI::log( '=== Scolta PHP Indexer Diagnostics ===' );
+		\WP_CLI::log( '' );
+
+		// Step 0: count posts.
+		$t0         = microtime( true );
+		$total      = \Scolta_Content_Gatherer::gather_count();
+		$count_time = microtime( true ) - $t0;
+		$sample     = min( $limit, $total );
+
+		\WP_CLI::log(
+			sprintf(
+				'Site: %s published posts  (gather_count in %.3fs)',
+				number_format( $total ),
+				$count_time
+			)
+		);
+		\WP_CLI::log( sprintf( 'Sample: %s posts  (--count=%s)', number_format( $sample ), $limit ) );
+		\WP_CLI::log( '' );
+
+		if ( 0 === $total ) {
+			\WP_CLI::warning( 'No published content found. Check the post_types setting.' );
+			return;
+		}
+
+		// Phase 1: gather — WP_Query batches + apply_filters('the_content') + get_permalink.
+		\WP_CLI::log( 'Phase 1/3  gather  [WP_Query + apply_filters("the_content") + get_permalink]' );
+		$t0    = microtime( true );
+		$items = array();
+		$n     = 0;
+		foreach ( \Scolta_Content_Gatherer::gather() as $item ) {
+			$items[] = $item;
+			++$n;
+			if ( $n >= $sample ) {
+				break;
+			}
+		}
+		$gather_time = microtime( true ) - $t0;
+		$gather_ms   = $gather_time / $n * 1000;
+
+		\WP_CLI::log( sprintf( '  %s posts  %.2fs  %.1f ms/post', number_format( $n ), $gather_time, $gather_ms ) );
+
+		if ( $gather_ms > 20 ) {
+			\WP_CLI::log( '  ! High ms/post — apply_filters("the_content") is likely slow.' );
+			\WP_CLI::log( '    Common causes: Yoast SEO, Gutenberg do_blocks(), WooCommerce, Elementor.' );
+		}
+
+		\WP_CLI::log( '' );
+
+		// Phase 2: HtmlCleaner — strip tags and measure content length.
+		\WP_CLI::log( 'Phase 2/3  HtmlCleaner  [strip HTML tags, check minimum content length]' );
+		$exporter    = new ContentExporter( sys_get_temp_dir() . '/scolta-diag-' . uniqid() );
+		$t0          = microtime( true );
+		$filtered    = iterator_to_array( $exporter->filterItems( $items ) );
+		$filter_time = microtime( true ) - $t0;
+		$filter_ms   = $filter_time / $n * 1000;
+		$passed      = count( $filtered );
+		$skip_pct    = $n > 0 ? round( ( $n - $passed ) / $n * 100 ) : 0;
+
+		\WP_CLI::log(
+			sprintf(
+				'  %s posts  %.2fs  %.1f ms/post  (%s passed, %s%% too short)',
+				number_format( $n ),
+				$filter_time,
+				$filter_ms,
+				number_format( $passed ),
+				$skip_pct
+			)
+		);
+		\WP_CLI::log( '' );
+
+		if ( 0 === $passed ) {
+			\WP_CLI::warning( 'All sampled posts filtered out (content too short). Nothing to index.' );
+			return;
+		}
+
+		// Phase 3: indexer — tokenize, stem, chunk, merge, write.
+		\WP_CLI::log( 'Phase 3/3  indexer  [tokenize, stem, chunk, merge, write — ' . $budget_str . ' budget]' );
+		$state_dir  = sys_get_temp_dir() . '/scolta-diag-state-' . uniqid();
+		$output_dir = sys_get_temp_dir() . '/scolta-diag-out-' . uniqid();
+
+		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir );
+		$intent       = BuildIntent::fresh( $passed, $budget );
+
+		$t0         = microtime( true );
+		$orchestrator->build( $intent, $filtered );
+		$index_time = microtime( true ) - $t0;
+		$index_ms   = $index_time / $passed * 1000;
+
+		\WP_CLI::log(
+			sprintf(
+				'  %s posts  %.2fs  %.1f ms/post',
+				number_format( $passed ),
+				$index_time,
+				$index_ms
+			)
+		);
+		\WP_CLI::log( '' );
+
+		// Clean up temp directories.
+		foreach ( array( $state_dir, $output_dir ) as $dir ) {
+			if ( is_dir( $dir ) ) {
+				$it = new \RecursiveIteratorIterator(
+					new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+					\RecursiveIteratorIterator::CHILD_FIRST
+				);
+				foreach ( $it as $f ) {
+					$f->isDir() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
+				}
+				rmdir( $dir );
+			}
+		}
+
+		// Projection to full corpus.
+		$proj_gather = $gather_time / $n * $total;
+		$proj_filter = $filter_time / $n * $total;
+		$proj_index  = $index_time / $passed * ( $total * ( $passed / $n ) );
+		$proj_total  = $proj_gather + $proj_filter + $proj_index;
+
+		\WP_CLI::log( '=== Projected for full corpus (' . number_format( $total ) . ' posts) ===' );
+		\WP_CLI::log( '' );
+
+		$pct = static function ( float $part, float $whole ): string {
+			return $whole > 0 ? sprintf( '%.0f%%', $part / $whole * 100 ) : '0%';
+		};
+
+		\WP_CLI::log(
+			sprintf(
+				'  gather:      %-10s  %s of total',
+				$this->format_duration( $proj_gather ),
+				$pct( $proj_gather, $proj_total )
+			)
+		);
+		\WP_CLI::log(
+			sprintf(
+				'  HtmlCleaner: %-10s  %s of total',
+				$this->format_duration( $proj_filter ),
+				$pct( $proj_filter, $proj_total )
+			)
+		);
+		\WP_CLI::log(
+			sprintf(
+				'  indexer:     %-10s  %s of total',
+				$this->format_duration( $proj_index ),
+				$pct( $proj_index, $proj_total )
+			)
+		);
+		\WP_CLI::log( '  ' . str_repeat( '-', 28 ) );
+		\WP_CLI::log( '  estimated total: ' . $this->format_duration( $proj_total ) );
+		\WP_CLI::log( '' );
+
+		// Recommendation.
+		if ( $proj_gather / $proj_total > 0.5 ) {
+			\WP_CLI::log( 'Recommendation: gather phase dominates (' . $pct( $proj_gather, $proj_total ) . ' of build time).' );
+			\WP_CLI::log( '  apply_filters("the_content") runs every active plugin filter on each post.' );
+			\WP_CLI::log( '  Use the scolta_content_item filter to substitute $post->post_content' );
+			\WP_CLI::log( '  (raw storage, no plugin processing) or do_blocks($post->post_content)' );
+			\WP_CLI::log( '  (renders blocks only, skips SEO/analytics hooks).' );
+		} elseif ( $proj_filter / $proj_total > 0.3 ) {
+			\WP_CLI::log( 'Recommendation: HtmlCleaner dominates (' . $pct( $proj_filter, $proj_total ) . ' of build time).' );
+			\WP_CLI::log( '  Posts with large rendered HTML (Gutenberg page-builder blocks, Elementor)' );
+			\WP_CLI::log( '  are expensive to parse. Consider truncating bodyHtml via scolta_content_item.' );
+		} else {
+			\WP_CLI::log( 'Recommendation: indexer dominates (' . $pct( $proj_index, $proj_total ) . ' of build time).' );
+			\WP_CLI::log( '  Try --memory-budget=balanced (200 posts/chunk instead of 50) to reduce' );
+			\WP_CLI::log( '  merge overhead, or --memory-budget=aggressive if RSS headroom allows.' );
+		}
+	}
+
+	/**
+	 * Format a duration in seconds as a human-readable string.
+	 *
+	 * @param float $seconds Raw duration in seconds.
+	 * @return string E.g. "2m 15s" or "45s".
+	 */
+	public function format_duration( float $seconds ): string {
+		$s = (int) round( $seconds );
+		if ( $s < 60 ) {
+			return sprintf( '%ds', $s );
+		}
+		return sprintf( '%dm %ds', intdiv( $s, 60 ), $s % 60 );
 	}
 
 	/**
