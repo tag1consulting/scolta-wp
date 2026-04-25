@@ -488,9 +488,41 @@ npm install -g pagefind
 
 Change **Settings > Scolta > Indexer** to "Auto" or "Binary" and rebuild.
 
-### Enable Action Scheduler for background indexing
+### Keeping the Index Fresh
 
-Install [Action Scheduler](https://actionscheduler.org/) to get automatic background index builds when content changes. Without it, rebuilds require `wp scolta build` or a cron job.
+When **auto_rebuild** is enabled in Settings > Scolta, the plugin listens for content changes (post saves and deletes) and automatically schedules a debounced rebuild after a configurable delay (default: 5 minutes). This requires Action Scheduler.
+
+Three paths are available, in order of reliability:
+
+#### Path A: Action Scheduler (recommended)
+
+Install [Action Scheduler](https://actionscheduler.org/) to get automatic background index builds when content changes. WooCommerce sites already have it — just enable **auto_rebuild** in Settings > Scolta.
+
+#### Path B: System cron
+
+For hosts with SSH access. This is the most reliable option after Action Scheduler because it runs on the system clock and doesn't depend on WordPress page loads.
+
+```
+*/15 * * * * cd /var/www/html && wp scolta build --incremental 2>&1 | logger -t scolta
+```
+
+Adjust the path and interval to taste. `--incremental` only processes tracked changes, so runs are fast when nothing has changed.
+
+#### Path C: WP-Cron via WP Crontrol
+
+For users without SSH access who can't install Action Scheduler. Install [WP Crontrol](https://wordpress.org/plugins/wp-crontrol/), then add this to your theme's `functions.php` or a custom plugin:
+
+```php
+add_action( 'scolta_scheduled_rebuild', function () {
+    if ( class_exists( 'Scolta_Rebuild_Scheduler' ) ) {
+        Scolta_Rebuild_Scheduler::start_rebuild();
+    }
+} );
+```
+
+In Tools > Cron Events, add a new cron event: hook name `scolta_scheduled_rebuild`, recurrence "Every 15 minutes" (or "Twice hourly").
+
+**Caveat:** WP-Cron events are triggered by page loads, not by the system clock. On low-traffic sites the rebuild may not run on schedule. If the site gets consistent traffic this works fine; otherwise Path B is more reliable.
 
 ## Requirements
 
