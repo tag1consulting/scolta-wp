@@ -14,6 +14,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ### Changed
 - **`wp scolta build` and `wp scolta diagnose`**: Budget and chunk-size resolution now delegated to `MemoryBudgetConfig::fromCliAndConfig()` (scolta-php), removing ~8 lines of duplicated precedence logic from each command.
 - **`do_build_php()` intent construction**: Replaced inline `match(true)` with `BuildIntentFactory::fromFlags()` (scolta-php).
+- **Anti-pattern CI check.** New `antipatterns` CI job catches: unbounded `WP_Query` (`posts_per_page => -1`); `IndexBuildOrchestrator` construction without logger/progress.
+- **scolta-php dependency bumped to `^0.3.3`** (atomic manifest writes, CRC32 chunk validation, stale lock detection).
 
 ## [0.3.2] - 2026-04-24
 

@@ -141,3 +141,28 @@ jobs:
             exit 1
           fi
           echo "PASS: Major versions aligned"
+
+  antipatterns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for known bad patterns
+        run: |
+          FAIL=0
+
+          # Unbounded WP_Query (can exhaust memory on large sites)
+          if grep -rn 'posts_per_page[[:space:]]*=>[[:space:]]*-1' includes/ 2>/dev/null; then
+            echo "FAIL: Unbounded WP_Query (posts_per_page => -1) found in includes/"
+            FAIL=1
+          fi
+
+          # IndexBuildOrchestrator constructed without a logger or progress reporter
+          if grep -rn 'new IndexBuildOrchestrator' includes/ 2>/dev/null | grep -qvE 'logger|progress'; then
+            echo "FAIL: IndexBuildOrchestrator constructed without logger/progress in includes/"
+            grep -rn 'new IndexBuildOrchestrator' includes/ | grep -vE 'logger|progress'
+            FAIL=1
+          fi
+
+          [ $FAIL -eq 0 ] && echo "PASS: No known bad patterns found."
+          exit $FAIL
