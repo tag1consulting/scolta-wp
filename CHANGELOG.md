@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Added
+- **Scoring behavior tests (Phase 1).** Added config-mapping tests for phrase proximity fields (`phrase_adjacent_multiplier`, `phrase_near_multiplier`, `phrase_near_window`, `phrase_window`), `ai_languages`, `recency_strategy`, and `recency_curve` to `AiServiceTest`.
+
 ## [0.3.3] - 2026-04-26
 
 ### Added

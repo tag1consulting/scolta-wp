@@ -76,6 +76,42 @@ class AiServiceTest extends TestCase {
         $this->assertEquals('My WP Site', $service->get_config()->siteName);
     }
 
+    public function test_config_maps_phrase_adjacent_multiplier(): void {
+        $service = $this->createService(['phrase_adjacent_multiplier' => 3.0]);
+        $this->assertEquals(3.0, $service->get_config()->phraseAdjacentMultiplier);
+    }
+
+    public function test_config_maps_phrase_near_multiplier(): void {
+        $service = $this->createService(['phrase_near_multiplier' => 2.0]);
+        $this->assertEquals(2.0, $service->get_config()->phraseNearMultiplier);
+    }
+
+    public function test_config_maps_phrase_near_window(): void {
+        $service = $this->createService(['phrase_near_window' => 8]);
+        $this->assertEquals(8, $service->get_config()->phraseNearWindow);
+    }
+
+    public function test_config_maps_phrase_window(): void {
+        $service = $this->createService(['phrase_window' => 20]);
+        $this->assertEquals(20, $service->get_config()->phraseWindow);
+    }
+
+    public function test_config_maps_ai_languages(): void {
+        $service = $this->createService(['ai_languages' => ['en', 'fr', 'de']]);
+        $this->assertEquals(['en', 'fr', 'de'], $service->get_config()->aiLanguages);
+    }
+
+    public function test_config_maps_recency_strategy(): void {
+        $service = $this->createService(['recency_strategy' => 'linear']);
+        $this->assertEquals('linear', $service->get_config()->recencyStrategy);
+    }
+
+    public function test_config_maps_recency_curve(): void {
+        $curve = [[0, 1.0], [365, 0.5], [730, 0.0]];
+        $service = $this->createService(['recency_curve' => $curve]);
+        $this->assertEquals($curve, $service->get_config()->recencyCurve);
+    }
+
     // -------------------------------------------------------------------
     // API key detection
     // -------------------------------------------------------------------
