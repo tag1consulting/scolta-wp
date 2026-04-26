@@ -6,6 +6,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-26
+
 ### Added
 - **`Scolta_Logger`**: PSR-3 fallback logger for non-CLI contexts (cron, Action Scheduler, AJAX). Routes warning/error/critical to `error_log()`; info and debug are dropped. Loaded unconditionally so `IndexBuildOrchestrator` output is not silently discarded in background builds.
 - **`--strict-errors` flag on `wp scolta build`**: Makes `Scolta_WP_CLI_Logger` route PSR-3 error/critical/alert/emergency to `WP_CLI::error()` (exits with non-zero) instead of the default `WP_CLI::warning()` (non-fatal). Useful in CI pipelines.
@@ -14,7 +16,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ### Changed
 - **`wp scolta build` and `wp scolta diagnose`**: Budget and chunk-size resolution now delegated to `MemoryBudgetConfig::fromCliAndConfig()` (scolta-php), removing ~8 lines of duplicated precedence logic from each command.
 - **`do_build_php()` intent construction**: Replaced inline `match(true)` with `BuildIntentFactory::fromFlags()` (scolta-php).
-- **Anti-pattern CI check.** New `antipatterns` CI job catches: unbounded `WP_Query` (`posts_per_page => -1`); `IndexBuildOrchestrator` construction without logger/progress.
+- **Anti-pattern CI check.** New `antipatterns` CI job catches unbounded `WP_Query` (`posts_per_page => -1`).
 - **scolta-php dependency bumped to `^0.3.3`** (atomic manifest writes, CRC32 chunk validation, stale lock detection).
 
 ## [0.3.2] - 2026-04-24
