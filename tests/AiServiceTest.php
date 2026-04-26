@@ -159,6 +159,20 @@ class AiServiceTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // Cache TTL config mapping
+    // -------------------------------------------------------------------
+
+    public function test_config_maps_cache_ttl(): void {
+        $service = $this->createService(['cache_ttl' => 86400]);
+        $this->assertEquals(86400, $service->get_config()->cacheTtl);
+    }
+
+    public function test_config_maps_cache_ttl_zero_disables_caching(): void {
+        $service = $this->createService(['cache_ttl' => 0]);
+        $this->assertEquals(0, $service->get_config()->cacheTtl);
+    }
+
+    // -------------------------------------------------------------------
     // API key detection
     // -------------------------------------------------------------------
 
