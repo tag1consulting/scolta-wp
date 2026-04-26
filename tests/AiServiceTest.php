@@ -159,6 +159,17 @@ class AiServiceTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // Custom stop words
+    // -------------------------------------------------------------------
+
+    public function test_config_maps_custom_stop_words(): void {
+        $service = $this->createService(['custom_stop_words' => ['the', 'a', 'an']]);
+        $this->assertEquals(['the', 'a', 'an'], $service->get_config()->customStopWords);
+        $js = $service->get_config()->toJsScoringConfig();
+        $this->assertEquals(['the', 'a', 'an'], $js['CUSTOM_STOP_WORDS']);
+    }
+
+    // -------------------------------------------------------------------
     // Cache TTL config mapping
     // -------------------------------------------------------------------
 
@@ -170,6 +181,32 @@ class AiServiceTest extends TestCase {
     public function test_config_maps_cache_ttl_zero_disables_caching(): void {
         $service = $this->createService(['cache_ttl' => 0]);
         $this->assertEquals(0, $service->get_config()->cacheTtl);
+    }
+
+    // -------------------------------------------------------------------
+    // AI provider / model / base URL (toAiClientConfig pipeline)
+    // -------------------------------------------------------------------
+
+    public function test_config_maps_ai_provider(): void {
+        $service = $this->createService(['ai_provider' => 'openai']);
+        $this->assertEquals('openai', $service->get_config()->aiProvider);
+    }
+
+    public function test_config_maps_ai_model(): void {
+        $service = $this->createService(['ai_model' => 'gpt-4o']);
+        $this->assertEquals('gpt-4o', $service->get_config()->aiModel);
+    }
+
+    public function test_config_maps_ai_base_url(): void {
+        $service = $this->createService(['ai_base_url' => 'https://proxy.example.com/v1']);
+        $client = $service->get_config()->toAiClientConfig();
+        $this->assertEquals('https://proxy.example.com/v1', $client['base_url']);
+    }
+
+    public function test_empty_ai_base_url_omitted_from_client_config(): void {
+        $service = $this->createService(['ai_base_url' => '']);
+        $client = $service->get_config()->toAiClientConfig();
+        $this->assertArrayNotHasKey('base_url', $client);
     }
 
     // -------------------------------------------------------------------
