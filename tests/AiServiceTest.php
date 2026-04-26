@@ -224,10 +224,26 @@ class AiServiceTest extends TestCase {
         $this->assertStringContainsString('Test Site', $prompt);
     }
 
+    public function test_get_summarize_prompt_uses_custom_override(): void {
+        $service = $this->createService([
+            'prompt_summarize' => 'Summarize for {SITE_NAME}',
+        ]);
+        $prompt = $service->get_summarize_prompt();
+        $this->assertEquals('Summarize for {SITE_NAME}', $prompt);
+    }
+
     public function test_get_follow_up_prompt_returns_default(): void {
         $service = $this->createService();
         $prompt = $service->get_follow_up_prompt();
         $this->assertStringContainsString('Test Site', $prompt);
+    }
+
+    public function test_get_follow_up_prompt_uses_custom_override(): void {
+        $service = $this->createService([
+            'prompt_follow_up' => 'Continue for {SITE_NAME}',
+        ]);
+        $prompt = $service->get_follow_up_prompt();
+        $this->assertEquals('Continue for {SITE_NAME}', $prompt);
     }
 
     // -------------------------------------------------------------------
