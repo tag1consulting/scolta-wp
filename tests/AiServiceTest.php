@@ -113,6 +113,52 @@ class AiServiceTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // Display config mapping
+    // -------------------------------------------------------------------
+
+    public function test_config_maps_excerpt_length(): void {
+        $service = $this->createService(['excerpt_length' => 500]);
+        $this->assertEquals(500, $service->get_config()->excerptLength);
+    }
+
+    public function test_config_maps_results_per_page(): void {
+        $service = $this->createService(['results_per_page' => 25]);
+        $this->assertEquals(25, $service->get_config()->resultsPerPage);
+    }
+
+    public function test_config_maps_max_pagefind_results(): void {
+        $service = $this->createService(['max_pagefind_results' => 100]);
+        $this->assertEquals(100, $service->get_config()->maxPagefindResults);
+    }
+
+    public function test_config_maps_ai_summary_top_n(): void {
+        $service = $this->createService(['ai_summary_top_n' => 10]);
+        $this->assertEquals(10, $service->get_config()->aiSummaryTopN);
+    }
+
+    public function test_config_maps_ai_summary_max_chars(): void {
+        $service = $this->createService(['ai_summary_max_chars' => 5000]);
+        $this->assertEquals(5000, $service->get_config()->aiSummaryMaxChars);
+    }
+
+    public function test_display_values_propagate_to_js_scoring_config(): void {
+        $service = $this->createService([
+            'excerpt_length' => 999,
+            'results_per_page' => 42,
+            'max_pagefind_results' => 75,
+            'ai_summary_top_n' => 8,
+            'ai_summary_max_chars' => 3000,
+        ]);
+        $js = $service->get_config()->toJsScoringConfig();
+
+        $this->assertEquals(999, $js['EXCERPT_LENGTH']);
+        $this->assertEquals(42, $js['RESULTS_PER_PAGE']);
+        $this->assertEquals(75, $js['MAX_PAGEFIND_RESULTS']);
+        $this->assertEquals(8, $js['AI_SUMMARY_TOP_N']);
+        $this->assertEquals(3000, $js['AI_SUMMARY_MAX_CHARS']);
+    }
+
+    // -------------------------------------------------------------------
     // API key detection
     // -------------------------------------------------------------------
 

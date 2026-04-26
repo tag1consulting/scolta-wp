@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **Display behavior tests (Phase 2).** Added config-mapping tests for all five display fields (`excerpt_length`, `results_per_page`, `max_pagefind_results`, `ai_summary_top_n`, `ai_summary_max_chars`) and an end-to-end test that they propagate to `toJsScoringConfig()` output.
 - **Scoring behavior tests (Phase 1).** Added config-mapping tests for phrase proximity fields (`phrase_adjacent_multiplier`, `phrase_near_multiplier`, `phrase_near_window`, `phrase_window`), `ai_languages`, `recency_strategy`, and `recency_curve` to `AiServiceTest`.
 
 ## [0.3.3] - 2026-04-26
