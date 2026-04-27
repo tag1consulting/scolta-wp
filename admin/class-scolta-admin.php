@@ -1387,7 +1387,7 @@ class Scolta_Admin {
 		}
 
 		// AI status.
-		$ai_configured = ! empty( $settings['ai_api_key'] ) || class_exists( '\WordPress\AI\Client' );
+		$ai_configured = \Scolta_Ai_Service::get_api_key_source() !== 'none';
 		printf(
 			'<p><strong>%s</strong> %s</p>',
 			esc_html__( 'AI:', 'scolta' ),
