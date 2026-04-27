@@ -78,13 +78,22 @@ class DashboardWidgetTest extends TestCase {
     }
 
     public function test_widget_renders_not_configured_when_no_api_key(): void {
-        update_option('scolta_settings', ['ai_provider' => 'anthropic']);
+        if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
+            $this->markTestSkipped(
+                'SCOLTA_API_KEY constant defined in a prior test (constants cannot be undefined in PHP); ' .
+                'see AdminDashboardWidgetTest::test_dashboard_shows_not_configured_when_no_key() for an isolated version'
+            );
+        }
+
+        putenv( 'SCOLTA_API_KEY' );
+        unset( $_ENV['SCOLTA_API_KEY'], $_SERVER['SCOLTA_API_KEY'] );
+        update_option( 'scolta_settings', array( 'ai_provider' => 'anthropic' ) );
 
         ob_start();
         Scolta_Admin::render_dashboard_widget();
         $output = ob_get_clean();
 
-        $this->assertStringContainsString('Not configured', $output);
+        $this->assertStringContainsString( 'Not configured', $output );
     }
 
     public function test_widget_renders_configured_when_api_key_present(): void {
