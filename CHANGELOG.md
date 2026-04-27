@@ -6,6 +6,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-04-27
+
 ### Fixed
 - **Hygiene:** Added `JSON_THROW_ON_ERROR` to `json_decode` on GitHub API response in `ScoltaCli::downloadPagefind()` — malformed API responses now produce a clear error instead of silently continuing with a null object.
 - **Hygiene:** Added TOCTOU-safe comment to intentional `@rmdir` call in `uninstall.php`.
