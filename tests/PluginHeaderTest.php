@@ -47,25 +47,26 @@ class PluginHeaderTest extends TestCase {
 	}
 
 	/**
-	 * The Description value must be short enough to display on the Plugins page.
+	 * The Description line must fit within the PHPCS 100-character line limit.
 	 *
-	 * WordPress displays up to ~150 characters cleanly in the plugin list.
-	 * Longer descriptions may be truncated with "..." in the narrow column view.
+	 * The prefix " * Description:       " is 22 chars, leaving 78 chars for the
+	 * description text. WordPress also truncates very long descriptions in list view.
 	 *
-	 * Pre-fix: N/A (description was cut at "for" — 0 chars past the limit).
-	 * Post-fix: single-line description must fit within 150 characters.
+	 * Pre-fix: N/A (description was cut at "for" by WP; length was moot).
+	 * Post-fix: full line must be ≤ 100 characters.
 	 */
 	public function test_description_length_under_limit(): void {
-		preg_match( '/\* Description:\s+(.+)$/m', $this->plugin_source, $matches );
+		// Match the entire Description: line (not just the value after the prefix).
+		preg_match( '/^( \* Description:\s+.+)$/m', $this->plugin_source, $matches );
 		$this->assertNotEmpty( $matches, 'scolta.php must contain a Description: header line' );
 
-		$description = trim( $matches[1] );
-		$length      = strlen( $description );
+		$full_line = $matches[1];
+		$length    = strlen( $full_line );
 
 		$this->assertLessThanOrEqual(
-			150,
+			100,
 			$length,
-			"Description is {$length} chars, exceeds 150-char safe limit: '{$description}'"
+			"Description line is {$length} chars, exceeds the 100-char PHPCS limit: '{$full_line}'"
 		);
 	}
 
