@@ -950,7 +950,11 @@ class Scolta_CLI {
 			return;
 		}
 
-		$release = json_decode( wp_remote_retrieve_body( $response ), true );
+		try {
+			$release = json_decode( wp_remote_retrieve_body( $response ), true, 512, JSON_THROW_ON_ERROR );
+		} catch ( \JsonException $e ) {
+			\WP_CLI::error( 'Failed to parse GitHub API response: ' . $e->getMessage() );
+		}
 		$version = ltrim( $release['tag_name'] ?? '', 'v' );
 
 		if ( empty( $version ) ) {

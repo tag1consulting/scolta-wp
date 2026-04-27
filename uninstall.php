@@ -40,6 +40,7 @@ if (is_dir($scolta_dir)) {
         foreach ($iterator as $file) {
             $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
         }
+        // Suppress: best-effort cleanup during uninstall, directory may already be removed.
         @rmdir($scolta_dir);
     }
 }

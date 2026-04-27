@@ -260,6 +260,22 @@ class CliValidationTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // JSON_THROW_ON_ERROR on remote API responses
+    // -------------------------------------------------------------------
+
+    public function test_json_decode_on_remote_responses_uses_throw_on_error(): void {
+        $source = file_get_contents( dirname(__DIR__) . '/cli/class-scolta-cli.php' );
+        preg_match_all( '/json_decode\s*\([^;]*(?:wp_remote_retrieve_body)[^;]*\)/s', $source, $matches );
+        foreach ( $matches[0] as $call ) {
+            $this->assertStringContainsString(
+                'JSON_THROW_ON_ERROR',
+                $call,
+                'json_decode on remote API responses must use JSON_THROW_ON_ERROR.'
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------
     // Method count
     // -------------------------------------------------------------------
 

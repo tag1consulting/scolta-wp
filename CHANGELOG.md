@@ -7,6 +7,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Hygiene:** Added `JSON_THROW_ON_ERROR` to `json_decode` on GitHub API response in `ScoltaCli::downloadPagefind()` — malformed API responses now produce a clear error instead of silently continuing with a null object.
+- **Hygiene:** Added TOCTOU-safe comment to intentional `@rmdir` call in `uninstall.php`.
+- **Hygiene:** Added source-parse test ensuring `json_decode` on remote API responses always uses `JSON_THROW_ON_ERROR`.
 - Fix: Rebuild notice dismiss never persisted — `uniqid(..., true)` generated IDs containing periods, which `sanitize_key()` stripped, causing ID mismatch between storage and lookup.
 - Fix: Dashboard "AI: Not configured" did not detect API keys set via environment variable or wp-config constant — only checked database storage and WP AI Client SDK.
 - Fix: Plugin description truncated on Plugins page — multi-line header not parsed by WordPress.
