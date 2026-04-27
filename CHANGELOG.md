@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **Config test gap fixes.** Added `test_config_maps_custom_stop_words` (property + JS output); `test_config_maps_ai_provider`, `test_config_maps_ai_model`, `test_config_maps_ai_base_url`, and `test_empty_ai_base_url_omitted_from_client_config` (AI client config pipeline).
 - **Custom prompt tests (Phase 4).** Added `test_get_summarize_prompt_uses_custom_override` and `test_get_follow_up_prompt_uses_custom_override` confirming all three prompt types return their override raw without `{SITE_NAME}` substitution.
 - **Cache behavior tests (Phase 3).** Added `test_config_maps_cache_ttl` and `test_config_maps_cache_ttl_zero_disables_caching` to confirm `cache_ttl` is mapped through to `ScoltaConfig::$cacheTtl` including the zero/disable case.
 - **Display behavior tests (Phase 2).** Added config-mapping tests for all five display fields (`excerpt_length`, `results_per_page`, `max_pagefind_results`, `ai_summary_top_n`, `ai_summary_max_chars`) and an end-to-end test that they propagate to `toJsScoringConfig()` output.
