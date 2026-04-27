@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **`Scolta_Cache_Driver` behavior tests.** New `ScoltaCacheBehaviorTest`: verifies the driver contract (get/set/miss/array values) and end-to-end handler+driver caching — second call to `handleExpandQuery`/`handleSummarize` serves from the WordPress transient cache (AI called once), while `cacheTtl=0` calls the AI service both times.
 - **Config test gap fixes.** Added `test_config_maps_custom_stop_words` (property + JS output); `test_config_maps_ai_provider`, `test_config_maps_ai_model`, `test_config_maps_ai_base_url`, and `test_empty_ai_base_url_omitted_from_client_config` (AI client config pipeline).
 - **Custom prompt tests (Phase 4).** Added `test_get_summarize_prompt_uses_custom_override` and `test_get_follow_up_prompt_uses_custom_override` confirming all three prompt types return their override raw without `{SITE_NAME}` substitution.
 - **Cache behavior tests (Phase 3).** Added `test_config_maps_cache_ttl` and `test_config_maps_cache_ttl_zero_disables_caching` to confirm `cache_ttl` is mapped through to `ScoltaConfig::$cacheTtl` including the zero/disable case.
