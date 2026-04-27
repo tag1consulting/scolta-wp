@@ -9,6 +9,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ### Fixed
 - Fix: Rebuild notice dismiss never persisted — `uniqid(..., true)` generated IDs containing periods, which `sanitize_key()` stripped, causing ID mismatch between storage and lookup.
 - Fix: Dashboard "AI: Not configured" did not detect API keys set via environment variable or wp-config constant — only checked database storage and WP AI Client SDK.
+- Fix: Plugin description truncated on Plugins page — multi-line header not parsed by WordPress.
 
 ### Added
 - **`Scolta_Cache_Driver` behavior tests.** New `ScoltaCacheBehaviorTest`: verifies the driver contract (get/set/miss/array values) and end-to-end handler+driver caching — second call to `handleExpandQuery`/`handleSummarize` serves from the WordPress transient cache (AI called once), while `cacheTtl=0` calls the AI service both times.
