@@ -1475,7 +1475,7 @@ class Scolta_Admin {
 
 		// Each rebuild gets a unique ID so per-user dismissals of old notices
 		// don't suppress the new one.
-		$notice_id = uniqid( 'scolta_rebuild_', true );
+		$notice_id = 'scolta_rebuild_' . bin2hex( random_bytes( 8 ) );
 
 		// Clear any previous notice (and its dismissal state — new notice_id handles that).
 		delete_transient( 'scolta_rebuild_notice' );

@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- Fix: Rebuild notice dismiss never persisted — `uniqid(..., true)` generated IDs containing periods, which `sanitize_key()` stripped, causing ID mismatch between storage and lookup.
+
 ### Added
 - **`Scolta_Cache_Driver` behavior tests.** New `ScoltaCacheBehaviorTest`: verifies the driver contract (get/set/miss/array values) and end-to-end handler+driver caching — second call to `handleExpandQuery`/`handleSummarize` serves from the WordPress transient cache (AI called once), while `cacheTtl=0` calls the AI service both times.
 - **Config test gap fixes.** Added `test_config_maps_custom_stop_words` (property + JS output); `test_config_maps_ai_provider`, `test_config_maps_ai_model`, `test_config_maps_ai_base_url`, and `test_empty_ai_base_url_omitted_from_client_config` (AI client config pipeline).
