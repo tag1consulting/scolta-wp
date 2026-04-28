@@ -107,13 +107,13 @@ function scolta_activate(): void {
 		'recency_half_life_days'     => 365,
 		'recency_penalty_after_days' => 1825,
 		'recency_max_penalty'        => 0.3,
-		'expand_primary_weight'      => 0.7,
+		'expand_primary_weight'      => 0.5,
 		// Display.
 		'excerpt_length'             => 300,
 		'results_per_page'           => 10,
 		'max_pagefind_results'       => 50,
-		'ai_summary_top_n'           => 5,
-		'ai_summary_max_chars'       => 2000,
+		'ai_summary_top_n'           => 10,
+		'ai_summary_max_chars'       => 4000,
 		// Prompt overrides.
 		'prompt_expand_query'        => '',
 		'prompt_summarize'           => '',

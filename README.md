@@ -153,7 +153,7 @@ Tested ceiling at the `conservative` profile: 50,000 pages. Higher counts likely
 
 Scolta's AI tier is optional. When enabled:
 
-- The LLM receives: the query text, and the titles and excerpts of the top N results (default: 5, configurable via `ai_summary_top_n`).
+- The LLM receives: the query text, and the titles and excerpts of the top N results (default: 10, configurable via `ai_summary_top_n`).
 - The LLM does not receive: the full index contents, full page text, user session data, or visitor identity.
 - Which provider receives the query data depends on your `ai_provider` setting: `anthropic`, `openai`, or a self-hosted endpoint via `ai_base_url`.
 
@@ -173,8 +173,8 @@ Configure at **Settings > Scolta > AI Provider**, or via `wp-config.php` constan
 | Base URL | `ai_base_url` | provider default | Custom endpoint for proxies or Azure OpenAI |
 | Query expansion | `ai_expand_query` | `true` | Toggle AI query expansion on/off |
 | Summarization | `ai_summarize` | `true` | Toggle AI result summarization on/off |
-| Summary top N | `ai_summary_top_n` | `5` | How many top results to send to AI for summarization |
-| Summary max chars | `ai_summary_max_chars` | `2000` | Max content characters sent to AI per request |
+| Summary top N | `ai_summary_top_n` | `10` | How many top results to send to AI for summarization |
+| Summary max chars | `ai_summary_max_chars` | `4000` | Max content characters sent to AI per request |
 | Max follow-ups | `max_follow_ups` | `3` | Follow-up questions allowed per session |
 | AI languages | `ai_languages` | `['en']` | Languages the AI responds in (matches user query language) |
 
@@ -196,7 +196,7 @@ Configure at **Settings > Scolta > Scoring**.
 | Title match boost | `title_match_boost` | `1.0` | Boost when query terms appear in the title |
 | Title all-terms multiplier | `title_all_terms_multiplier` | `1.5` | Extra multiplier when ALL terms match the title |
 | Content match boost | `content_match_boost` | `0.4` | Boost for query term matches in body/excerpt |
-| Expand primary weight | `expand_primary_weight` | `0.7` | Weight for original query results vs AI-expanded results (higher = original query dominates) |
+| Expand primary weight | `expand_primary_weight` | `0.5` | Weight for original query results vs AI-expanded results (higher = original query dominates; raise to 0.7+ if you want literal keyword matches to win) |
 | Recency strategy | `recency_strategy` | `exponential` | Decay function: `exponential`, `linear`, `step`, `none`, or `custom` |
 | Recency boost max | `recency_boost_max` | `0.5` | Maximum positive boost for very recent content |
 | Recency half-life days | `recency_half_life_days` | `365` | Days until recency boost halves |
@@ -297,12 +297,12 @@ The PHP indexer supports 14 languages via Snowball stemming. The Pagefind binary
 
 ### "AI summary says 'I don't have enough context'"
 
-Increase how much content is sent to the AI:
+The defaults (10 results, 4000 chars) are already tuned for curation. If still insufficient, increase further:
 
 ```php
 $settings = get_option('scolta_settings', []);
-$settings['ai_summary_top_n']     = 10;
-$settings['ai_summary_max_chars'] = 4000;
+$settings['ai_summary_top_n']     = 15;
+$settings['ai_summary_max_chars'] = 6000;
 update_option('scolta_settings', $settings);
 ```
 
@@ -318,11 +318,11 @@ update_option('scolta_settings', $settings);
 
 ### "Expanded queries return irrelevant results"
 
-Lower `expand_primary_weight` to give more weight to the original query, or disable expansion:
+Raise `expand_primary_weight` (default: 0.5) to make original query terms dominate more, or disable expansion:
 
 ```php
 $settings = get_option('scolta_settings', []);
-$settings['expand_primary_weight'] = 0.9;
+$settings['expand_primary_weight'] = 0.8;  // closer to 1.0 = original query dominates
 // or: $settings['ai_expand_query'] = false;
 update_option('scolta_settings', $settings);
 ```
