@@ -73,6 +73,7 @@ class Scolta_Admin {
 			add_settings_field( 'ai_provider', __( 'Provider', 'scolta' ), array( self::class, 'render_ai_provider_field' ), 'scolta', 'scolta_ai_section' );
 			add_settings_field( 'ai_api_key_status', __( 'API Key', 'scolta' ), array( self::class, 'render_api_key_status_field' ), 'scolta', 'scolta_ai_section' );
 			add_settings_field( 'ai_model', __( 'Model', 'scolta' ), array( self::class, 'render_ai_model_field' ), 'scolta', 'scolta_ai_section' );
+			add_settings_field( 'ai_expansion_model', __( 'Expansion Model', 'scolta' ), array( self::class, 'render_ai_expansion_model_field' ), 'scolta', 'scolta_ai_section' );
 			add_settings_field( 'ai_base_url', __( 'Base URL', 'scolta' ), array( self::class, 'render_ai_base_url_field' ), 'scolta', 'scolta_ai_section' );
 		}
 
@@ -297,6 +298,14 @@ class Scolta_Admin {
 		?>
 		<input type="text" name="scolta_settings[ai_model]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
 		<p class="description"><?php esc_html_e( 'Model identifier. e.g., claude-sonnet-4-5-20250929 or gpt-4o', 'scolta' ); ?></p>
+		<?php
+	}
+
+	public static function render_ai_expansion_model_field(): void {
+		$value = self::get_setting( 'ai_expansion_model', '' );
+		?>
+		<input type="text" name="scolta_settings[ai_expansion_model]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
+		<p class="description"><?php esc_html_e( 'Optional model for query expansion only. Leave empty to use the main Model for all operations. Example: claude-haiku-4-5-20251001', 'scolta' ); ?></p>
 		<?php
 	}
 
@@ -832,8 +841,9 @@ class Scolta_Admin {
 			: 'anthropic';
 
 		// Model.
-		$clean['ai_model']    = sanitize_text_field( $input['ai_model'] ?? 'claude-sonnet-4-5-20250929' );
-		$clean['ai_base_url'] = sanitize_text_field( $input['ai_base_url'] ?? '' );
+		$clean['ai_model']          = sanitize_text_field( $input['ai_model'] ?? 'claude-sonnet-4-5-20250929' );
+		$clean['ai_expansion_model'] = sanitize_text_field( $input['ai_expansion_model'] ?? '' );
+		$clean['ai_base_url']       = sanitize_text_field( $input['ai_base_url'] ?? '' );
 
 		// AI feature toggles.
 		$clean['ai_expand_query'] = ! empty( $input['ai_expand_query'] );

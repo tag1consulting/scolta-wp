@@ -82,6 +82,7 @@ function scolta_activate(): void {
 	$defaults = array(
 		'ai_provider'                => 'anthropic',
 		'ai_model'                   => 'claude-sonnet-4-5-20250929',
+		'ai_expansion_model'         => '',
 		'ai_base_url'                => '',
 		'site_name'                  => get_bloginfo( 'name' ),
 		'site_description'           => 'website',
