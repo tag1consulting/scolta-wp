@@ -6,6 +6,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.3.5] - 2026-04-28
+
 ### Fixed
 - **Admin UI render and sanitize fallbacks now match registered defaults** — `expand_primary_weight`, `ai_summary_top_n`, and `ai_summary_max_chars` fallbacks were still using old values (0.7, 5, 2000). Admin UI now shows the correct defaults (0.5, 10, 4000) for installations that have not explicitly saved these settings, and sanitization produces the correct value when the field is absent from submitted input.
 
