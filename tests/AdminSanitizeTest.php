@@ -365,4 +365,58 @@ class AdminSanitizeTest extends TestCase {
             'Scolta_Admin must have render_auto_rebuild_delay_field() method'
         );
     }
+
+    // -------------------------------------------------------------------
+    // expand_primary_weight — default consistency
+    // -------------------------------------------------------------------
+
+    public function test_expand_primary_weight_sanitize_default_matches_registered(): void {
+        // setUp() calls scolta_activate(), which sets the registered default.
+        $registered = get_option('scolta_settings')['expand_primary_weight'];
+        $this->assertSame(0.5, $registered, 'Registered default must be 0.5');
+
+        // Sanitize with an empty input (no expand_primary_weight key).
+        $result = Scolta_Admin::sanitize_settings([]);
+        $this->assertSame(
+            $registered,
+            $result['expand_primary_weight'],
+            'Sanitize fallback must match registered default'
+        );
+    }
+
+    public function test_all_numeric_sanitize_defaults_match_registered(): void {
+        $registered = get_option('scolta_settings');
+
+        // Keys that go through numeric sanitization and must match registered defaults.
+        $numeric_keys = [
+            'title_match_boost',
+            'title_all_terms_multiplier',
+            'content_match_boost',
+            'recency_boost_max',
+            'recency_half_life_days',
+            'recency_penalty_after_days',
+            'recency_max_penalty',
+            'expand_primary_weight',
+            'excerpt_length',
+            'results_per_page',
+            'max_pagefind_results',
+            'ai_summary_top_n',
+            'ai_summary_max_chars',
+            'cache_ttl',
+            'max_follow_ups',
+        ];
+
+        $sanitized = Scolta_Admin::sanitize_settings([]);
+
+        foreach ($numeric_keys as $key) {
+            if (!array_key_exists($key, $sanitized)) {
+                continue;
+            }
+            $this->assertEquals(
+                $registered[$key],
+                $sanitized[$key],
+                "Sanitize fallback for '{$key}' ({$sanitized[$key]}) does not match registered default ({$registered[$key]})"
+            );
+        }
+    }
 }
