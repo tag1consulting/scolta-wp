@@ -571,10 +571,10 @@ class Scolta_Admin {
 	}
 
 	public static function render_expand_weight_field(): void {
-		$value = self::get_setting( 'expand_primary_weight', 0.7 );
+		$value = self::get_setting( 'expand_primary_weight', 0.5 );
 		?>
 		<input type="number" name="scolta_settings[expand_primary_weight]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.05" class="small-text" />
-		<p class="description"><?php esc_html_e( 'Weight for the primary expanded term (subsequent terms decay). Default: 0.7', 'scolta' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Weight for the primary expanded term (subsequent terms decay). Default: 0.5', 'scolta' ); ?></p>
 		<?php
 	}
 
@@ -682,18 +682,18 @@ class Scolta_Admin {
 	}
 
 	public static function render_ai_summary_top_n_field(): void {
-		$value = self::get_setting( 'ai_summary_top_n', 5 );
+		$value = self::get_setting( 'ai_summary_top_n', 10 );
 		?>
 		<input type="number" name="scolta_settings[ai_summary_top_n]" value="<?php echo esc_attr( $value ); ?>" min="1" max="20" step="1" class="small-text" />
-		<p class="description"><?php esc_html_e( 'Number of top results sent to AI for summarization. Default: 5', 'scolta' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Number of top results sent to AI for summarization. Default: 10', 'scolta' ); ?></p>
 		<?php
 	}
 
 	public static function render_ai_summary_max_chars_field(): void {
-		$value = self::get_setting( 'ai_summary_max_chars', 2000 );
+		$value = self::get_setting( 'ai_summary_max_chars', 4000 );
 		?>
 		<input type="number" name="scolta_settings[ai_summary_max_chars]" value="<?php echo esc_attr( $value ); ?>" min="500" max="10000" step="500" class="small-text" />
-		<p class="description"><?php esc_html_e( 'Maximum characters per result excerpt sent to AI. Default: 2000', 'scolta' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Maximum characters per result excerpt sent to AI. Default: 4000', 'scolta' ); ?></p>
 		<?php
 	}
 
@@ -893,7 +893,7 @@ class Scolta_Admin {
 		$clean['recency_half_life_days']     = max( 1, min( 3650, (int) ( $input['recency_half_life_days'] ?? 365 ) ) );
 		$clean['recency_penalty_after_days'] = max( 0, min( 7300, (int) ( $input['recency_penalty_after_days'] ?? 1825 ) ) );
 		$clean['recency_max_penalty']        = max( 0.0, min( 1.0, (float) ( $input['recency_max_penalty'] ?? 0.3 ) ) );
-		$clean['expand_primary_weight']      = max( 0.0, min( 1.0, (float) ( $input['expand_primary_weight'] ?? 0.7 ) ) );
+		$clean['expand_primary_weight']      = max( 0.0, min( 1.0, (float) ( $input['expand_primary_weight'] ?? 0.5 ) ) );
 
 		$valid_languages   = array( 'ar', 'ca', 'da', 'de', 'el', 'en', 'es', 'et', 'eu', 'fi', 'fr', 'ga', 'hi', 'hu', 'hy', 'id', 'it', 'lt', 'ne', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sr', 'sv', 'ta', 'tr', 'yi' );
 		$clean['language'] = in_array( $input['language'] ?? '', $valid_languages, true )
@@ -922,8 +922,8 @@ class Scolta_Admin {
 		$clean['excerpt_length']       = max( 50, min( 1000, (int) ( $input['excerpt_length'] ?? 300 ) ) );
 		$clean['results_per_page']     = max( 5, min( 100, (int) ( $input['results_per_page'] ?? 10 ) ) );
 		$clean['max_pagefind_results'] = max( 10, min( 500, (int) ( $input['max_pagefind_results'] ?? 50 ) ) );
-		$clean['ai_summary_top_n']     = max( 1, min( 20, (int) ( $input['ai_summary_top_n'] ?? 5 ) ) );
-		$clean['ai_summary_max_chars'] = max( 500, min( 10000, (int) ( $input['ai_summary_max_chars'] ?? 2000 ) ) );
+		$clean['ai_summary_top_n']     = max( 1, min( 20, (int) ( $input['ai_summary_top_n'] ?? 10 ) ) );
+		$clean['ai_summary_max_chars'] = max( 500, min( 10000, (int) ( $input['ai_summary_max_chars'] ?? 4000 ) ) );
 
 		// Cache.
 		$clean['cache_ttl'] = max( 0, min( 7776000, (int) ( $input['cache_ttl'] ?? 2592000 ) ) );

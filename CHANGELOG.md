@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **Admin UI render and sanitize fallbacks now match registered defaults** — `expand_primary_weight`, `ai_summary_top_n`, and `ai_summary_max_chars` fallbacks were still using old values (0.7, 5, 2000). Admin UI now shows the correct defaults (0.5, 10, 4000) for installations that have not explicitly saved these settings, and sanitization produces the correct value when the field is absent from submitted input.
+
 ### Changed
 - **Default `expand_primary_weight` lowered to 0.5** (was 0.7) — gives AI-expanded terms more influence for intent-based queries. To restore the previous behavior, set `expand_primary_weight: 0.7` in config.
 - **Default `ai_summary_top_n` raised to 10** (was 5) — AI sees more results and curates better for constraint queries and diverse result sets.
