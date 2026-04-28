@@ -47,7 +47,7 @@ class ActivationTest extends TestCase {
         $this->assertEquals(365, $settings['recency_half_life_days']);
         $this->assertEquals(1825, $settings['recency_penalty_after_days']);
         $this->assertEquals(0.3, $settings['recency_max_penalty']);
-        $this->assertEquals(0.7, $settings['expand_primary_weight']);
+        $this->assertEquals(0.5, $settings['expand_primary_weight']);
     }
 
     public function test_activation_sets_display_defaults(): void {
@@ -57,8 +57,8 @@ class ActivationTest extends TestCase {
         $this->assertEquals(300, $settings['excerpt_length']);
         $this->assertEquals(10, $settings['results_per_page']);
         $this->assertEquals(50, $settings['max_pagefind_results']);
-        $this->assertEquals(5, $settings['ai_summary_top_n']);
-        $this->assertEquals(2000, $settings['ai_summary_max_chars']);
+        $this->assertEquals(10, $settings['ai_summary_top_n']);
+        $this->assertEquals(4000, $settings['ai_summary_max_chars']);
     }
 
     public function test_activation_sets_empty_prompt_overrides(): void {
