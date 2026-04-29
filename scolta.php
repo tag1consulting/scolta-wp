@@ -3,7 +3,7 @@
  * Plugin Name:       Scolta AI Search
  * Plugin URI:        https://www.tag1.com/scolta
  * Description:       Zero-infrastructure AI search with Pagefind, query expansion, summarization.
- * Version:           0.3.6-dev
+ * Version:           0.3.6
  * Requires at least: 6.0
  *   — No WP 6.1+ APIs used. Verified: no wp_register_block_type_from_metadata()
  *     call-style, no Interactivity API, no wp_admin_notice(), no Plugin
@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'SCOLTA_VERSION', '0.3.6-dev' );
+define( 'SCOLTA_VERSION', '0.3.6' );
 define( 'SCOLTA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_FILE', __FILE__ );

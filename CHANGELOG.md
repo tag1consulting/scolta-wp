@@ -6,6 +6,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.3.6] - 2026-04-29
+
 ### Added
 - **`ai_expansion_model` setting**: Optional model for query expansion. When set, expand-query uses this model; summarize and follow-up continue using `ai_model`. Leave empty (default) for the previous single-model behavior. Configurable via the AI settings section in the admin panel.
 
