@@ -164,29 +164,29 @@ class StructuralIntegrityTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // JS/CSS assets accessible via vendor path
+    // JS/CSS assets bundled directly in plugin
     // -------------------------------------------------------------------
 
-    public function test_scolta_js_accessible_via_vendor(): void {
-        $jsPath = $this->root . '/vendor/tag1/scolta-php/assets/js/scolta.js';
+    public function test_scolta_js_bundled_in_assets(): void {
+        $jsPath = $this->root . '/assets/js/scolta.js';
         $this->assertFileExists($jsPath,
-            'scolta.js must be accessible at vendor/tag1/scolta-php/assets/js/scolta.js');
+            'scolta.js must be bundled at assets/js/scolta.js');
         $this->assertNotEmpty(file_get_contents($jsPath));
     }
 
-    public function test_scolta_css_accessible_via_vendor(): void {
-        $cssPath = $this->root . '/vendor/tag1/scolta-php/assets/css/scolta.css';
+    public function test_scolta_css_bundled_in_assets(): void {
+        $cssPath = $this->root . '/assets/css/scolta.css';
         $this->assertFileExists($cssPath,
-            'scolta.css must be accessible at vendor/tag1/scolta-php/assets/css/scolta.css');
+            'scolta.css must be bundled at assets/css/scolta.css');
         $this->assertNotEmpty(file_get_contents($cssPath));
     }
 
     public function test_shortcode_references_correct_js_path(): void {
         $content = file_get_contents($this->root . '/includes/class-scolta-shortcode.php');
         $this->assertStringContainsString(
-            'vendor/tag1/scolta-php/assets/js/scolta.js',
+            "'assets/js/scolta.js'",
             $content,
-            'Shortcode must reference scolta.js from vendor/tag1/scolta-php/assets/'
+            'Shortcode must reference scolta.js from bundled assets/ directory'
         );
     }
 

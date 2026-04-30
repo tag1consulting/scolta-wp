@@ -69,23 +69,23 @@ class Scolta_Shortcode {
 		$config       = ScoltaConfig::fromArray( $settings );
 		$pagefind_url = self::dir_to_url( $index_dir );
 
-		// Enqueue the shared scolta.js and scolta.css from the Composer package.
-		$scolta_js_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/js/scolta.js';
+		// Enqueue the bundled scolta.js and scolta.css (assets/ is committed to the repo).
+		$scolta_js_path = SCOLTA_PLUGIN_DIR . 'assets/js/scolta.js';
 		if ( file_exists( $scolta_js_path ) ) {
 			wp_enqueue_script(
 				'scolta-search',
-				SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta-php/assets/js/scolta.js',
+				SCOLTA_PLUGIN_URL . 'assets/js/scolta.js',
 				array(),
 				SCOLTA_VERSION,
 				true // Load in footer.
 			);
 		}
 
-		$scolta_css_path = SCOLTA_PLUGIN_DIR . 'vendor/tag1/scolta-php/assets/css/scolta.css';
+		$scolta_css_path = SCOLTA_PLUGIN_DIR . 'assets/css/scolta.css';
 		if ( file_exists( $scolta_css_path ) ) {
 			wp_enqueue_style(
 				'scolta-search',
-				SCOLTA_PLUGIN_URL . 'vendor/tag1/scolta-php/assets/css/scolta.css',
+				SCOLTA_PLUGIN_URL . 'assets/css/scolta.css',
 				array(),
 				SCOLTA_VERSION
 			);
@@ -109,8 +109,7 @@ class Scolta_Shortcode {
 			'scolta',
 			array(
 				'scoring'            => $config->toJsScoringConfig(),
-				'wasmPath'           => SCOLTA_PLUGIN_URL
-					. 'vendor/tag1/scolta-php/assets/wasm/scolta_core.js',
+				'wasmPath'           => SCOLTA_PLUGIN_URL . 'assets/wasm/scolta_core.js',
 				'endpoints'          => array(
 					'expand'    => rest_url( 'scolta/v1/expand-query' ),
 					'summarize' => rest_url( 'scolta/v1/summarize' ),

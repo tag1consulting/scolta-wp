@@ -6,7 +6,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+- **JS/CSS/WASM assets are now bundled in `assets/`** and referenced from there instead of from `vendor/tag1/scolta-php/assets/`. Previously, `class-scolta-shortcode.php` pointed at the vendor path which does not exist when scolta-wp is installed as a dependency of a Composer-managed WordPress site (the plugin's own `vendor/` directory is not committed). Assets are now at `assets/js/scolta.js`, `assets/css/scolta.css`, and `assets/wasm/`.
 
 ## [0.3.6] - 2026-04-29
 
