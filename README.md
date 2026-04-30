@@ -6,7 +6,7 @@ WordPress 6.x plugin — WP-CLI commands, Settings API page, `[scolta_search]` s
 
 ## Status
 
-Beta. Scolta is installable and in active use on WordPress sites. The plugin API documented here will not break within the 0.x minor series without a deprecation notice. Expect breaking changes before 1.0. Test in staging before deploying to production. File bugs at the repo issue tracker.
+Scolta is in active production use on WordPress 6.x. The plugin API documented here is stable within the 0.x minor series — no changes without a deprecation notice and a replacement in place. Some capabilities are still maturing toward a 1.0 release; test in staging when upgrading between minor versions. File bugs at the repo issue tracker.
 
 ## What Is Scolta?
 
@@ -111,18 +111,13 @@ wp scolta status
 
 The REST health endpoint also reports current state: `GET /wp-json/scolta/v1/health`
 
-## What Scolta Replaces (and What It Doesn't)
+## What Scolta Is Built For
 
-Scolta is a practical replacement for hosted search SaaS (Algolia, Coveo, SearchStax) and for WordPress search plugins that drive Elasticsearch or Solr (SearchWP with Elasticsearch, ElasticPress) when the use case is content search on a WordPress site.
+Scolta is designed for content search on WordPress sites: posts, pages, custom post types, and other content indexed at publish time. WordPress powers over 40% of the web — marketing sites, editorial platforms, membership communities, documentation portals, and enterprise intranets — and Scolta is tuned for these content-publishing use cases.
 
-Scolta is not a replacement for:
+The static-index architecture means no Elasticsearch or Solr server to manage. Scolta works on managed WordPress hosting (WP Engine, Kinsta, Flywheel, Pantheon) where running a dedicated search server is not possible. For dynamic sites that publish frequently, Scolta's auto-rebuild feature queues a re-index whenever content is saved — so the search index stays current without manual intervention.
 
-- Plugins that enforce per-post access control at the search layer (membership sites where search results must respect individual user permissions).
-- Elasticsearch setups used for log analytics, WooCommerce inventory search at scale, or complex aggregation queries.
-- Vector databases used as a general retrieval layer for RAG pipelines.
-- Enterprise search with audit logging, retention policies, or SSO-gated content visibility.
-
-If ElasticPress or SearchWP is serving basic full-text search on a content site with no per-post ACL, Scolta is a simpler replacement that works on managed WordPress hosting without a search server.
+Scolta replaces hosted search SaaS (Algolia, Coveo, SearchStax) and Elasticsearch-backed plugins (ElasticPress, SearchWP) for WordPress sites where the search use case is content relevance, recency, and vocabulary matching. WooCommerce sites already have Action Scheduler installed — enabling Scolta's auto-rebuild requires no additional dependencies.
 
 ## Memory and Scale
 
