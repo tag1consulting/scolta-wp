@@ -4,9 +4,10 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
-## [Unreleased]
+## [0.3.8] - 2026-05-01
 
-_No changes yet._
+### Note
+- Version synchronized with scolta-php 0.3.8. No WordPress-specific changes in this release.
 
 ## [0.3.7] - 2026-04-30
 
