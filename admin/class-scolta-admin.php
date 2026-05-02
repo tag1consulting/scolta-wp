@@ -219,11 +219,13 @@ class Scolta_Admin {
 			$label   = isset( $presets[ $current_preset ] ) ? $presets[ $current_preset ]['label'] : $current_preset;
 			printf(
 				'<p class="description">%s</p>',
-				esc_html( sprintf(
-					/* translators: %s: preset label */
-					__( 'These settings were populated by the %s preset. Change any value here and your change takes priority — the preset only fills in what you haven\'t touched.', 'scolta' ),
-					$label
-				) )
+				esc_html(
+					sprintf(
+						/* translators: %s: preset label */
+						__( 'These settings were populated by the %s preset. Change any value here and your change takes priority — the preset only fills in what you haven\'t touched.', 'scolta' ),
+						$label
+					)
+				)
 			);
 		} else {
 			echo '<p class="description">' . esc_html__( 'Configure each scoring parameter individually. Fine-tune how search results are ranked. Defaults work well for most sites.', 'scolta' ) . '</p>';
