@@ -6,7 +6,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+- **Site Type selector in admin settings page**: A new "Site Type" section appears between Pagefind and Scoring. Administrators pick the closest preset for their site from a dropdown built dynamically from `ScoltaConfig::getPresets()`. The selected preset description is shown inline and updates immediately on change. When the preset is changed and saved, the preset's scoring values are applied to the individual scoring fields (subsequent saves with the same preset preserve any manual field overrides). The Scoring section description reflects whether a preset is active. Requires scolta-php ≥ 0.3.9 for `getPresets()` / `getPresetValues()`.
 
 ## [0.3.8] - 2026-05-01
 

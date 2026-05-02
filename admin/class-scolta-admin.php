@@ -99,6 +99,10 @@ class Scolta_Admin {
 		add_settings_field( 'memory_budget_profile', __( 'Memory Budget', 'scolta' ), array( self::class, 'render_memory_budget_field' ), 'scolta', 'scolta_pagefind_section' );
 		add_settings_field( 'chunk_size', __( 'Chunk Size', 'scolta' ), array( self::class, 'render_chunk_size_field' ), 'scolta', 'scolta_pagefind_section' );
 
+		// --- Section: Site Type ---
+		add_settings_section( 'scolta_site_type_section', __( 'Site Type', 'scolta' ), array( self::class, 'render_site_type_section' ), 'scolta' );
+		add_settings_field( 'preset', __( 'What kind of site is this?', 'scolta' ), array( self::class, 'render_preset_field' ), 'scolta', 'scolta_site_type_section' );
+
 		// --- Section: Scoring ---
 		add_settings_section( 'scolta_scoring_section', __( 'Scoring', 'scolta' ), array( self::class, 'render_scoring_section' ), 'scolta' );
 		add_settings_field( 'title_match_boost', __( 'Title Match Boost', 'scolta' ), array( self::class, 'render_title_boost_field' ), 'scolta', 'scolta_scoring_section' );
@@ -161,8 +165,71 @@ class Scolta_Admin {
 		echo '<p class="description">' . esc_html__( 'Pagefind builds a static search index from your exported content.', 'scolta' ) . '</p>';
 	}
 
+	public static function render_site_type_section(): void {
+		echo '<p class="description">' . esc_html__( 'Start here. Pick the closest match for your site — this gives you a good set of defaults. Presets adjust how Scolta ranks search results — how much weight goes to titles vs. page content, whether newer content ranks higher, and how broadly Scolta interprets what you searched for. The preset is a starting point, not a constraint: you can optionally change any individual setting in the Scoring section below.', 'scolta' ) . '</p>';
+	}
+
+	public static function render_preset_field(): void {
+		$presets         = \Tag1\Scolta\Config\ScoltaConfig::getPresets();
+		$current_preset  = self::get_setting( 'preset', 'none' );
+		$valid_presets   = array_keys( $presets );
+		if ( ! in_array( $current_preset, $valid_presets, true ) ) {
+			$current_preset = 'none';
+		}
+		echo '<select name="scolta_settings[preset]" id="scolta_preset">';
+		foreach ( $presets as $key => $meta ) {
+			printf(
+				'<option value="%s"%s>%s</option>',
+				esc_attr( $key ),
+				selected( $current_preset, $key, false ),
+				esc_html( $meta['label'] )
+			);
+		}
+		echo '</select>';
+		echo '<div class="scolta-preset-descriptions" style="margin-top:8px;">';
+		foreach ( $presets as $key => $meta ) {
+			printf(
+				'<p class="description scolta-preset-desc scolta-preset-desc--%s"%s><strong>%s:</strong> %s</p>',
+				esc_attr( $key ),
+				$key !== $current_preset ? ' style="display:none"' : '',
+				esc_html( $meta['label'] ),
+				esc_html( $meta['description'] )
+			);
+		}
+		echo '</div>';
+		echo '<script>
+(function(){
+	var sel = document.getElementById("scolta_preset");
+	if (!sel) return;
+	sel.addEventListener("change", function(){
+		document.querySelectorAll(".scolta-preset-desc").forEach(function(el){
+			el.style.display = "none";
+		});
+		var active = document.querySelector(".scolta-preset-desc--" + sel.value);
+		if (active) active.style.display = "";
+	});
+}());
+</script>';
+	}
+
 	public static function render_scoring_section(): void {
-		echo '<p class="description">' . esc_html__( 'Fine-tune how search results are ranked. Defaults work well for most sites.', 'scolta' ) . '</p>';
+		$current_preset = self::get_setting( 'preset', 'none' );
+		if ( $current_preset !== 'none' ) {
+			$presets = \Tag1\Scolta\Config\ScoltaConfig::getPresets();
+			$label   = isset( $presets[ $current_preset ] ) ? $presets[ $current_preset ]['label'] : $current_preset;
+			printf(
+				'<p class="description">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: %s: preset label */
+						__( 'These settings were populated by the %s preset. Change any value here and your change takes priority — the preset only fills in what you haven\'t touched.', 'scolta' ),
+						$label
+					)
+				)
+			);
+		} else {
+			echo '<p class="description">' . esc_html__( 'Configure each scoring parameter individually. Fine-tune how search results are ranked. Defaults work well for most sites.', 'scolta' ) . '</p>';
+		}
 	}
 
 	public static function render_display_section(): void {
@@ -834,6 +901,23 @@ class Scolta_Admin {
 	public static function sanitize_settings( array $input ): array {
 		$clean    = array();
 		$existing = get_option( 'scolta_settings', array() );
+
+		// Site Type preset.
+		$valid_presets   = array_keys( \Tag1\Scolta\Config\ScoltaConfig::getPresets() );
+		$raw_preset      = sanitize_key( $input['preset'] ?? 'none' );
+		$clean['preset'] = in_array( $raw_preset, $valid_presets, true ) ? $raw_preset : 'none';
+
+		// When the preset changes, inject preset values into $input so the individual
+		// sanitizers below pick them up. If a user also manually changed a field in the
+		// same save, their value was already in $input from the form submission. Since we
+		// only do this on preset change, the previous save's individual overrides are
+		// preserved on subsequent saves with the same preset.
+		$previous_preset = $existing['preset'] ?? 'none';
+		if ( $clean['preset'] !== 'none' && $clean['preset'] !== $previous_preset ) {
+			foreach ( \Tag1\Scolta\Config\ScoltaConfig::getPresetValues( $clean['preset'] ) as $key => $value ) {
+				$input[ $key ] = $value;
+			}
+		}
 
 		// AI provider.
 		$clean['ai_provider'] = in_array( $input['ai_provider'] ?? '', array( 'anthropic', 'openai' ), true )
