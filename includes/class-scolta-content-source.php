@@ -90,6 +90,23 @@ class Scolta_Content_Source implements ContentSourceInterface {
 
 			foreach ( $query->posts as $post ) {
 				$item = $this->post_to_content_item( $post );
+				if ( $item === null ) {
+					continue;
+				}
+
+				/**
+				 * Filter a content item before it is added to the search index.
+				 *
+				 * Return null to exclude the item entirely. Return a modified
+				 * ContentItem to change what gets indexed (title, body, URL, etc.).
+				 *
+				 * This filter fires in both the binary and PHP indexer pipelines,
+				 * making it the reliable hook for per-post exclusion logic.
+				 *
+				 * @param ContentItem $item The content item about to be indexed.
+				 * @param \WP_Post    $post The WordPress post object.
+				 */
+				$item = apply_filters( 'scolta_content_item', $item, $post );
 				if ( $item !== null ) {
 					yield $item;
 				}
