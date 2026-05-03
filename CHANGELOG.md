@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Changed
+- **`scolta_content_item` filter now fires in both indexer pipelines** — previously the filter only fired in the PHP indexer pipeline (via `Scolta_Content_Gatherer`). It now also fires in the binary indexer pipeline (via `Scolta_Content_Source`). Returning `null` from the filter excludes the post from indexing in both pipelines. Returning a modified `ContentItem` replaces the item to be indexed. This is the recommended hook for demo sites to exclude About, Contact, and other non-content pages.
+
 ## [0.3.9] - 2026-05-02
 
 ### Added
