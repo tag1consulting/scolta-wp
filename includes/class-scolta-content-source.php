@@ -170,7 +170,7 @@ class Scolta_Content_Source implements ContentSourceInterface {
 
 		$item = new ContentItem(
 			id: $id,
-			title: get_the_title( $post ),
+			title: html_entity_decode( get_the_title( $post ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
 			bodyHtml: $content,
 			url: get_permalink( $post ),
 			date: $date,

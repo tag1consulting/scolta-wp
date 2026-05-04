@@ -231,7 +231,7 @@
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
-.scolta-ai-summary-text p { margin: 0 0 0.4rem 0; }
+.scolta-ai-summary-text p { margin: 0 0 0.4rem 0; color: var(--scolta-text); }
 .scolta-ai-summary-text p:last-child { margin-bottom: 0; }
 .scolta-ai-summary-text strong { color: var(--scolta-primary); font-weight: 600; }
 .scolta-ai-summary-text a {
@@ -253,6 +253,7 @@
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
   line-height: 1.5;
+  color: var(--scolta-text);
 }
 .scolta-ai-summary-text li::before {
   content: "\203A";
