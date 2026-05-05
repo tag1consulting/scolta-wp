@@ -6,6 +6,19 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **WASM merge URL lookup now handles normalized URL formats** — multi-key Map with normalized variants prevents result stub fallback; misses logged as `[scolta:merge] WASM URL lookup missed`.
+- **Title deduplication threshold lowered to 0.6 Jaccard** — reduces duplicate titles slipping through, with secondary condition for short-title pairs sharing ≥3 words.
+- **AI Overview headings now render as HTML** — `#`, `##`, and `###` markdown headings in AI summaries were falling through to `<p>` tags and displaying as raw `#` text. `formatSummary()` now maps them to `<h3>`/`<h4>`/`<h5>` elements.
+- **AI summary now describes post-expansion results** — `summarizeResults()` was firing in parallel with the expansion merge, so the AI described the Phase 1 literal-keyword ranking while the displayed results showed the semantically-reordered Phase 2 ranking. Summarization is now deferred until after `mergeExpandedSearchResults()` completes. A `searchVersion` staleness check prevents summarizing results from a superseded search.
+- **Relative URLs from pagefind index are absolutized before use** — both the summarize API call and result card `<a>` href attributes now prepend `window.location.origin` when the stored URL starts with `/`, so links work correctly when `ContentItem` stores relative paths.
+- **`stripHtml()` now decodes HTML entities** — the previous regex-only implementation left entities like `&#8217;` intact, causing `escapeHtml()` to double-encode them and display literal entity strings in titles and excerpts. `stripHtml()` now uses DOM parsing to both strip tags and decode entities.
+- **AI summary text invisible on themes with element-level `p { color }` rules** — themes that apply `p { color: ... }` or `li { color: ... }` at element specificity (0,0,1) overrode inherited color from `.scolta-ai-summary-text`. Added explicit `color: var(--scolta-text)` on `.scolta-ai-summary-text p` and `.scolta-ai-summary-text li` to win the specificity race.
+- **`get_the_title()` double-encoding of HTML entities** — WordPress's `wptexturize()` converts straight quotes to HTML entities (`&#8216;` etc.), and when `PagefindHtmlBuilder` called `htmlspecialchars()` the `&` was re-encoded to `&amp;`, rendering `&amp;#8216;` as literal text. `get_the_title()` output is now decoded with `html_entity_decode(..., ENT_QUOTES | ENT_HTML5, 'UTF-8')` before being passed to `ContentItem`.
+
+### Changed
+- **`scolta_content_item` filter now fires in both indexer pipelines** — previously the filter only fired in the PHP indexer pipeline (via `Scolta_Content_Gatherer`). It now also fires in the binary indexer pipeline (via `Scolta_Content_Source`). Returning `null` from the filter excludes the post from indexing in both pipelines. Returning a modified `ContentItem` replaces the item to be indexed. This is the recommended hook for demo sites to exclude About, Contact, and other non-content pages.
+
 ## [0.3.9] - 2026-05-02
 
 ### Added

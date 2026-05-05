@@ -97,7 +97,10 @@ class Scolta_Content_Gatherer {
 				 * @param ContentItem  $item  The content item about to be indexed.
 				 * @param \WP_Post     $post  The WordPress post object.
 				 */
-				yield apply_filters( 'scolta_content_item', $item, $post );
+				$item = apply_filters( 'scolta_content_item', $item, $post );
+				if ( $item !== null ) {
+					yield $item;
+				}
 			}
 
 			$offset += count( $query->posts );
