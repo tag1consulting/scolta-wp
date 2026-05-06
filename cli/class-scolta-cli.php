@@ -187,7 +187,7 @@ class Scolta_CLI {
 		$logger       = new \Scolta_WP_CLI_Logger( (bool) $strict_errors );
 		$reporter     = new \Scolta_WP_CLI_Progress_Reporter();
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir, $this->get_hmac_secret() );
-		$report       = $orchestrator->build( $intent, $items, $logger, $reporter );
+		$report       = $orchestrator->build( $intent, $items, $logger, $reporter, force: (bool) $force );
 
 		if ( $report->success ) {
 			$generation = (int) get_option( 'scolta_generation', 0 );
