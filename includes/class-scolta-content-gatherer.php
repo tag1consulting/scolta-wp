@@ -104,7 +104,24 @@ class Scolta_Content_Gatherer {
 			}
 
 			$offset += count( $query->posts );
-			wp_cache_flush_group( 'posts' );
+
+			// Release WordPress's internal object caches accumulated during this
+			// batch. Without flushing, these caches grow monotonically across the
+			// entire build, inflating RSS regardless of batch size.
+			if ( function_exists( 'wp_cache_flush_group' ) ) {
+				wp_cache_flush_group( 'posts' );
+				wp_cache_flush_group( 'post_meta' );
+				wp_cache_flush_group( 'terms' );
+				wp_cache_flush_group( 'term_relationships' );
+			} else {
+				// Nuclear fallback for WP < 6.1 without an object cache plugin.
+				wp_cache_flush();
+			}
+
+			// Break circular reference chains from WP_Post objects and filter
+			// callbacks that PHP's refcount GC cannot collect.
+			gc_collect_cycles();
+
 			unset( $query );
 		}
 	}
