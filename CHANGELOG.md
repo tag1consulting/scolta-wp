@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **WordPress gatherer now flushes all relevant object cache groups between batches.** Previously only the `posts` group was flushed; `post_meta`, `terms`, and `term_relationships` accumulated across the entire build, inflating RSS proportional to corpus size. Added a `wp_cache_flush()` fallback for WordPress < 6.1 / sites without an object cache plugin. Also added `gc_collect_cycles()` between batches (matching the Drupal gatherer's existing cleanup) to reclaim circular reference chains from WP_Post objects and filter callbacks.
+
 ### Changed
 - **`wp scolta build --force` now bypasses the per-item token cache** in addition to the existing fingerprint check. Previously `--force` only skipped the `shouldBuild()` fingerprint comparison; the page-word cache (new in this release, provided by scolta-php) was still consulted. With this change, `--force` triggers a full re-tokenization of every content item.
 
