@@ -145,4 +145,31 @@ class CliIndexerDispatchTest extends TestCase {
 		$this->assertTrue( $cli->php_called );
 		$this->assertFalse( $cli->binary_called );
 	}
+
+	/**
+	 * When admin setting is 'auto' and no --indexer flag is given,
+	 * do_build_php() must fire. 'auto' is the default and always uses PHP.
+	 */
+	public function test_auto_admin_setting_invokes_do_build_php(): void {
+		update_option( 'scolta_settings', array( 'indexer' => 'auto' ) );
+
+		$cli = new TestableScoltaCli();
+		self::$do_build->invoke( $cli, [], [] );
+
+		$this->assertTrue( $cli->php_called, 'do_build_php() must be invoked when admin indexer=auto' );
+		$this->assertFalse( $cli->binary_called, 'do_build_binary() must NOT be invoked when admin indexer=auto' );
+	}
+
+	/**
+	 * When no admin setting is configured (default 'auto') and no --indexer flag,
+	 * do_build_php() must fire.
+	 */
+	public function test_no_setting_defaults_to_do_build_php(): void {
+		// delete_option already called in set_up(); no setting = auto default.
+		$cli = new TestableScoltaCli();
+		self::$do_build->invoke( $cli, [], [] );
+
+		$this->assertTrue( $cli->php_called, 'do_build_php() must be invoked when no indexer setting (defaults to auto=php)' );
+		$this->assertFalse( $cli->binary_called );
+	}
 }

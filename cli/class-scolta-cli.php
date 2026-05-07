@@ -130,15 +130,13 @@ class Scolta_CLI {
 		}
 
 		if ( $indexer === 'auto' ) {
-			$resolver = new PagefindBinary(
-				configuredPath: $settings['pagefind_binary'] ?? null,
-				projectDir: SCOLTA_PLUGIN_DIR,
-			);
-			if ( $resolver->resolve() === null ) {
-				\WP_CLI::log( 'Pagefind binary not available — using PHP indexer.' );
-				$this->do_build_php( $assoc_args, $settings );
-				return;
-			}
+			// Auto always uses the PHP indexer — it works on all PHP hosting
+			// environments without exec() or Node.js, uses less memory, and
+			// supports fast incremental re-indexing. Use --indexer=binary to
+			// use the Pagefind binary explicitly.
+			\WP_CLI::log( 'Using PHP indexer (auto default).' );
+			$this->do_build_php( $assoc_args, $settings );
+			return;
 		}
 
 		// Binary indexer pipeline.
@@ -773,20 +771,20 @@ class Scolta_CLI {
 		);
 		$binary_status   = $resolver->status();
 		$indexer_setting = $settings['indexer'] ?? 'auto';
-		if ( $indexer_setting === 'php' ) {
-			$active_indexer = 'php (forced)';
+		if ( $indexer_setting === 'php' || $indexer_setting === 'auto' ) {
+			$active_indexer = 'php';
 		} elseif ( $indexer_setting === 'binary' ) {
 			$active_indexer = $binary_status['available'] ? 'binary' : 'binary (not found — check path)';
 		} else {
-			$active_indexer = $binary_status['available'] ? 'binary (auto-detected)' : 'php (binary not found)';
+			$active_indexer = 'php';
 		}
 		\WP_CLI::log( "  Active indexer: {$active_indexer}" );
-		if ( $binary_status['available'] ) {
-			\WP_CLI::log( "  Binary:         {$binary_status['message']}" );
-		} else {
-			\WP_CLI::warning( '  Binary:         NOT AVAILABLE' );
-			\WP_CLI::log( "  {$binary_status['message']}" );
-			if ( $active_indexer !== 'php (forced)' ) {
+		if ( $indexer_setting === 'binary' ) {
+			if ( $binary_status['available'] ) {
+				\WP_CLI::log( "  Binary:         {$binary_status['message']}" );
+			} else {
+				\WP_CLI::warning( '  Binary:         NOT AVAILABLE' );
+				\WP_CLI::log( "  {$binary_status['message']}" );
 				\WP_CLI::log( '  To upgrade: npm install -g pagefind  OR  wp scolta download-pagefind' );
 			}
 		}

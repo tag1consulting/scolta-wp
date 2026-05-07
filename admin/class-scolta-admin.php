@@ -466,11 +466,11 @@ class Scolta_Admin {
 		$value = self::get_setting( 'indexer', 'auto' );
 		?>
 		<select name="scolta_settings[indexer]" id="scolta_indexer">
-			<option value="auto" <?php selected( $value, 'auto' ); ?>><?php esc_html_e( 'Auto (use binary if available, otherwise PHP)', 'scolta' ); ?></option>
-			<option value="php" <?php selected( $value, 'php' ); ?>><?php esc_html_e( 'PHP (built-in, no binary needed)', 'scolta' ); ?></option>
+			<option value="auto" <?php selected( $value, 'auto' ); ?>><?php esc_html_e( 'Auto (PHP indexer — recommended, works on all hosts)', 'scolta' ); ?></option>
+			<option value="php" <?php selected( $value, 'php' ); ?>><?php esc_html_e( 'PHP (pure-PHP, no binary needed)', 'scolta' ); ?></option>
 			<option value="binary" <?php selected( $value, 'binary' ); ?>><?php esc_html_e( 'Binary (requires Pagefind CLI)', 'scolta' ); ?></option>
 		</select>
-		<p class="description"><?php esc_html_e( 'The PHP indexer builds the search index without requiring the Pagefind binary. Auto selects PHP when the binary is unavailable.', 'scolta' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Auto uses the PHP indexer, which works on all hosting environments and supports fast incremental re-indexing. Use Binary only if you need the Pagefind CLI explicitly.', 'scolta' ); ?></p>
 		<?php
 	}
 
