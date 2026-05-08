@@ -1,0 +1,29 @@
+/* Amazee.ai admin page styles */
+
+#scolta-amazee-app {
+	max-width: 600px;
+	margin-top: 1em;
+}
+
+#scolta-amazee-app label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+#scolta-amazee-app input[type="email"],
+#scolta-amazee-app input[type="text"] {
+	width: 100%;
+	max-width: 400px;
+	margin-bottom: 1em;
+}
+
+.scolta-amazee-error {
+	padding: 8px 12px;
+	margin: 0 0 1em;
+}
+
+#scolta-amazee-regions-list label {
+	font-weight: normal;
+	cursor: pointer;
+}
