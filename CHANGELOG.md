@@ -13,6 +13,9 @@ First stable release — all features from 0.3.x promoted to 1.0 API surface.
 
 ## [Unreleased]
 
+### Fixed
+- **Stale prompt cache after plugin update.** `scolta_resolved_prompts` was only refreshed when settings were explicitly saved, so upgraded sites served outdated prompt text until an admin re-saved the settings page. A new `scolta_refresh_prompt_cache_if_stale()` function hooked on `plugins_loaded` rebuilds the cache automatically whenever `SCOLTA_VERSION` doesn't match the stored `scolta_prompt_cache_version`. Fixes #49.
+
 ### Added
 - **Amazee.ai auto-configuration: best available Claude model is applied after trial provisioning.** `ajax_start_trial()` now writes the auto-selected Sonnet to `scolta_settings[ai_model]` (if still at the default `claude-sonnet-4-5-20250929`) and Haiku to `ai_expansion_model` (if currently empty) via `update_option()`. A dismissible admin notice confirms the selected model. Model selection delegates to `AmazeeModelResolver` injected into `AmazeeTrialProvisioner`.
 
