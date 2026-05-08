@@ -7,6 +7,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **Timestamp-based rebuild optimization: skip unchanged post content loads.** `Scolta_Content_Gatherer::gather()` now accepts an optional `?TimestampManifest $manifest` and `bool $force` parameter. When a manifest is provided and a post's `post_modified_gmt` timestamp matches the stored value, the gatherer yields a `CachedContentReference` instead of loading `post_content` — no `apply_filters('the_content')` call is made for that post. A new `get_post_timestamps()` static method runs a single direct `$wpdb` query to fetch modification timestamps for a batch of IDs without constructing full `WP_Post` objects. The WP-CLI `do_build_php()` method obtains the manifest from `$orchestrator->getTimestampManifest()` and passes it to `gather()`; `--force` passes `null` to bypass the optimization.
+
+### Added
 - **Amazee.ai integration (Phase 3).** Scolta can now connect to the [Amazee.ai](https://amazee.ai) privacy-respecting AI provider. New classes: `Scolta_Amazee_Config_Storage` (stores LiteLLM credentials with AES-256-CBC encryption in WordPress options), `Scolta_Amazee_Budget_Handler` (throttled admin notice on budget exceeded), and `Scolta_Amazee_Admin_Page` (multi-step admin UI with AJAX trial/sign-in/region flow at *Settings → Scolta → Amazee.ai*). `Scolta_Ai_Service::from_options()` detects stored Amazee credentials and automatically routes AI calls through the LiteLLM proxy.
 
 ### Fixed

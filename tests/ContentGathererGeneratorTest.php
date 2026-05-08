@@ -61,8 +61,8 @@ class ContentGathererGeneratorTest extends TestCase {
 	// -------------------------------------------------------------------
 
 	public function test_gather_does_not_use_posts_per_page_minus_one(): void {
-		// Locate the gather() method body only (not gather_count).
-		preg_match( '/public static function gather\(\)[^{]*\{(.+?)(?=\n\t\/\*\*|\n\tpublic static function|\n\tprivate|\n\})/s', $this->gatherer_source, $m );
+		// Locate gather() method body — signature now has optional parameters.
+		preg_match( '/public static function gather\([^)]*\)[^{]*\{(.+?)(?=\n\t\/\*\*|\n\tpublic static function|\n\tprivate|\n\})/s', $this->gatherer_source, $m );
 		$method_body = $m[1] ?? '';
 
 		$this->assertNotEmpty( $method_body, 'Could not locate gather() method body' );
@@ -74,13 +74,55 @@ class ContentGathererGeneratorTest extends TestCase {
 	}
 
 	public function test_gather_uses_offset_for_pagination(): void {
-		preg_match( '/public static function gather\(\)[^{]*\{(.+?)(?=\n\t\/\*\*|\n\tpublic static function|\n\tprivate|\n\})/s', $this->gatherer_source, $m );
+		preg_match( '/public static function gather\([^)]*\)[^{]*\{(.+?)(?=\n\t\/\*\*|\n\tpublic static function|\n\tprivate|\n\})/s', $this->gatherer_source, $m );
 		$method_body = $m[1] ?? '';
 
 		$this->assertStringContainsString(
 			'offset',
 			$method_body,
 			'gather() must use offset-based pagination to process posts in batches'
+		);
+	}
+
+	public function test_gather_accepts_optional_manifest_parameter(): void {
+		$ref    = new ReflectionMethod( 'Scolta_Content_Gatherer', 'gather' );
+		$params = $ref->getParameters();
+
+		$param_names = array_map( fn( $p ) => $p->getName(), $params );
+		$this->assertContains( 'manifest', $param_names, 'gather() must accept optional $manifest parameter' );
+
+		$manifest_param = array_values( array_filter( $params, fn( $p ) => $p->getName() === 'manifest' ) )[0];
+		$this->assertTrue( $manifest_param->isOptional(), '$manifest parameter must be optional' );
+		$this->assertNull( $manifest_param->getDefaultValue(), '$manifest must default to null' );
+	}
+
+	public function test_get_post_timestamps_method_exists(): void {
+		$this->assertTrue(
+			method_exists( 'Scolta_Content_Gatherer', 'get_post_timestamps' ),
+			'Scolta_Content_Gatherer must have a get_post_timestamps() static method'
+		);
+	}
+
+	public function test_get_post_timestamps_returns_array(): void {
+		$ref    = new ReflectionMethod( 'Scolta_Content_Gatherer', 'get_post_timestamps' );
+		$return = $ref->getReturnType();
+
+		$this->assertNotNull( $return, 'get_post_timestamps() must declare a return type' );
+		$this->assertSame( 'array', $return->getName() );
+	}
+
+	public function test_cli_wires_manifest_to_gather(): void {
+		$cli_source = file_get_contents( dirname( __DIR__ ) . '/cli/class-scolta-cli.php' );
+
+		$this->assertStringContainsString(
+			'getTimestampManifest()',
+			$cli_source,
+			'do_build_php() must call getTimestampManifest() on the orchestrator'
+		);
+		$this->assertStringContainsString(
+			'Scolta_Content_Gatherer::gather(',
+			$cli_source,
+			'do_build_php() must pass the manifest to gather()'
 		);
 	}
 
