@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 use Tag1\Scolta\AiProvider\Amazee\AmazeeAccountUpgrader;
 use Tag1\Scolta\AiProvider\Amazee\AmazeeApiException;
 use Tag1\Scolta\AiProvider\Amazee\AmazeeClient;
+use Tag1\Scolta\AiProvider\Amazee\AmazeeModelResolver;
 use Tag1\Scolta\AiProvider\Amazee\AmazeeTrialProvisioner;
 
 /**
@@ -137,11 +138,46 @@ class Scolta_Amazee_Admin_Page {
 		}
 
 		try {
-			$storage     = new Scolta_Amazee_Config_Storage();
-			$provisioner = new AmazeeTrialProvisioner( new AmazeeClient(), $storage );
-			$provisioner->provision( $email );
+			$storage      = new Scolta_Amazee_Config_Storage();
+			$amazeeClient = new AmazeeClient();
+			$provisioner  = new AmazeeTrialProvisioner(
+				$amazeeClient,
+				$storage,
+				null,
+				new AmazeeModelResolver( $amazeeClient ),
+			);
+			$result = $provisioner->provision( $email );
+
+			if ( $result->aiModel !== null ) {
+				$default_model   = 'claude-sonnet-4-5-20250929';
+				$scolta_settings = get_option( 'scolta_settings', array() );
+
+				if ( $scolta_settings['ai_model'] ?? $default_model === $default_model ) {
+					$scolta_settings['ai_model'] = $result->aiModel;
+				}
+				if ( ( $scolta_settings['ai_expansion_model'] ?? '' ) === '' && $result->aiExpansionModel !== null ) {
+					$scolta_settings['ai_expansion_model'] = $result->aiExpansionModel;
+				}
+				update_option( 'scolta_settings', $scolta_settings );
+
+				set_transient(
+					'scolta_amazee_models_notice',
+					array(
+						'ai_model'           => $result->aiModel,
+						'ai_expansion_model' => $result->aiExpansionModel ?? '',
+					),
+					DAY_IN_SECONDS,
+				);
+			}
+
 			self::clear_flow_state();
-			wp_send_json_success( array( 'step' => 'connected' ) );
+			wp_send_json_success(
+				array(
+					'step'               => 'connected',
+					'ai_model'           => $result->aiModel,
+					'ai_expansion_model' => $result->aiExpansionModel,
+				)
+			);
 		} catch ( AmazeeApiException $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ) );
 		}

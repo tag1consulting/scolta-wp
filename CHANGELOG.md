@@ -7,6 +7,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Added
+- **Amazee.ai auto-configuration: best available Claude model is applied after trial provisioning.** `ajax_start_trial()` now writes the auto-selected Sonnet to `scolta_settings[ai_model]` (if still at the default `claude-sonnet-4-5-20250929`) and Haiku to `ai_expansion_model` (if currently empty) via `update_option()`. A dismissible admin notice confirms the selected model. Model selection delegates to `AmazeeModelResolver` injected into `AmazeeTrialProvisioner`.
+
+### Added
 - **Timestamp-based rebuild optimization: skip unchanged post content loads.** `Scolta_Content_Gatherer::gather()` now accepts an optional `?TimestampManifest $manifest` and `bool $force` parameter. When a manifest is provided and a post's `post_modified_gmt` timestamp matches the stored value, the gatherer yields a `CachedContentReference` instead of loading `post_content` — no `apply_filters('the_content')` call is made for that post. A new `get_post_timestamps()` static method runs a single direct `$wpdb` query to fetch modification timestamps for a batch of IDs without constructing full `WP_Post` objects. The WP-CLI `do_build_php()` method obtains the manifest from `$orchestrator->getTimestampManifest()` and passes it to `gather()`; `--force` passes `null` to bypass the optimization.
 
 ### Added

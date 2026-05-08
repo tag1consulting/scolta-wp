@@ -37,6 +37,9 @@ class Scolta_Admin {
 
 		// Show rebuild result notices.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_rebuild_notice' ) );
+
+		// Show auto-configured Amazee.ai model notice.
+		add_action( 'admin_notices', array( self::class, 'maybe_show_amazee_models_notice' ) );
 	}
 
 	/**
@@ -1370,6 +1373,34 @@ class Scolta_Admin {
 
 		wp_safe_redirect( admin_url( 'options-general.php?page=scolta' ) );
 		exit;
+	}
+
+	/**
+	 * Show a one-time notice when Amazee.ai auto-selected AI models after provisioning.
+	 *
+	 * Shown once, then the transient is deleted so it doesn't repeat.
+	 */
+	public static function maybe_show_amazee_models_notice(): void {
+		$notice = get_transient( 'scolta_amazee_models_notice' );
+		if ( ! $notice || ! is_array( $notice ) ) {
+			return;
+		}
+		delete_transient( 'scolta_amazee_models_notice' );
+
+		$model = sanitize_text_field( $notice['ai_model'] ?? '' );
+		if ( $model === '' ) {
+			return;
+		}
+
+		echo '<div class="notice notice-success is-dismissible"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: %s: Claude model name */
+				__( 'Scolta: Amazee.ai connected. AI model automatically set to %s. You can change it on the Scolta settings page.', 'scolta' ),
+				$model,
+			)
+		);
+		echo '</p></div>';
 	}
 
 	/**
