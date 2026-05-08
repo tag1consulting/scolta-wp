@@ -176,16 +176,21 @@ class Scolta_CLI {
 			return;
 		}
 
-		// Stream content one post at a time — no full pre-load into RAM.
-		$exporter = new ContentExporter( $output_dir );
-		$items    = $exporter->filterItems( \Scolta_Content_Gatherer::gather() );
-
 		$intent = BuildIntentFactory::fromFlags( (bool) $resume, (bool) $restart, $total_count, $budget );
 
 		$logger       = new \Scolta_WP_CLI_Logger( (bool) $strict_errors );
 		$reporter     = new \Scolta_WP_CLI_Progress_Reporter();
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir, $this->get_hmac_secret() );
-		$report       = $orchestrator->build( $intent, $items, $logger, $reporter, force: (bool) $force );
+
+		// Expose the timestamp manifest to the gatherer so unchanged posts are
+		// yielded as CachedContentReferences without loading post_content.
+		$ts_manifest = $force ? null : $orchestrator->getTimestampManifest();
+
+		// Stream content one post at a time — no full pre-load into RAM.
+		$exporter = new ContentExporter( $output_dir );
+		$items    = $exporter->filterItems( \Scolta_Content_Gatherer::gather( $ts_manifest, (bool) $force ) );
+
+		$report = $orchestrator->build( $intent, $items, $logger, $reporter, force: (bool) $force );
 
 		if ( $report->success ) {
 			$generation = (int) get_option( 'scolta_generation', 0 );
