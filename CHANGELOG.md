@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Added
+- **Amazee.ai integration (Phase 3).** Scolta can now connect to the [Amazee.ai](https://amazee.ai) privacy-respecting AI provider. New classes: `Scolta_Amazee_Config_Storage` (stores LiteLLM credentials with AES-256-CBC encryption in WordPress options), `Scolta_Amazee_Budget_Handler` (throttled admin notice on budget exceeded), and `Scolta_Amazee_Admin_Page` (multi-step admin UI with AJAX trial/sign-in/region flow at *Settings → Scolta → Amazee.ai*). `Scolta_Ai_Service::from_options()` detects stored Amazee credentials and automatically routes AI calls through the LiteLLM proxy.
+
 ### Fixed
 - **WordPress gatherer now flushes all relevant object cache groups between batches.** Previously only the `posts` group was flushed; `post_meta`, `terms`, and `term_relationships` accumulated across the entire build, inflating RSS proportional to corpus size. Added a `wp_cache_flush()` fallback for WordPress < 6.1 / sites without an object cache plugin. Also added `gc_collect_cycles()` between batches (matching the Drupal gatherer's existing cleanup) to reclaim circular reference chains from WP_Post objects and filter callbacks.
 

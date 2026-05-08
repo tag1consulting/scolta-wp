@@ -34,6 +34,8 @@ if ( file_exists( $autoloader ) ) {
 // Plugin includes.
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-tracker.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-content-source.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-amazee-config-storage.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-amazee-budget-handler.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-ai-service.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-cache-driver.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-prompt-enricher.php';
@@ -47,6 +49,8 @@ require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-auto-rebuild.php';
 // Admin.
 if ( is_admin() ) {
 	require_once SCOLTA_PLUGIN_DIR . 'admin/class-scolta-admin.php';
+	require_once SCOLTA_PLUGIN_DIR . 'admin/class-scolta-amazee-admin-page.php';
+	Scolta_Amazee_Admin_Page::init();
 }
 
 // WP-CLI commands.

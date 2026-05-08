@@ -494,6 +494,38 @@ if (!function_exists('urlencode')) {
     // Native PHP function — never missing, but guard silences IDE warnings.
 }
 
+// AJAX and form stubs.
+if (!function_exists('is_email')) {
+    function is_email(string $email): bool { return filter_var($email, FILTER_VALIDATE_EMAIL) !== false; }
+}
+if (!function_exists('sanitize_email')) {
+    function sanitize_email(string $email): string { return strtolower(trim($email)); }
+}
+if (!function_exists('wp_unslash')) {
+    function wp_unslash($value) {
+        if (is_array($value)) { return array_map('wp_unslash', $value); }
+        return is_string($value) ? stripslashes($value) : $value;
+    }
+}
+if (!function_exists('check_ajax_referer')) {
+    function check_ajax_referer(string $action = '', $query_arg = false, bool $die = true): bool { return true; }
+}
+if (!function_exists('wp_send_json_success')) {
+    function wp_send_json_success($data = null, int $status_code = 200, int $flags = 0): void {
+        $GLOBALS['test_json_response'] = ['success' => true, 'data' => $data];
+        throw new \RuntimeException('wp_send_json_success:exit');
+    }
+}
+if (!function_exists('wp_send_json_error')) {
+    function wp_send_json_error($data = null, int $status_code = 0, int $flags = 0): void {
+        $GLOBALS['test_json_response'] = ['success' => false, 'data' => $data];
+        throw new \RuntimeException('wp_send_json_error:exit');
+    }
+}
+if (!function_exists('add_submenu_page')) {
+    function add_submenu_page(string $parent, string $title, string $menu, string $cap, string $slug, $callback = '', ?int $pos = null): string { return $slug; }
+}
+
 // WP_Query stub (minimal).
 if (!class_exists('WP_Query')) {
     class WP_Query {

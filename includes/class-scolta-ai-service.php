@@ -8,9 +8,10 @@
  *   - WP 6.x:  Falls back to scolta-php's built-in AiClient (Anthropic + OpenAI)
  *
  * API key resolution (in priority order):
- *   1. SCOLTA_API_KEY environment variable (production-safe)
- *   2. SCOLTA_API_KEY constant in wp-config.php
- *   3. Legacy: scolta_settings option in database (migration warning shown)
+ *   1. Amazee.ai stored credentials (litellm token via OpenAI-compatible endpoint)
+ *   2. SCOLTA_API_KEY environment variable (production-safe)
+ *   3. SCOLTA_API_KEY constant in wp-config.php
+ *   4. Legacy: scolta_settings option in database (migration warning shown)
  *
  * Controllers call message() and conversation() — they never touch
  * AiClient directly. The dual-path fallback is invisible to callers.
@@ -18,20 +19,44 @@
 
 defined( 'ABSPATH' ) || exit;
 
+use Tag1\Scolta\AiProvider\Amazee\AmazeeBudgetExceededException;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Service\AiServiceAdapter;
 
 class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
-	 * Create from WordPress options, with API key from environment.
+	 * Budget handler, set when Amazee credentials are active.
+	 *
+	 * @var Scolta_Amazee_Budget_Handler|null
+	 */
+	private ?Scolta_Amazee_Budget_Handler $budget_handler = null;
+
+	/**
+	 * Create from WordPress options.
+	 *
+	 * Checks for Amazee.ai credentials first; falls back to the API key
+	 * from environment variables or wp-config.php constants.
 	 */
 	public static function from_options(): self {
 		$settings = get_option( 'scolta_settings', array() );
-		// Override with environment-sourced API key.
-		$settings['ai_api_key'] = self::get_api_key();
-		$config                 = ScoltaConfig::fromArray( $settings );
-		return new self( $config );
+
+		$storage = new Scolta_Amazee_Config_Storage();
+		$creds   = $storage->load();
+		if ( $creds !== null ) {
+			$settings['ai_provider'] = 'openai';
+			$settings['ai_api_key']  = $creds['litellm_token'];
+			$settings['ai_base_url'] = $creds['litellm_api_url'];
+		} else {
+			$settings['ai_api_key'] = self::get_api_key();
+		}
+
+		$config  = ScoltaConfig::fromArray( $settings );
+		$service = new self( $config );
+		if ( $creds !== null ) {
+			$service->budget_handler = new Scolta_Amazee_Budget_Handler();
+		}
+		return $service;
 	}
 
 	// -- Snake-case aliases for inherited camelCase methods --
@@ -135,9 +160,13 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	/**
 	 * Detect where the API key is coming from, for status display.
 	 *
-	 * @return string One of 'env', 'constant', 'database', or 'none'.
+	 * @return string One of 'amazee', 'env', 'constant', 'database', or 'none'.
 	 */
 	public static function get_api_key_source(): string {
+		$storage = new Scolta_Amazee_Config_Storage();
+		if ( $storage->load() !== null ) {
+			return 'amazee';
+		}
 		$env = getenv( 'SCOLTA_API_KEY' );
 		if ( $env !== false && $env !== '' ) {
 			return 'env';
@@ -153,6 +182,13 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 			return 'database';
 		}
 		return 'none';
+	}
+
+	/**
+	 * Check whether Amazee.ai credentials are stored and active.
+	 */
+	public function is_amazee_active(): bool {
+		return $this->budget_handler !== null;
 	}
 
 	/**
@@ -258,5 +294,88 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		);
 
 		return $response->get_text();
+	}
+
+	// -- Amazee.ai budget exception handling --
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
+	 *
+	 * @param string $systemPrompt System prompt.
+	 * @param string $userMessage  User message.
+	 * @param int    $maxTokens    Maximum tokens.
+	 * @return string AI response.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	public function message( string $systemPrompt, string $userMessage, int $maxTokens = 512 ): string {
+		try {
+			return parent::message( $systemPrompt, $userMessage, $maxTokens );
+		} catch ( \RuntimeException $e ) {
+			$this->handle_possible_budget_exception( $e );
+			throw $e;
+		}
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
+	 *
+	 * @param string $systemPrompt System prompt.
+	 * @param array  $messages     Conversation messages.
+	 * @param int    $maxTokens    Maximum tokens.
+	 * @return string AI response.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	public function conversation( string $systemPrompt, array $messages, int $maxTokens = 512 ): string {
+		try {
+			return parent::conversation( $systemPrompt, $messages, $maxTokens );
+		} catch ( \RuntimeException $e ) {
+			$this->handle_possible_budget_exception( $e );
+			throw $e;
+		}
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
+	 *
+	 * @param string $operation    Operation name.
+	 * @param string $systemPrompt System prompt.
+	 * @param string $userMessage  User message.
+	 * @param int    $maxTokens    Maximum tokens.
+	 * @return string AI response.
+	 */
+	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+	public function messageForOperation( string $operation, string $systemPrompt, string $userMessage, int $maxTokens = 512 ): string {
+		try {
+			// phpcs:ignore Generic.Files.LineLength.MaxExceeded
+			return parent::messageForOperation( $operation, $systemPrompt, $userMessage, $maxTokens );
+		} catch ( \RuntimeException $e ) {
+			$this->handle_possible_budget_exception( $e );
+			throw $e;
+		}
+	}
+
+	/**
+	 * Convert a budget-exceeded RuntimeException to AmazeeBudgetExceededException.
+	 *
+	 * No-op if the exception message does not contain the Amazee budget signal.
+	 *
+	 * @param \RuntimeException $e The exception to inspect.
+	 * @throws AmazeeBudgetExceededException When the budget message is detected.
+	 */
+	private function handle_possible_budget_exception( \RuntimeException $e ): void {
+		if ( ! str_contains( $e->getMessage(), 'Budget has been exceeded!' ) ) {
+			return;
+		}
+		$budget_exception = new AmazeeBudgetExceededException( $e );
+		if ( $this->budget_handler !== null ) {
+			$this->budget_handler->handle( $budget_exception );
+		}
+		throw $budget_exception;
 	}
 }
