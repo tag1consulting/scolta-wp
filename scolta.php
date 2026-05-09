@@ -196,13 +196,13 @@ function scolta_auto_provision_amazee(): void {
 	\Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
 		$storage,
 		hasExplicitApiKey: scolta_has_explicit_api_key(),
-		onModelsResolved: function ( string $aiModel, string $aiExpansionModel ): void {
+		onModelsResolved: function ( string $ai_model, string $ai_expansion_model ): void {
 			$settings = get_option( 'scolta_settings', array() );
-			if ( $aiModel !== '' ) {
-				$settings['ai_model'] = $aiModel;
+			if ( $ai_model !== '' ) {
+				$settings['ai_model'] = $ai_model;
 			}
-			if ( $aiExpansionModel !== '' ) {
-				$settings['ai_expansion_model'] = $aiExpansionModel;
+			if ( $ai_expansion_model !== '' ) {
+				$settings['ai_expansion_model'] = $ai_expansion_model;
 			}
 			update_option( 'scolta_settings', $settings );
 		},
