@@ -14,6 +14,9 @@ First stable release — all features from 0.3.x promoted to 1.0 API surface.
 ## [Unreleased]
 
 ### Added
+- **Shortcode now passes `currentLanguage` to the JS config.** `get_locale()` is used to detect the WordPress site locale (e.g. `en_US` → `en`), and the 2-letter language code is added to `window.scolta.currentLanguage`. `scolta.js` reads this value to auto-scope search results to the active language on first load. The auto-filter only activates when `ai_languages` has more than one entry, so single-language sites are unaffected.
+
+### Added
 - **Amazee.ai trial is provisioned automatically at plugin activation.** `scolta_activate()` schedules a `scolta_amazee_provision` Action Scheduler action (deferred 5 s) so provisioning does not block the activation HTTP request. When Action Scheduler is unavailable, `scolta_auto_provision_amazee()` is called synchronously as a fallback. The helper delegates to `AutoProvisioner::ensureAiAvailable()` from scolta-php. It is a no-op when `SCOLTA_API_KEY` is set via env var, `$_ENV`, `$_SERVER`, or `wp-config.php` constant, or when credentials are already stored. On success, `scolta_settings[ai_model]` and `scolta_settings[ai_expansion_model]` are updated via the `onModelsResolved` callback.
 
 ### Fixed

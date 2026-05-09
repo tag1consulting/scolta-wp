@@ -123,6 +123,7 @@ class Scolta_Shortcode {
 				'allowedLinkDomains' => array(),
 				'disclaimer'         => '',
 				'nonce'              => wp_create_nonce( 'wp_rest' ),
+				'currentLanguage'    => strtolower( explode( '_', get_locale() )[0] ),
 			)
 		);
 
