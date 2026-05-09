@@ -173,6 +173,33 @@
   }
 
   // ==========================================================================
+  // FILTER LABELS — human-readable display names for filter dimensions/values
+  // ==========================================================================
+
+  const LANGUAGE_NAMES = {
+    en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+    it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ru: 'Russian',
+    zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ar: 'Arabic',
+    pl: 'Polish', sv: 'Swedish', da: 'Danish', fi: 'Finnish',
+    no: 'Norwegian', tr: 'Turkish', he: 'Hebrew', uk: 'Ukrainian',
+  };
+
+  const FILTER_LABELS = {
+    language: 'Language',
+    site: 'Site',
+    content_type: 'Content Type',
+  };
+
+  function filterDisplayValue(dimension, value) {
+    if (dimension === 'language') return LANGUAGE_NAMES[value] || value;
+    return value;
+  }
+
+  // TODO: auto-detect active language from URL path (e.g. /es/ → 'es')
+  // and pre-populate activeFilters.language when the page loads.
+  // This would let language-scoped embeds default to their own language.
+
+  // ==========================================================================
   // INSTANCE FACTORY
   // ==========================================================================
   // All mutable state is scoped to createInstance() closures, allowing
@@ -185,7 +212,7 @@
   let pagefind = null;
   let allScoredResults = [];
   let displayedCount = 0;
-  let activeFilters = new Set();
+  let activeFilters = {};
   let conversationMessages = [];
   let followUpCount = 0;
   let abortController = null;
@@ -195,6 +222,7 @@
   let lastExpandedTerms = null;
   let searchVersion = 0;
   let usedOrFallback = false;
+  let pagefindBase = '';   // Set during initPagefind(); used by resolveUrl().
 
   // --- DOM references (set during init) ---
   let els = {};
@@ -271,9 +299,49 @@
     const pagefindPath = (instanceConfig && instanceConfig.pagefindPath) || '/pagefind/pagefind.js';
     pagefind = await import(pagefindPath);
     await pagefind.init();
+
+    // Record the base so resolveUrl() can strip it back off.
+    // pagefind's fullUrl() prepends this path to every stored root-relative URL.
+    pagefindBase = pagefindPath.replace(/\/pagefind\/pagefind\.js.*$/, '');
+
+    // Merge all language instances so multilingual facets appear.
+    // pagefind.init() loads only the page language; without merging,
+    // filterCounts.language has one value and renderFilters hides the facet.
+    //
+    // pagefind.mergeIndex() skips calls where indexPath is a prefix of the
+    // primary instance's basePath (same-index dedup guard). The primary
+    // basePath is a relative path; passing an absolute URL breaks the
+    // string-prefix check while still resolving to the same files.
+    const basePath = pagefindPath.replace(/pagefind\.js(\?.*)?$/, '');
+    try {
+      const resp = await fetch(basePath + 'pagefind-entry.json?ts=' + Date.now());
+      const entry = await resp.json();
+      const primaryLang = (document.querySelector('html')?.getAttribute('lang') || 'en')
+        .toLowerCase().split('-')[0];
+      const absoluteBase = new URL(basePath, window.location.href).href;
+      for (const lang of Object.keys(entry.languages || {})) {
+        if (lang !== primaryLang) {
+          await pagefind.mergeIndex(absoluteBase, { language: lang });
+        }
+      }
+    } catch (e) {
+      console.warn('[scolta] Multilingual merge skipped:', e.message);
+    }
+
     // Warm the index: triggers WASM compilation + fragment download.
     await pagefind.search("");
     console.log("[scolta] Pagefind index preloaded");
+  }
+
+  // Strip the pagefind base path that fullUrl() prepends to root-relative paths.
+  function resolveUrl(raw) {
+    if (!raw) return '';
+    if (/^https?:\/\//.test(raw)) return raw;
+    if (pagefindBase && raw.startsWith(pagefindBase + '/')) {
+      return raw.slice(pagefindBase.length);
+    }
+    if (!raw.startsWith('/')) return '/' + raw;
+    return raw;
   }
 
   // Scolta WASM module for client-side scoring.
@@ -374,6 +442,7 @@
       return terms;
     } catch (e) {
       if (e.name === 'AbortError') return null;
+      if (e instanceof TypeError) return null;
       console.warn("[scolta:expand] failed:", e);
       return null;
     }
@@ -404,7 +473,7 @@
       try {
         const contextItems = topN.map(r => ({
           content: stripHtml(r.data.content || r.data.excerpt || ''),
-          url: ((u) => u.startsWith('/') ? window.location.origin + u : u)(r.data.meta?.url || ''),
+          url: ((u) => u.startsWith('/') ? window.location.origin + u : u)(resolveUrl(r.data.url || '')),
           title: r.data.meta?.title || '',
         }));
         const extractInput = JSON.stringify({
@@ -476,6 +545,10 @@
       }
     } catch (e) {
       if (e.name === 'AbortError') return;
+      if (e instanceof TypeError) {
+        summaryEl.style.display = "none";
+        return;
+      }
       console.warn("[scolta:summarize] failed:", e);
       summaryEl.className = "scolta-ai-summary error";
       summaryEl.innerHTML = `<div class="scolta-ai-summary-label">
@@ -504,7 +577,7 @@
     const CONFIG = getInstanceConfig();
     return results.map((r, i) => {
       const title = r.data.meta?.title || "Untitled";
-      const _u = r.data.meta?.url || ""; const url = _u.startsWith("/") ? window.location.origin + _u : _u;
+      const _u = resolveUrl(r.data.url || ""); const url = _u.startsWith("/") ? window.location.origin + _u : _u;
       const useFullContent = i < 2;
       const text = useFullContent
         ? stripHtml(r.data.content || r.data.excerpt || "")
@@ -574,7 +647,7 @@
     const terms = extractSearchTerms(question);
     const searchQuery = terms.length > 0 ? terms.join(' ') : question;
     try {
-      const search = await pagefindSearch(searchQuery, new Set());
+      const search = await pagefindSearch(searchQuery, {});
       const toLoad = Math.min(search.results.length, 20);
       if (toLoad === 0) return '';
       const loaded = await Promise.all(
@@ -680,6 +753,11 @@
         conversationMessages.pop();
         return;
       }
+      if (e instanceof TypeError) {
+        turnEl.querySelector(".scolta-ai-followup-answer").textContent = "Follow-up unavailable. Please try again.";
+        conversationMessages.pop();
+        return;
+      }
       console.warn("[scolta:followup] failed:", e);
       if (e.message && e.message.includes('429')) {
         turnEl.querySelector(".scolta-ai-followup-answer").textContent = "Follow-up limit reached.";
@@ -724,11 +802,17 @@
 
   async function pagefindSearch(query, filters) {
     const searchOpts = {};
-    if (filters && filters.size > 0) {
-      const arr = [...filters];
-      searchOpts.filters = {
-        site: arr.length === 1 ? arr[0] : arr
-      };
+    if (filters && typeof filters === 'object') {
+      const pagefindFilters = {};
+      for (const [dim, vals] of Object.entries(filters)) {
+        if (vals instanceof Set && vals.size > 0) {
+          const arr = [...vals];
+          pagefindFilters[dim] = arr.length === 1 ? arr[0] : arr;
+        }
+      }
+      if (Object.keys(pagefindFilters).length > 0) {
+        searchOpts.filters = pagefindFilters;
+      }
     }
     return pagefind.search(query, searchOpts);
   }
@@ -760,7 +844,7 @@
         const contentLocations = computeContentWordLocations(data.content || '', queryTerms);
         return {
           title: data.meta?.title || '',
-          url: data.meta?.url || data.url || '',
+          url: resolveUrl(data.url || ''),
           excerpt: data.excerpt || '',
           date: data.meta?.date || '',
           pagefind_index: i,
@@ -786,7 +870,7 @@
         const scored = JSON.parse(output);
         return scored.map(item => ({
           data: loaded[item.pagefind_index] || loaded.find(d =>
-            (d.meta?.url || d.url) === item.url
+            resolveUrl(d.url || '') === item.url
           ) || loaded[0],
           score: item.score * sourceWeight,
         }));
@@ -825,12 +909,17 @@
   }
 
   // Compute facet counts from actual result set.
+  // Returns { dimension: { value: count } } for all filter dimensions present in results.
   function computeFilterCounts(results) {
     const counts = {};
     for (const r of results) {
-      const site = r.data.meta?.site;
-      if (site) {
-        counts[site] = (counts[site] || 0) + 1;
+      const filters = r.data.filters || {};
+      for (const [dim, val] of Object.entries(filters)) {
+        if (!val) continue;
+        const v = Array.isArray(val) ? val[0] : val;
+        if (!v) continue;
+        if (!counts[dim]) counts[dim] = {};
+        counts[dim][v] = (counts[dim][v] || 0) + 1;
       }
     }
     return counts;
@@ -883,14 +972,14 @@
     if (scoltaWasm) {
       const original = currentResults.map(r => ({
         title: r.data.meta?.title || '',
-        url: r.data.meta?.url || r.data.url || '',
+        url: resolveUrl(r.data.url || ''),
         score: r.score,
         excerpt: r.data.excerpt || '',
         date: r.data.meta?.date || '',
       }));
       const expanded = newResults.map(r => ({
         title: r.data.meta?.title || '',
-        url: r.data.meta?.url || r.data.url || '',
+        url: resolveUrl(r.data.url || ''),
         score: r.score,
         excerpt: r.data.excerpt || '',
         date: r.data.meta?.date || '',
@@ -913,7 +1002,7 @@
         const normalizeUrl = u => (u || '').replace(/\.html$/, '').replace(/\/$/, '').toLowerCase();
         const dataByUrl = new Map();
         for (const r of [...currentResults, ...newResults]) {
-          const rawUrl = r.data.meta?.url || r.data.url || '';
+          const rawUrl = resolveUrl(r.data.url || '');
           for (const key of [rawUrl, normalizeUrl(rawUrl), rawUrl.replace(/^\/+/, ''), normalizeUrl(rawUrl).replace(/^\/+/, '')]) {
             if (key && (!dataByUrl.has(key) || r.score > dataByUrl.get(key).score)) {
               dataByUrl.set(key, r);
@@ -941,14 +1030,14 @@
     // JS fallback merge
     const urlMap = new Map();
     for (const r of currentResults) {
-      const url = r.data.meta?.url || r.data.url || '';
+      const url = resolveUrl(r.data.url || '');
       const prev = urlMap.get(url);
       if (!prev || r.score > prev.score) {
         urlMap.set(url, r);
       }
     }
     for (const r of newResults) {
-      const url = r.data.meta?.url || r.data.url || '';
+      const url = resolveUrl(r.data.url || '');
       const prev = urlMap.get(url);
       if (!prev || r.score > prev.score) {
         urlMap.set(url, r);
@@ -1069,7 +1158,6 @@
     displayedCount = 0;
 
     if (!preserveFilters) {
-      filterCounts = computeFilterCounts(allScoredResults);
       renderFilters();
     }
 
@@ -1079,7 +1167,7 @@
 
   // --- Main search ---
 
-  async function doSearch(preserveFilters) {
+  async function doSearch(preserveFilters, initialFilters) {
     preserveFilters = preserveFilters || false;
     const CONFIG = getInstanceConfig();
     const query = els.queryInput.value.trim();
@@ -1092,21 +1180,29 @@
 
     currentQuery = query;
 
-    // Update URL with search query for shareable/bookmarkable searches.
-    try {
-      var url = new URL(window.location.href);
-      url.searchParams.set('q', query);
-      history.replaceState(null, '', url.toString());
-    } catch (e) {
-      // Silently ignore — URL sync is non-critical.
-    }
-
     displayedCount = 0;
     allScoredResults = [];
     conversationMessages = [];
     followUpCount = 0;
     if (!preserveFilters) {
-      activeFilters.clear();
+      activeFilters = initialFilters || {};
+    }
+
+    // Update URL with search query and active filter state.
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('q', query);
+      for (const key of [...url.searchParams.keys()]) {
+        if (key.startsWith('f_')) url.searchParams.delete(key);
+      }
+      for (const [dim, vals] of Object.entries(activeFilters)) {
+        if (vals instanceof Set && vals.size > 0) {
+          url.searchParams.set('f_' + dim, [...vals].join(','));
+        }
+      }
+      history.replaceState(null, '', url.toString());
+    } catch (e) {
+      // Silently ignore — URL sync is non-critical.
     }
 
     els.layout.style.display = "grid";
@@ -1169,7 +1265,7 @@
             priorityMap[(pm.url || '').replace(/\/$/, '').toLowerCase()] = pm;
           });
           allScoredResults.forEach(result => {
-            const url = (result.data.meta?.url || result.data.url || '').replace(/\/$/, '').toLowerCase();
+            const url = resolveUrl(result.data.url || '').replace(/\/$/, '').toLowerCase();
             if (priorityMap[url]) {
               result.score = (result.score || 0) + (priorityMap[url].boost || 100);
             }
@@ -1182,7 +1278,9 @@
     }
 
     if (!preserveFilters) {
-      filterCounts = computeFilterCounts(allScoredResults);
+      // Pagefind exposes aggregate filter counts on the search response object,
+      // not on individual result.data() objects. Use them directly.
+      filterCounts = primarySearch.filters || {};
     }
 
     renderFilters();
@@ -1220,12 +1318,15 @@
     displayedCount = 0;
     conversationMessages = [];
     followUpCount = 0;
-    activeFilters.clear();
+    activeFilters = {};
 
-    // Remove search query from URL.
+    // Remove search query and filter params from URL.
     try {
       var url = new URL(window.location.href);
       url.searchParams.delete('q');
+      for (const key of [...url.searchParams.keys()]) {
+        if (key.startsWith('f_')) url.searchParams.delete(key);
+      }
       history.replaceState(null, '', url.toString());
     } catch (e) {
       // Silently ignore.
@@ -1239,33 +1340,61 @@
 
   function renderFilters() {
     const container = els.filters;
-    const entries = Object.entries(filterCounts).sort((a, b) => b[1] - a[1]);
-    if (entries.length <= 1) {
+
+    // Only show dimensions that have more than one unique value.
+    const dims = Object.keys(filterCounts).filter(
+      dim => Object.keys(filterCounts[dim]).length > 1
+    );
+
+    // Order: language first, site second, then remaining dimensions alphabetically.
+    dims.sort((a, b) => {
+      const order = { language: 0, site: 1 };
+      const oa = order[a] ?? 2;
+      const ob = order[b] ?? 2;
+      if (oa !== ob) return oa - ob;
+      return a.localeCompare(b);
+    });
+
+    if (dims.length === 0) {
       container.innerHTML = "";
       els.layout.classList.remove("has-filters");
       return;
     }
 
     els.layout.classList.add("has-filters");
-    let html = "<h3>Site</h3>";
-    for (const [site, count] of entries) {
-      const isActive = activeFilters.has(site);
-      const checked = isActive ? "checked" : "";
-      const activeClass = isActive ? " active" : "";
-      html += `<label class="scolta-filter-item${activeClass}">
-        <input type="checkbox" value="${escapeHtml(site)}" ${checked}
-               data-scolta-filter="${escapeHtml(site)}">
-        ${escapeHtml(site)} <span class="scolta-filter-count">(${count})</span>
-      </label>`;
+    let html = "";
+    for (const dim of dims) {
+      const label = FILTER_LABELS[dim]
+        || (dim.charAt(0).toUpperCase() + dim.slice(1).replace(/_/g, ' '));
+      html += `<div class="scolta-filter-group"><h3>${escapeHtml(label)}</h3>`;
+      const dimFilters = activeFilters[dim] || new Set();
+      const entries = Object.entries(filterCounts[dim]).sort((a, b) => b[1] - a[1]);
+      for (const [val, count] of entries) {
+        const isActive = dimFilters.has(val);
+        const checked = isActive ? "checked" : "";
+        const activeClass = isActive ? " active" : "";
+        html += `<label class="scolta-filter-item${activeClass}">
+          <input type="checkbox" value="${escapeHtml(val)}" ${checked}
+                 data-scolta-filter-dim="${escapeHtml(dim)}" data-scolta-filter-val="${escapeHtml(val)}">
+          ${escapeHtml(filterDisplayValue(dim, val))} <span class="scolta-filter-count">(${count})</span>
+        </label>`;
+      }
+      html += `</div>`;
     }
     container.innerHTML = html;
   }
 
-  async function toggleFilter(site) {
-    if (activeFilters.has(site)) {
-      activeFilters.delete(site);
+  async function toggleFilter(dimension, value) {
+    if (!activeFilters[dimension]) {
+      activeFilters[dimension] = new Set();
+    }
+    if (activeFilters[dimension].has(value)) {
+      activeFilters[dimension].delete(value);
+      if (activeFilters[dimension].size === 0) {
+        delete activeFilters[dimension];
+      }
     } else {
-      activeFilters.add(site);
+      activeFilters[dimension].add(value);
     }
     await doSearch(true);
   }
@@ -1311,7 +1440,12 @@
     noResults.style.display = "none";
     const showing = Math.min(displayedCount + CONFIG.RESULTS_PER_PAGE, filtered.length);
     const expandLabel = isExpanded ? ' (with expanded terms)' : '';
-    const filterLabel = activeFilters.size > 0 ? ` in ${[...activeFilters].join(', ')}` : '';
+    const filterLabel = Object.keys(activeFilters).length > 0
+      ? ' in ' + Object.entries(activeFilters)
+          .filter(([, vals]) => vals instanceof Set && vals.size > 0)
+          .map(([dim, vals]) => [...vals].map(v => filterDisplayValue(dim, v)).join(', '))
+          .join('; ')
+      : '';
     const orFallbackLabel = usedOrFallback ? ' — no exact matches found, showing partial matches' : '';
     header.innerHTML = `<span>${filtered.length.toLocaleString()} results for "${escapeHtml(currentQuery)}"${filterLabel}${expandLabel}${orFallbackLabel}</span>
                         <span>Showing ${showing}</span>`;
@@ -1320,7 +1454,7 @@
     for (let i = displayedCount; i < showing; i++) {
       const { data } = filtered[i];
       const title = data.meta?.title || "Untitled";
-      const url = data.meta?.url || data.url || "#";
+      const url = data.meta?.url || resolveUrl(data.url || '') || data.url || "#";
       const site = data.meta?.site || "";
       const date = data.meta?.date || "";
       const excerpt = truncateExcerpt(data.excerpt || "", CONFIG.EXCERPT_LENGTH);
@@ -1446,9 +1580,9 @@
 
     root.addEventListener("change", (e) => {
       // Filter checkbox toggle
-      const filterEl = e.target.closest("[data-scolta-filter]");
+      const filterEl = e.target.closest("[data-scolta-filter-dim]");
       if (filterEl) {
-        toggleFilter(filterEl.dataset.scoltaFilter);
+        toggleFilter(filterEl.dataset.scoltaFilterDim, filterEl.dataset.scoltaFilterVal);
       }
     });
 
@@ -1467,7 +1601,15 @@
         if (urlQuery) {
           els.queryInput.value = urlQuery;
           els.searchClear.style.display = "block";
-          doSearch();
+          var restoredFilters = {};
+          for (const [key, val] of urlParams.entries()) {
+            if (key.startsWith('f_') && val) {
+              var filterDim = key.slice(2);
+              var filterVals = val.split(',').filter(Boolean);
+              if (filterVals.length > 0) restoredFilters[filterDim] = new Set(filterVals);
+            }
+          }
+          doSearch(false, Object.keys(restoredFilters).length > 0 ? restoredFilters : null);
         } else {
           clearSearch();
         }
@@ -1480,14 +1622,22 @@
     Promise.all([initPagefind(), initScoltaWasm()]).then(() => {
       console.log("[scolta] Ready — Pagefind + WASM loaded");
 
-      // If URL contains ?q=<query>, auto-execute the search.
+      // If URL contains ?q=<query>, auto-execute the search and restore filter state.
       try {
         var urlParams = new URLSearchParams(window.location.search);
         var urlQuery = urlParams.get('q');
         if (urlQuery) {
           els.queryInput.value = urlQuery;
           els.searchClear.style.display = "block";
-          doSearch();
+          var initialFilters = {};
+          for (const [key, val] of urlParams.entries()) {
+            if (key.startsWith('f_') && val) {
+              var filterDim = key.slice(2);
+              var filterVals = val.split(',').filter(Boolean);
+              if (filterVals.length > 0) initialFilters[filterDim] = new Set(filterVals);
+            }
+          }
+          doSearch(false, Object.keys(initialFilters).length > 0 ? initialFilters : null);
         }
       } catch (e) {
         // Silently ignore — URL parsing is non-critical.
