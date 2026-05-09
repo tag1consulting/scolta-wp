@@ -14,6 +14,8 @@ First stable release — all features from 0.3.x promoted to 1.0 API surface.
 ## [Unreleased]
 
 ### Fixed
+- **Result links resolved against pagefind base path instead of site root.** When the PHP indexer was active, `pagefind.js` derived its `baseUrl` from its own script location (`/wp-content/uploads/scolta/pagefind/pagefind/`), causing root-relative result URLs like `/product/slug/` to be returned as `/wp-content/uploads/scolta/pagefind/product/slug/` — a 404 on every result. The bundled `scolta.js` now records `pagefindBase` after initialization and strips it from every result URL via `resolveUrl()`. Additionally adds multilingual index merging, language/filter label display, and performance improvements to the JS layer from `scolta-php`.
+
 - **Stale prompt cache after plugin update.** `scolta_resolved_prompts` was only refreshed when settings were explicitly saved, so upgraded sites served outdated prompt text until an admin re-saved the settings page. A new `scolta_refresh_prompt_cache_if_stale()` function hooked on `plugins_loaded` rebuilds the cache automatically whenever `SCOLTA_VERSION` doesn't match the stored `scolta_prompt_cache_version`. Fixes #49.
 
 ### Added
