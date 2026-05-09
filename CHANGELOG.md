@@ -13,6 +13,9 @@ First stable release — all features from 0.3.x promoted to 1.0 API surface.
 
 ## [Unreleased]
 
+### Added
+- **Amazee.ai trial is provisioned automatically at plugin activation.** `scolta_activate()` schedules a `scolta_amazee_provision` Action Scheduler action (deferred 5 s) so provisioning does not block the activation HTTP request. When Action Scheduler is unavailable, `scolta_auto_provision_amazee()` is called synchronously as a fallback. The helper delegates to `AutoProvisioner::ensureAiAvailable()` from scolta-php. It is a no-op when `SCOLTA_API_KEY` is set via env var, `$_ENV`, `$_SERVER`, or `wp-config.php` constant, or when credentials are already stored. On success, `scolta_settings[ai_model]` and `scolta_settings[ai_expansion_model]` are updated via the `onModelsResolved` callback.
+
 ### Fixed
 - **`scolta.js` URL stripping fix: pagefindBase stored as path-only.** In the previous sync, `pagefindBase` was still stored as an absolute URL (with origin); `pagefind.js` returns root-relative result URLs so the prefix check never matched. Now strips the origin via `new URL().pathname` when the pagefind path is absolute.
 

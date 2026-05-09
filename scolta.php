@@ -165,15 +165,72 @@ function scolta_activate(): void {
 		);
 	}
 
-	// Queue initial index build if Action Scheduler is available.
+	// Queue initial index build and Amazee.ai provisioning if Action Scheduler
+	// is available. Both are deferred so activation does not block on HTTP calls.
 	if ( function_exists( 'as_schedule_single_action' ) ) {
+		as_schedule_single_action( time() + 5, 'scolta_amazee_provision', array(), 'scolta' );
 		as_schedule_single_action( time() + 10, 'scolta_rebuild_start', array(), 'scolta' );
+	} else {
+		// Without Action Scheduler, fall back to synchronous provisioning.
+		scolta_auto_provision_amazee();
 	}
 
 	// Set transient for admin notice.
 	set_transient( 'scolta_activated', true, 60 );
 }
 register_activation_hook( __FILE__, 'scolta_activate' );
+
+// Register the Action Scheduler callback for background provisioning.
+add_action( 'scolta_amazee_provision', 'scolta_auto_provision_amazee' );
+
+/**
+ * Attempt Amazee.ai trial provisioning at plugin activation time.
+ *
+ * No-op when the user has an explicit API key configured, or when
+ * credentials are already stored. Failures are silenced — activation
+ * succeeds regardless.
+ */
+function scolta_auto_provision_amazee(): void {
+	$storage = new Scolta_Amazee_Config_Storage();
+
+	\Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
+		$storage,
+		hasExplicitApiKey: scolta_has_explicit_api_key(),
+		onModelsResolved: function ( string $aiModel, string $aiExpansionModel ): void {
+			$settings = get_option( 'scolta_settings', array() );
+			if ( $aiModel !== '' ) {
+				$settings['ai_model'] = $aiModel;
+			}
+			if ( $aiExpansionModel !== '' ) {
+				$settings['ai_expansion_model'] = $aiExpansionModel;
+			}
+			update_option( 'scolta_settings', $settings );
+		},
+	);
+}
+
+/**
+ * Check whether the site has an explicit Scolta API key configured.
+ *
+ * Returns true when SCOLTA_API_KEY env var, $_ENV, $_SERVER, or a
+ * wp-config.php constant is non-empty, meaning the user has their own
+ * provider and auto-provisioning should be skipped.
+ *
+ * @return bool True if an explicit API key is configured.
+ */
+function scolta_has_explicit_api_key(): bool {
+	$env = getenv( 'SCOLTA_API_KEY' );
+	if ( $env !== false && $env !== '' ) {
+		return true;
+	}
+	if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) || ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
+		return true;
+	}
+	if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
+		return true;
+	}
+	return false;
+}
 
 /**
  * Show one-time admin notice after plugin activation.
