@@ -122,6 +122,10 @@ if (!function_exists('get_bloginfo')) {
     }
 }
 
+if (!function_exists('get_locale')) {
+    function get_locale(): string { return 'en_US'; }
+}
+
 // Sanitization stubs.
 if (!function_exists('sanitize_text_field')) {
     function sanitize_text_field(string $str): string { return trim(strip_tags($str)); }
