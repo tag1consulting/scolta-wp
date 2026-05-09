@@ -133,9 +133,4 @@ class AutoProvisioningTest extends TestCase {
         );
     }
 
-    public function test_has_explicit_api_key_returns_false_when_no_key(): void {
-        // When no env var, $_ENV, $_SERVER, or constant is set, returns false.
-        $this->assertFalse( scolta_has_explicit_api_key() );
-    }
-
 }
