@@ -340,6 +340,34 @@ add_action(
 );
 
 /**
+ * Rebuild the resolved-prompt cache when the plugin version changes.
+ *
+ * The update_option_scolta_settings hook only fires on explicit settings saves,
+ * so cached prompts become stale after a plugin update that changes DefaultPrompts.
+ * This function detects the version mismatch and rebuilds the cache automatically.
+ */
+function scolta_refresh_prompt_cache_if_stale(): void {
+	if ( get_option( 'scolta_prompt_cache_version', '' ) === SCOLTA_VERSION ) {
+		return;
+	}
+	$settings  = get_option( 'scolta_settings', array() );
+	$site_name = $settings['site_name'] ?? get_bloginfo( 'name' );
+	$site_desc = $settings['site_description'] ?? 'website';
+
+	$all = array();
+	foreach ( array( 'expand_query', 'summarize', 'follow_up' ) as $name ) {
+		$all[ $name ] = \Tag1\Scolta\Prompt\DefaultPrompts::resolve(
+			$name,
+			$site_name,
+			$site_desc,
+		);
+	}
+	update_option( 'scolta_resolved_prompts', $all, false );
+	update_option( 'scolta_prompt_cache_version', SCOLTA_VERSION, false );
+}
+add_action( 'plugins_loaded', 'scolta_refresh_prompt_cache_if_stale' );
+
+/**
  * REST API registration.
  */
 add_action(
