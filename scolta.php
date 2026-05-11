@@ -131,10 +131,8 @@ function scolta_activate(): void {
 
 	// New installs: set defaults with autoload disabled.
 	if ( false === get_option( 'scolta_settings' ) ) {
-		// Use PHP indexer by default when no Pagefind binary is available.
-		if ( ! scolta_pagefind_binary_available() ) {
-			$defaults['indexer'] = 'php';
-		}
+		// 'auto' default is correct — auto always means PHP on every code path.
+		// No binary probe needed here.
 		add_option( 'scolta_settings', $defaults, '', false );
 	} else {
 		// Existing installs: merge in new defaults for added fields,
