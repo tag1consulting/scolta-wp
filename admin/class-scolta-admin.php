@@ -608,7 +608,7 @@ class Scolta_Admin {
 	public static function render_auto_rebuild_delay_field(): void {
 		$delay = (int) self::get_setting( 'auto_rebuild_delay', 300 );
 		echo '<input type="number" name="scolta_settings[auto_rebuild_delay]"'
-			. ' value="' . esc_attr( $delay ) . '" min="60" max="3600" step="60" />';
+			. ' value="' . esc_attr( $delay ) . '" min="60" max="3600" step="1" />';
 		echo '<p class="description">' . esc_html__( 'Seconds to wait after the last content change before rebuilding the index. Minimum 60. Default 300 (5 minutes). Higher values batch more changes together.', 'scolta' ) . '</p>';
 	}
 
@@ -760,7 +760,7 @@ class Scolta_Admin {
 	public static function render_excerpt_length_field(): void {
 		$value = self::get_setting( 'excerpt_length', 300 );
 		?>
-		<input type="number" name="scolta_settings[excerpt_length]" value="<?php echo esc_attr( $value ); ?>" min="50" max="1000" step="50" class="small-text" />
+		<input type="number" name="scolta_settings[excerpt_length]" value="<?php echo esc_attr( $value ); ?>" min="50" max="1000" step="1" class="small-text" />
 		<p class="description"><?php esc_html_e( 'Characters shown in result excerpts. Default: 300', 'scolta' ); ?></p>
 		<?php
 	}
@@ -776,7 +776,7 @@ class Scolta_Admin {
 	public static function render_max_pagefind_results_field(): void {
 		$value = self::get_setting( 'max_pagefind_results', 50 );
 		?>
-		<input type="number" name="scolta_settings[max_pagefind_results]" value="<?php echo esc_attr( $value ); ?>" min="10" max="500" step="10" class="small-text" />
+		<input type="number" name="scolta_settings[max_pagefind_results]" value="<?php echo esc_attr( $value ); ?>" min="10" max="500" step="1" class="small-text" />
 		<p class="description"><?php esc_html_e( 'Maximum results fetched from Pagefind before scoring. Default: 50', 'scolta' ); ?></p>
 		<?php
 	}
@@ -792,7 +792,7 @@ class Scolta_Admin {
 	public static function render_ai_summary_max_chars_field(): void {
 		$value = self::get_setting( 'ai_summary_max_chars', 4000 );
 		?>
-		<input type="number" name="scolta_settings[ai_summary_max_chars]" value="<?php echo esc_attr( $value ); ?>" min="500" max="10000" step="500" class="small-text" />
+		<input type="number" name="scolta_settings[ai_summary_max_chars]" value="<?php echo esc_attr( $value ); ?>" min="500" max="10000" step="1" class="small-text" />
 		<p class="description"><?php esc_html_e( 'Maximum characters per result excerpt sent to AI. Default: 4000', 'scolta' ); ?></p>
 		<?php
 	}
