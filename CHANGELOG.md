@@ -6,7 +6,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+- **CRITICAL: Amazee auto-provisioning no longer silently overrides users who configured their API key via admin UI.** `scolta_has_explicit_api_key()` now checks the database-stored key in addition to env vars and wp-config.php constants, so users who entered their key through the settings page are correctly treated as "already configured" and Amazee provisioning is skipped. `from_options()` now checks for an explicit key first and only falls back to Amazee credentials when no key exists — previously it unconditionally loaded Amazee creds and overrode the configured provider on every request. The `onModelsResolved` callback has been removed from `scolta_auto_provision_amazee()` so query expansion model is no longer silently downgraded to Haiku at activation time.
 
 ## [1.0.0-rc1] - 2026-05-11
 
