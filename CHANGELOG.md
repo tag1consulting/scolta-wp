@@ -4,57 +4,37 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
 
-## [1.0.0] Unreleased
+## [Unreleased]
+
+_No changes yet._
+
+## [1.0.0-rc1] - 2026-05-11
 
 First stable release — all features from 0.3.x promoted to 1.0 API surface.
-
-### Changed
-- Added `extra.branch-alias` (`dev-main` → `1.0.x-dev`) so consumers can resolve this package with `^1.0@dev` from a VCS repository.
-
-## [Unreleased]
 
 ### Fixed
 - **Reconciled `assets/js/scolta.js` from canonical scolta-php source.** The WP-specific `pagefindBase` path-only fix has been merged back into canonical; WP copy re-synced from canonical to pick up all downstream changes including `cleanBrokenMarkdown()`.
 - **`cleanBrokenMarkdown()` added** — repairs truncated AI summary markdown (broken links, unclosed bold/italic/backtick) before `formatSummary()` renders to HTML.
+- **Results Per Page field now accepts any integer 1–100.** Removed `step="5"` constraint (replaced with `step="1"`) and lowered `min` from `5` to `1` in the HTML input. Sanitization floor likewise lowered from 5 to 1. Aligns with Drupal behavior; arbitrary values like 12 are now accepted without snapping to 10 or 15.
+- **CRITICAL: API key status no longer shows "No API key configured" when Amazee.ai is active.** `render_api_key_status_field()` now has a `case 'amazee'` that correctly shows "Connected to Amazee.ai" with a link to Amazee.ai settings. Previously, `get_api_key_source()` returning `'amazee'` fell through to the `default` case and displayed the wrong error.
+- **`scolta.js` URL stripping fix: pagefindBase stored as path-only.** In the previous sync, `pagefindBase` was still stored as an absolute URL (with origin); `pagefind.js` returns root-relative result URLs so the prefix check never matched. Now strips the origin via `new URL().pathname` when the pagefind path is absolute.
+- **Result links resolved against pagefind base path instead of site root.** When the PHP indexer was active, `pagefind.js` derived its `baseUrl` from its own script location (`/wp-content/uploads/scolta/pagefind/pagefind/`), causing root-relative result URLs like `/product/slug/` to be returned as `/wp-content/uploads/scolta/pagefind/product/slug/` — a 404 on every result. The bundled `scolta.js` now records `pagefindBase` after initialization and strips it from every result URL via `resolveUrl()`. Additionally adds multilingual index merging, language/filter label display, and performance improvements to the JS layer from `scolta-php`.
+- **Stale prompt cache after plugin update.** `scolta_resolved_prompts` was only refreshed when settings were explicitly saved, so upgraded sites served outdated prompt text until an admin re-saved the settings page. A new `scolta_refresh_prompt_cache_if_stale()` function hooked on `plugins_loaded` rebuilds the cache automatically whenever `SCOLTA_VERSION` doesn't match the stored `scolta_prompt_cache_version`. Fixes #49.
+- **WordPress gatherer now flushes all relevant object cache groups between batches.** Previously only the `posts` group was flushed; `post_meta`, `terms`, and `term_relationships` accumulated across the entire build, inflating RSS proportional to corpus size. Added a `wp_cache_flush()` fallback for WordPress < 6.1 / sites without an object cache plugin. Also added `gc_collect_cycles()` between batches (matching the Drupal gatherer's existing cleanup) to reclaim circular reference chains from WP_Post objects and filter callbacks.
 
 ### Added
 - **CI step verifies `assets/js/scolta.js` checksum matches canonical source (scolta-php).** Direct edits to the WP copy will fail CI with a clear error message pointing to the canonical source.
 - **Composer `post-install-cmd`/`post-update-cmd` auto-copy `scolta.js` from vendor** after installing/updating dependencies, keeping the committed copy in sync without manual steps.
-
-### Fixed
-- **Results Per Page field now accepts any integer 1–100.** Removed `step="5"` constraint (replaced with `step="1"`) and lowered `min` from `5` to `1` in the HTML input. Sanitization floor likewise lowered from 5 to 1. Aligns with Drupal behavior; arbitrary values like 12 are now accepted without snapping to 10 or 15.
-- **CRITICAL: API key status no longer shows "No API key configured" when Amazee.ai is active.** `render_api_key_status_field()` now has a `case 'amazee'` that correctly shows "Connected to Amazee.ai" with a link to Amazee.ai settings. Previously, `get_api_key_source()` returning `'amazee'` fell through to the `default` case and displayed the wrong error.
-
-### Added
 - **Amazee.ai appears as a named option in the AI Provider dropdown.** The dropdown auto-detects the active provider: when Amazee credentials are stored, the dropdown shows "Amazee.ai (managed gateway)" and a link to the Amazee.ai settings page. `amazee` is now accepted in settings sanitization.
 - **Budget exceeded notice now links to Amazee.ai settings** with an actionable upgrade prompt instead of the generic "budget exceeded" message.
-
-### Added
 - **Shortcode now passes `currentLanguage` to the JS config.** `get_locale()` is used to detect the WordPress site locale (e.g. `en_US` → `en`), and the 2-letter language code is added to `window.scolta.currentLanguage`. `scolta.js` reads this value to auto-scope search results to the active language on first load. The auto-filter only activates when `ai_languages` has more than one entry, so single-language sites are unaffected.
-
-### Added
 - **Amazee.ai trial is provisioned automatically at plugin activation.** `scolta_activate()` schedules a `scolta_amazee_provision` Action Scheduler action (deferred 5 s) so provisioning does not block the activation HTTP request. When Action Scheduler is unavailable, `scolta_auto_provision_amazee()` is called synchronously as a fallback. The helper delegates to `AutoProvisioner::ensureAiAvailable()` from scolta-php. It is a no-op when `SCOLTA_API_KEY` is set via env var, `$_ENV`, `$_SERVER`, or `wp-config.php` constant, or when credentials are already stored. On success, `scolta_settings[ai_model]` and `scolta_settings[ai_expansion_model]` are updated via the `onModelsResolved` callback.
-
-### Fixed
-- **`scolta.js` URL stripping fix: pagefindBase stored as path-only.** In the previous sync, `pagefindBase` was still stored as an absolute URL (with origin); `pagefind.js` returns root-relative result URLs so the prefix check never matched. Now strips the origin via `new URL().pathname` when the pagefind path is absolute.
-
-- **Result links resolved against pagefind base path instead of site root.** When the PHP indexer was active, `pagefind.js` derived its `baseUrl` from its own script location (`/wp-content/uploads/scolta/pagefind/pagefind/`), causing root-relative result URLs like `/product/slug/` to be returned as `/wp-content/uploads/scolta/pagefind/product/slug/` — a 404 on every result. The bundled `scolta.js` now records `pagefindBase` after initialization and strips it from every result URL via `resolveUrl()`. Additionally adds multilingual index merging, language/filter label display, and performance improvements to the JS layer from `scolta-php`.
-
-- **Stale prompt cache after plugin update.** `scolta_resolved_prompts` was only refreshed when settings were explicitly saved, so upgraded sites served outdated prompt text until an admin re-saved the settings page. A new `scolta_refresh_prompt_cache_if_stale()` function hooked on `plugins_loaded` rebuilds the cache automatically whenever `SCOLTA_VERSION` doesn't match the stored `scolta_prompt_cache_version`. Fixes #49.
-
-### Added
 - **Amazee.ai auto-configuration: best available Claude model is applied after trial provisioning.** `ajax_start_trial()` now writes the auto-selected Sonnet to `scolta_settings[ai_model]` (if still at the default `claude-sonnet-4-5-20250929`) and Haiku to `ai_expansion_model` (if currently empty) via `update_option()`. A dismissible admin notice confirms the selected model. Model selection delegates to `AmazeeModelResolver` injected into `AmazeeTrialProvisioner`.
-
-### Added
 - **Timestamp-based rebuild optimization: skip unchanged post content loads.** `Scolta_Content_Gatherer::gather()` now accepts an optional `?TimestampManifest $manifest` and `bool $force` parameter. When a manifest is provided and a post's `post_modified_gmt` timestamp matches the stored value, the gatherer yields a `CachedContentReference` instead of loading `post_content` — no `apply_filters('the_content')` call is made for that post. A new `get_post_timestamps()` static method runs a single direct `$wpdb` query to fetch modification timestamps for a batch of IDs without constructing full `WP_Post` objects. The WP-CLI `do_build_php()` method obtains the manifest from `$orchestrator->getTimestampManifest()` and passes it to `gather()`; `--force` passes `null` to bypass the optimization.
-
-### Added
 - **Amazee.ai integration (Phase 3).** Scolta can now connect to the [Amazee.ai](https://amazee.ai) privacy-respecting AI provider. New classes: `Scolta_Amazee_Config_Storage` (stores LiteLLM credentials with AES-256-CBC encryption in WordPress options), `Scolta_Amazee_Budget_Handler` (throttled admin notice on budget exceeded), and `Scolta_Amazee_Admin_Page` (multi-step admin UI with AJAX trial/sign-in/region flow at *Settings → Scolta → Amazee.ai*). `Scolta_Ai_Service::from_options()` detects stored Amazee credentials and automatically routes AI calls through the LiteLLM proxy.
 
-### Fixed
-- **WordPress gatherer now flushes all relevant object cache groups between batches.** Previously only the `posts` group was flushed; `post_meta`, `terms`, and `term_relationships` accumulated across the entire build, inflating RSS proportional to corpus size. Added a `wp_cache_flush()` fallback for WordPress < 6.1 / sites without an object cache plugin. Also added `gc_collect_cycles()` between batches (matching the Drupal gatherer's existing cleanup) to reclaim circular reference chains from WP_Post objects and filter callbacks.
-
 ### Changed
+- Added `extra.branch-alias` (`dev-main` → `1.0.x-dev`) so consumers can resolve this package with `^1.0@dev` from a VCS repository.
 - **`indexer: auto` now always uses the PHP indexer.** Previously `auto` tried the Pagefind binary first and fell back to PHP. The PHP indexer works on all WordPress hosting environments without `exec()` or Node.js, uses less memory, and supports fast incremental re-indexing. Use `indexer: binary` to keep the old binary-first behaviour.
 - **`wp scolta build --force` now bypasses the per-item token cache** in addition to the existing fingerprint check. Previously `--force` only skipped the `shouldBuild()` fingerprint comparison; the page-word cache (new in this release, provided by scolta-php) was still consulted. With this change, `--force` triggers a full re-tokenization of every content item.
 
