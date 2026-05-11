@@ -27,6 +27,17 @@ The version appears in THREE places for WordPress: `composer.json`, the plugin h
 - Settings use a single serialized option (`scolta_settings`).
 - All user-facing strings must use `__()` or `_e()` for i18n.
 
+## scolta.js — DO NOT EDIT DIRECTLY
+
+`assets/js/scolta.js` is a copy of the canonical source in `scolta-php/assets/js/scolta.js`. **Never edit it in this repo.** All JS changes go to scolta-php first, then the copy is updated here. CI verifies the checksum matches — direct edits will fail CI.
+
+To update after a scolta-php change:
+```
+cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js
+```
+
+Composer `post-install-cmd` and `post-update-cmd` also auto-copy the file when installing/updating dependencies.
+
 ## Testing
 
 - Run: `./vendor/bin/phpunit`

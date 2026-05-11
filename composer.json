@@ -23,7 +23,13 @@
         "test": "phpunit",
         "lint": "phpcs",
         "format": "phpcbf",
-        "validate-release": "php scripts/validate-release.php"
+        "validate-release": "php scripts/validate-release.php",
+        "post-install-cmd": [
+            "[ -f vendor/tag1/scolta-php/assets/js/scolta.js ] && cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js || true"
+        ],
+        "post-update-cmd": [
+            "[ -f vendor/tag1/scolta-php/assets/js/scolta.js ] && cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js || true"
+        ]
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

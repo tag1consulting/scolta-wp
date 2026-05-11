@@ -17,6 +17,10 @@
  *   container: '#scolta-search'            — CSS selector for the search container
  *   allowedLinkDomains: []                 — Domains allowed in summary links (empty = all)
  *   disclaimer: ''                         — Disclaimer text below AI summary (empty = none)
+ *   currentLanguage: null                  — Optional: 2-letter ISO language code (e.g. 'en', 'es').
+ *                                            When set, search results are pre-filtered to this language.
+ *                                            URL filter params (f_language=...) take precedence.
+ *                                            Falls back to <html lang> detection when omitted.
  *
  * Entry point: Scolta.init(containerSelector)
  *
@@ -64,6 +68,7 @@
       AI_SUMMARY_MAX_CHARS: s.AI_SUMMARY_MAX_CHARS ?? 2000,
       EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.7,
       AI_MAX_FOLLOWUPS: s.AI_MAX_FOLLOWUPS ?? 3,
+      AI_LANGUAGES: s.AI_LANGUAGES ?? ['en'],
       LANGUAGE: s.LANGUAGE ?? 'en',
       CUSTOM_STOP_WORDS: s.CUSTOM_STOP_WORDS ?? [],
       RECENCY_STRATEGY: s.RECENCY_STRATEGY ?? 'exponential',
@@ -195,10 +200,6 @@
     return value;
   }
 
-  // TODO: auto-detect active language from URL path (e.g. /es/ → 'es')
-  // and pre-populate activeFilters.language when the page loads.
-  // This would let language-scoped embeds default to their own language.
-
   // ==========================================================================
   // INSTANCE FACTORY
   // ==========================================================================
@@ -223,6 +224,20 @@
   let searchVersion = 0;
   let usedOrFallback = false;
   let pagefindBase = '';   // Set during initPagefind(); used by resolveUrl().
+
+  // Detect default language filter from instanceConfig.currentLanguage or <html lang>.
+  // Applied on every fresh search unless the URL already specifies f_language.
+  var cfgLang = instanceConfig && typeof instanceConfig.currentLanguage === 'string'
+    ? instanceConfig.currentLanguage.trim() : '';
+  var defaultLangCode = cfgLang
+    ? cfgLang.split('-')[0].toLowerCase()
+    : (function() {
+        if (typeof document === 'undefined' || !document.documentElement) return null;
+        var hl = document.documentElement.lang;
+        if (!hl) return null;
+        var code = hl.split('-')[0].toLowerCase();
+        return code.length === 2 ? code : null;
+      })();
 
   // --- DOM references (set during init) ---
   let els = {};
@@ -251,6 +266,7 @@
       AI_SUMMARY_MAX_CHARS: s.AI_SUMMARY_MAX_CHARS ?? 2000,
       EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.7,
       AI_MAX_FOLLOWUPS: s.AI_MAX_FOLLOWUPS ?? 3,
+      AI_LANGUAGES: s.AI_LANGUAGES ?? ['en'],
       LANGUAGE: s.LANGUAGE ?? 'en',
       CUSTOM_STOP_WORDS: s.CUSTOM_STOP_WORDS ?? [],
       RECENCY_STRATEGY: s.RECENCY_STRATEGY ?? 'exponential',
@@ -594,8 +610,33 @@
     }).join("\n\n");
   }
 
+  // Repair markdown truncated by the AI hitting max_tokens mid-output.
+  // Mirrors PHP MarkdownRenderer::cleanBrokenLinks() logic.
+  function cleanBrokenMarkdown(text) {
+    if (!text) return text;
+
+    // Fix unclosed markdown links: [text](url  or  [text](  or  [text
+    text = text.replace(/\[([^\]]+)\]\([^)]*$/g, '**$1**');
+    text = text.replace(/\[([^\]]+)$/g, '**$1**');
+
+    // Close unclosed bold/italic at end of string
+    const boldCount = (text.match(/\*\*/g) || []).length;
+    if (boldCount % 2 !== 0) text += '**';
+
+    const italicMatches = text.match(/(?<!\*)\*(?!\*)/g) || [];
+    if (italicMatches.length % 2 !== 0) text += '*';
+
+    // Close unclosed backtick
+    const backtickCount = (text.match(/`/g) || []).length;
+    if (backtickCount % 2 !== 0) text += '`';
+
+    return text;
+  }
+
   // Convert lightweight markdown from Claude's summary into safe HTML.
   function formatSummary(text) {
+    if (!text) return '';
+    text = cleanBrokenMarkdown(text);
     const escaped = escapeHtml(text);
     const lines = escaped.split('\n');
     let html = '';
@@ -1192,7 +1233,14 @@
     conversationMessages = [];
     followUpCount = 0;
     if (!preserveFilters) {
-      activeFilters = initialFilters || {};
+      var effectiveFilters = initialFilters ? Object.assign({}, initialFilters) : {};
+      if (!effectiveFilters.language && defaultLangCode) {
+        var langs = CONFIG.AI_LANGUAGES || [];
+        if (langs.length > 1 && langs.includes(defaultLangCode)) {
+          effectiveFilters.language = new Set([defaultLangCode]);
+        }
+      }
+      activeFilters = effectiveFilters;
     }
 
     // Update URL with search query and active filter state.
