@@ -257,12 +257,26 @@ class Scolta_Admin {
 	}
 
 	public static function render_ai_provider_field(): void {
-		$value = self::get_setting( 'ai_provider', 'anthropic' );
+		// Auto-detect: if Amazee is active, reflect that in the dropdown.
+		$source = Scolta_Ai_Service::get_api_key_source();
+		$value  = ( $source === 'amazee' ) ? 'amazee' : self::get_setting( 'ai_provider', 'anthropic' );
 		?>
 		<select name="scolta_settings[ai_provider]" id="scolta_ai_provider">
 			<option value="anthropic" <?php selected( $value, 'anthropic' ); ?>><?php esc_html_e( 'Anthropic (Claude)', 'scolta' ); ?></option>
 			<option value="openai" <?php selected( $value, 'openai' ); ?>><?php esc_html_e( 'OpenAI', 'scolta' ); ?></option>
+			<option value="amazee" <?php selected( $value, 'amazee' ); ?>><?php esc_html_e( 'Amazee.ai (managed gateway)', 'scolta' ); ?></option>
 		</select>
+		<?php if ( 'amazee' === $value ) : ?>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: link to Amazee.ai settings page */
+				esc_html__( 'Amazee.ai provides a managed AI gateway with a free trial. %s', 'scolta' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Configure Amazee.ai settings', 'scolta' ) . '</a>'
+			);
+			?>
+		</p>
+		<?php endif; ?>
 		<?php
 	}
 
@@ -273,6 +287,13 @@ class Scolta_Admin {
 		$source = Scolta_Ai_Service::get_api_key_source();
 
 		switch ( $source ) {
+			case 'amazee':
+				echo '<div class="notice notice-success inline"><p>';
+				echo esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta' );
+				echo ' <a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta' ) . '</a>';
+				echo '</p></div>';
+				break;
+
 			case 'env':
 				echo '<div class="notice notice-success inline"><p>';
 				echo esc_html__( 'API key loaded from SCOLTA_API_KEY environment variable.', 'scolta' );
@@ -923,7 +944,7 @@ class Scolta_Admin {
 		}
 
 		// AI provider.
-		$clean['ai_provider'] = in_array( $input['ai_provider'] ?? '', array( 'anthropic', 'openai' ), true )
+		$clean['ai_provider'] = in_array( $input['ai_provider'] ?? '', array( 'anthropic', 'openai', 'amazee' ), true )
 			? $input['ai_provider']
 			: 'anthropic';
 
