@@ -82,19 +82,13 @@ class AutoProvisioningTest extends TestCase {
         );
     }
 
-    public function test_on_models_resolved_updates_ai_model(): void {
-        $this->assertStringContainsString(
-            "'ai_model'",
+    public function test_auto_provision_does_not_overwrite_models(): void {
+        // The onModelsResolved callback must NOT be passed — it would overwrite
+        // user-configured model settings with Amazee defaults.
+        $this->assertStringNotContainsString(
+            'onModelsResolved:',
             $this->pluginSource,
-            'onModelsResolved must update the ai_model setting'
-        );
-    }
-
-    public function test_on_models_resolved_updates_ai_expansion_model(): void {
-        $this->assertStringContainsString(
-            "'ai_expansion_model'",
-            $this->pluginSource,
-            'onModelsResolved must update the ai_expansion_model setting'
+            'scolta_auto_provision_amazee() must not pass an onModelsResolved callback'
         );
     }
 
@@ -130,6 +124,14 @@ class AutoProvisioningTest extends TestCase {
             "defined( 'SCOLTA_API_KEY' )",
             $this->pluginSource,
             'scolta_has_explicit_api_key() must check the SCOLTA_API_KEY constant'
+        );
+    }
+
+    public function test_has_explicit_api_key_checks_database(): void {
+        $this->assertStringContainsString(
+            "get_option( 'scolta_settings'",
+            $this->pluginSource,
+            'scolta_has_explicit_api_key() must check the database-stored key (admin UI / legacy migration)'
         );
     }
 

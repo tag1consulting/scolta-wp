@@ -196,25 +196,16 @@ function scolta_auto_provision_amazee(): void {
 	\Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
 		$storage,
 		hasExplicitApiKey: scolta_has_explicit_api_key(),
-		onModelsResolved: function ( string $ai_model, string $ai_expansion_model ): void {
-			$settings = get_option( 'scolta_settings', array() );
-			if ( $ai_model !== '' ) {
-				$settings['ai_model'] = $ai_model;
-			}
-			if ( $ai_expansion_model !== '' ) {
-				$settings['ai_expansion_model'] = $ai_expansion_model;
-			}
-			update_option( 'scolta_settings', $settings );
-		},
 	);
 }
 
 /**
  * Check whether the site has an explicit Scolta API key configured.
  *
- * Returns true when SCOLTA_API_KEY env var, $_ENV, $_SERVER, or a
- * wp-config.php constant is non-empty, meaning the user has their own
- * provider and auto-provisioning should be skipped.
+ * Returns true when SCOLTA_API_KEY env var, $_ENV, $_SERVER, a
+ * wp-config.php constant, or the database-stored legacy option is
+ * non-empty, meaning the user has their own provider and
+ * auto-provisioning should be skipped.
  *
  * @return bool True if an explicit API key is configured.
  */
@@ -227,6 +218,11 @@ function scolta_has_explicit_api_key(): bool {
 		return true;
 	}
 	if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
+		return true;
+	}
+	// Database-stored key (admin UI / legacy migration path).
+	$settings = get_option( 'scolta_settings', array() );
+	if ( ! empty( $settings['ai_api_key'] ) ) {
 		return true;
 	}
 	return false;
