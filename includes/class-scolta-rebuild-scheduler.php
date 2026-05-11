@@ -18,7 +18,6 @@ defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Index\PhpIndexer;
 use Tag1\Scolta\Export\ContentExporter;
-use Tag1\Scolta\Binary\PagefindBinary;
 
 class Scolta_Rebuild_Scheduler {
 
@@ -93,12 +92,10 @@ class Scolta_Rebuild_Scheduler {
 			return;
 		}
 
-		// Check if PHP or binary indexer.
+		// Background scheduler always uses the PHP pipeline.
+		// auto and php both mean PHP; only explicit 'binary' would be unsupported.
 		$indexer_setting = $settings['indexer'] ?? 'auto';
-		$use_php         = (
-			$indexer_setting === 'php' ||
-			( $indexer_setting === 'auto' && ! ( new PagefindBinary( null, ABSPATH ) )->resolve() )
-		);
+		$use_php         = ( $indexer_setting !== 'binary' );
 
 		if ( ! $use_php ) {
 			// translators: shown when background rebuild attempted with binary indexer.

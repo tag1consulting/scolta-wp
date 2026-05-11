@@ -1207,9 +1207,8 @@ class Scolta_Admin {
 		$binary_status    = $binary_resolver->status();
 		$binary_available = $binary_status['available'];
 
-		// PHP pipeline is active when forced, or when auto-detect finds no binary.
-		$uses_php_pipeline = ( 'php' === $indexer_setting )
-			|| ( 'auto' === $indexer_setting && ! $binary_available );
+		// PHP pipeline is active for auto and php; only binary uses the binary pipeline.
+		$uses_php_pipeline = ( $indexer_setting !== 'binary' );
 
 		echo '<h2>' . esc_html__( 'Index Status', 'scolta' ) . '</h2>';
 		echo '<table class="widefat striped" style="max-width: 600px;">';
@@ -1267,9 +1266,8 @@ class Scolta_Admin {
 				? __( 'Pagefind binary', 'scolta' )
 				: __( 'Pagefind binary (not found — check binary path)', 'scolta' );
 		} else {
-			$active_indexer = $binary_available
-				? __( 'Pagefind binary (auto-detected)', 'scolta' )
-				: __( 'PHP indexer (Pagefind binary not found)', 'scolta' );
+			// auto: always PHP regardless of binary availability.
+			$active_indexer = __( 'PHP indexer (recommended)', 'scolta' );
 		}
 		echo '<tr><td>' . esc_html__( 'Active indexer', 'scolta' ) . '</td>';
 		echo '<td>' . esc_html( $active_indexer ) . '</td></tr>';
@@ -1461,21 +1459,21 @@ class Scolta_Admin {
 			echo '</div>';
 		}
 
-		// Show upgrade notice when the Pagefind binary is not installed.
+		// Only warn about missing binary when explicitly configured to use binary pipeline.
 		$settings        = get_option( 'scolta_settings', array() );
 		$indexer_setting = $settings['indexer'] ?? 'auto';
-		if ( $indexer_setting !== 'php' ) {
+		if ( $indexer_setting === 'binary' ) {
 			$resolver      = new \Tag1\Scolta\Binary\PagefindBinary(
 				configuredPath: $settings['pagefind_binary'] ?? null,
 				projectDir: SCOLTA_PLUGIN_DIR,
 			);
 			$binary_status = $resolver->status();
 			if ( ! $binary_status['available'] ) {
-				echo '<div class="notice notice-info is-dismissible">';
+				echo '<div class="notice notice-error is-dismissible">';
 				echo '<p>' . wp_kses_post(
 					sprintf(
 					/* translators: %s: shell command */
-						__( '<strong>Scolta:</strong> Pagefind binary not found. Using PHP indexer (14 languages). For faster indexing and 33+ language support, install Pagefind: %s', 'scolta' ),
+						__( '<strong>Scolta:</strong> Pagefind binary not found, but indexer is set to "binary". Install Pagefind (%s) or change indexer to "auto" in settings.', 'scolta' ),
 						'<code>npm install -g pagefind</code>'
 					)
 				) . '</p>';

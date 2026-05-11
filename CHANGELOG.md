@@ -7,6 +7,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **CRITICAL: Background scheduler no longer silently fails when indexer is `auto`.** `Scolta_Rebuild_Scheduler::handle_start()` previously probed for the Pagefind binary when indexer was set to `auto` — if the binary was found, it resolved auto→binary, then immediately aborted with "Binary indexer not supported in background mode", silently failing every background build. The probe is removed: `auto` and `php` both use the PHP pipeline; only explicit `binary` is unsupported in background mode.
+- **Admin status no longer shows "Pagefind binary (auto-detected)" when indexer is `auto`.** Display now shows "PHP indexer (recommended)" for `auto`, matching actual build behavior.
+- **Admin notice no longer warns about missing Pagefind binary when indexer is `auto`.** The notice only fires when indexer is explicitly set to `binary` and the binary is not found.
+- **Activation hook no longer probes binary to set indexer default.** `auto` is the correct default and already means PHP everywhere; the conditional `php` override on binary-not-found has been removed.
 - **CRITICAL: Amazee auto-provisioning no longer silently overrides users who configured their API key via admin UI.** `scolta_has_explicit_api_key()` now checks the database-stored key in addition to env vars and wp-config.php constants, so users who entered their key through the settings page are correctly treated as "already configured" and Amazee provisioning is skipped. `from_options()` now checks for an explicit key first and only falls back to Amazee credentials when no key exists — previously it unconditionally loaded Amazee creds and overrode the configured provider on every request. The `onModelsResolved` callback has been removed from `scolta_auto_provision_amazee()` so query expansion model is no longer silently downgraded to Haiku at activation time.
 
 ## [1.0.0-rc1] - 2026-05-11
