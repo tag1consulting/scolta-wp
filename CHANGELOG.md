@@ -14,6 +14,14 @@ First stable release — all features from 0.3.x promoted to 1.0 API surface.
 ## [Unreleased]
 
 ### Fixed
+- **Reconciled `assets/js/scolta.js` from canonical scolta-php source.** The WP-specific `pagefindBase` path-only fix has been merged back into canonical; WP copy re-synced from canonical to pick up all downstream changes including `cleanBrokenMarkdown()`.
+- **`cleanBrokenMarkdown()` added** — repairs truncated AI summary markdown (broken links, unclosed bold/italic/backtick) before `formatSummary()` renders to HTML.
+
+### Added
+- **CI step verifies `assets/js/scolta.js` checksum matches canonical source (scolta-php).** Direct edits to the WP copy will fail CI with a clear error message pointing to the canonical source.
+- **Composer `post-install-cmd`/`post-update-cmd` auto-copy `scolta.js` from vendor** after installing/updating dependencies, keeping the committed copy in sync without manual steps.
+
+### Fixed
 - **Results Per Page field now accepts any integer 1–100.** Removed `step="5"` constraint (replaced with `step="1"`) and lowered `min` from `5` to `1` in the HTML input. Sanitization floor likewise lowered from 5 to 1. Aligns with Drupal behavior; arbitrary values like 12 are now accepted without snapping to 10 or 15.
 - **CRITICAL: API key status no longer shows "No API key configured" when Amazee.ai is active.** `render_api_key_status_field()` now has a `case 'amazee'` that correctly shows "Connected to Amazee.ai" with a link to Amazee.ai settings. Previously, `get_api_key_source()` returning `'amazee'` fell through to the `default` case and displayed the wrong error.
 
