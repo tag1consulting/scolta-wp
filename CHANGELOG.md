@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- Settings form: changed `step` attribute to `1` on `max_pagefind_results`, `excerpt_length`, `ai_summary_max_chars`, and `auto_rebuild_delay` number inputs. Previous step values (10, 50, 500, 60) caused the browser to silently adjust preset-injected values on form save — most critically, `max_pagefind_results: 75` (set by content_catalog, reference, and ecommerce presets) was being rounded to 70 or 80 on every save, degrading query expansion quality.
 - **CRITICAL: Background scheduler no longer silently fails when indexer is `auto`.** `Scolta_Rebuild_Scheduler::handle_start()` previously probed for the Pagefind binary when indexer was set to `auto` — if the binary was found, it resolved auto→binary, then immediately aborted with "Binary indexer not supported in background mode", silently failing every background build. The probe is removed: `auto` and `php` both use the PHP pipeline; only explicit `binary` is unsupported in background mode.
 - **Admin status no longer shows "Pagefind binary (auto-detected)" when indexer is `auto`.** Display now shows "PHP indexer (recommended)" for `auto`, matching actual build behavior.
 - **Admin notice no longer warns about missing Pagefind binary when indexer is `auto`.** The notice only fires when indexer is explicitly set to `binary` and the binary is not found.
