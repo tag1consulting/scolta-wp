@@ -45,11 +45,13 @@ class Scolta_Amazee_Budget_Handler {
 		<div class="notice notice-error">
 			<p>
 				<?php
-				// translators: Shown when Amazee.ai budget is exhausted.
-				esc_html_e(
-					'Scolta: Amazee.ai budget exceeded. AI search is temporarily unavailable.',
-					'scolta'
-				);
+				$upgrade_url  = esc_url( admin_url( 'admin.php?page=scolta-amazee' ) );
+				$upgrade_text = esc_html__( 'Upgrade your Amazee.ai account', 'scolta' );
+				$upgrade_link = '<a href="' . $upgrade_url . '">' . $upgrade_text . '</a>';
+				// translators: %s: link to the Amazee.ai settings page.
+				$message = esc_html__( 'Scolta: Your Amazee.ai free trial budget has been exceeded. AI-powered search features are temporarily unavailable. %s to restore AI search.', 'scolta' ); // phpcs:ignore Generic.Files.LineLength.MaxExceeded
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				printf( $message, $upgrade_link );
 				?>
 			</p>
 		</div>
