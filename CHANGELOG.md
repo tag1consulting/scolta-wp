@@ -6,6 +6,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.0.0-rc2] - 2026-05-12
+
 ### Fixed
 - **`wp scolta status` now detects the PHP indexer layout.** The status command previously only checked for index files at the output directory root (binary indexer layout). It now checks `{output_dir}/pagefind/` first (PHP indexer layout), falling back to the root. This fixes incorrect fragment counts and stale build dates reported after PHP indexer rebuilds.
 - **CI checksum enforcement is now mandatory.** The "SKIP: sha256 file not found" fallback has been replaced with a hard failure. Missing checksum means scolta-php is misconfigured, not a version compatibility excuse.
