@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e49fb665d6f258824f66dbfa68fd6917",
+    "content-hash": "599ee78930bfde995292daa9c97e33d5",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -1060,11 +1060,11 @@
         },
         {
             "name": "tag1/scolta-php",
-            "version": "0.3.11-dev",
+            "version": "1.0.0-rc1",
             "dist": {
                 "type": "path",
                 "url": "../scolta-php",
-                "reference": "6988f7250fc361e503be8ab0c8ac6bf1013b7df4"
+                "reference": "420880311b5bcb28852a991dd6ff4407ae0abfc9"
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",
@@ -1080,6 +1080,11 @@
                 "ext-intl": "Improves Unicode diacritic normalization quality. Falls back to strtr() mapping without it."
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.0.x-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
                     "Tag1\\Scolta\\": "src/"
