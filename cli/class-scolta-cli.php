@@ -755,12 +755,20 @@ class Scolta_CLI {
 
 		// Pagefind index.
 		\WP_CLI::log( '--- Pagefind Index ---' );
-		$index_file = $output_dir . '/pagefind.js';
-		if ( file_exists( $index_file ) ) {
-			$glob_result    = glob( $output_dir . '/fragment/*' );
+		// Detect index layout: PHP indexer writes to {output_dir}/pagefind/,
+		// binary indexer writes directly to {output_dir}/.
+		if ( file_exists( $output_dir . '/pagefind/pagefind-entry.json' ) ) {
+			$index_dir = $output_dir . '/pagefind';
+		} elseif ( file_exists( $output_dir . '/pagefind-entry.json' ) ) {
+			$index_dir = $output_dir;
+		} else {
+			$index_dir = null;
+		}
+		if ( null !== $index_dir && file_exists( $index_dir . '/pagefind.js' ) ) {
+			$glob_result    = glob( $index_dir . '/fragment/*' );
 			$fragment_count = count( ! empty( $glob_result ) ? $glob_result : array() );
-			$mtime          = filemtime( $index_file );
-			\WP_CLI::log( "  Path:       {$output_dir}" );
+			$mtime          = filemtime( $index_dir . '/pagefind.js' );
+			\WP_CLI::log( "  Path:       {$index_dir}" );
 			\WP_CLI::log( "  Fragments:  {$fragment_count}" );
 			$built = $mtime ? wp_date( 'Y-m-d H:i:s', $mtime ) : 'unknown';
 			\WP_CLI::log( '  Last built: ' . $built );

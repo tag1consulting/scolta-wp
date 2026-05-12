@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **`wp scolta status` now detects the PHP indexer layout.** The status command previously only checked for index files at the output directory root (binary indexer layout). It now checks `{output_dir}/pagefind/` first (PHP indexer layout), falling back to the root. This fixes incorrect fragment counts and stale build dates reported after PHP indexer rebuilds.
 - **CI checksum enforcement is now mandatory.** The "SKIP: sha256 file not found" fallback has been replaced with a hard failure. Missing checksum means scolta-php is misconfigured, not a version compatibility excuse.
 - **`make_handler()` now passes `$config->aiSummaryMaxTokens` to `AiEndpointHandler`.** The parameter was defined in `ScoltaConfig` and accepted by the constructor but never wired through, so the handler silently used 1024 regardless of configuration. Combined with the `scolta-php` default restoration to 512, AI summaries are now bounded at the intended token limit.
 - **`scolta.js` updated from canonical scolta-php source.** Includes the `AUTO_LANGUAGE_FILTER` opt-in flag (language auto-filter no longer applied automatically on multi-language sites) and filter sidebar counts restored to `computeFilterCounts(allScoredResults)`.
