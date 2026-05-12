@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **CI checksum enforcement is now mandatory.** The "SKIP: sha256 file not found" fallback has been replaced with a hard failure. Missing checksum means scolta-php is misconfigured, not a version compatibility excuse.
 - **`make_handler()` now passes `$config->aiSummaryMaxTokens` to `AiEndpointHandler`.** The parameter was defined in `ScoltaConfig` and accepted by the constructor but never wired through, so the handler silently used 1024 regardless of configuration. Combined with the `scolta-php` default restoration to 512, AI summaries are now bounded at the intended token limit.
 - **`scolta.js` updated from canonical scolta-php source.** Includes the `AUTO_LANGUAGE_FILTER` opt-in flag (language auto-filter no longer applied automatically on multi-language sites) and filter sidebar counts restored to `computeFilterCounts(allScoredResults)`.
 - Settings form: changed `step` attribute to `1` on `max_pagefind_results`, `excerpt_length`, `ai_summary_max_chars`, and `auto_rebuild_delay` number inputs. Previous step values (10, 50, 500, 60) caused the browser to silently adjust preset-injected values on form save — most critically, `max_pagefind_results: 75` (set by content_catalog, reference, and ecommerce presets) was being rounded to 70 or 80 on every save, degrading query expansion quality.
