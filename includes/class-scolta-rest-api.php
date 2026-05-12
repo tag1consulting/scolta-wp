@@ -252,6 +252,7 @@ class Scolta_Rest_Api {
 			$config->maxFollowUps,
 			new \Scolta_Prompt_Enricher(),
 			$config->aiLanguages,
+			aiSummaryMaxTokens: $config->aiSummaryMaxTokens,
 		);
 	}
 

@@ -207,6 +207,12 @@
   // multiple independent search widgets on one page. The backward-compatible
   // Scolta.init() creates a default instance internally.
 
+  // Pagefind uses a SharedWorker that persists across navigations; calling
+  // pagefind.init() a second time corrupts the WASM pointer permanently for
+  // the tab, producing "No pointer" errors. Cache the initialized module here
+  // so every createInstance() call shares it without re-calling init().
+  let pagefindInstance = null;
+
   function createInstance(containerSelector, instanceConfig) {
 
   // --- Instance state (local to this closure) ---
@@ -267,6 +273,7 @@
       EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.7,
       AI_MAX_FOLLOWUPS: s.AI_MAX_FOLLOWUPS ?? 3,
       AI_LANGUAGES: s.AI_LANGUAGES ?? ['en'],
+      AUTO_LANGUAGE_FILTER: s.AUTO_LANGUAGE_FILTER ?? false,
       LANGUAGE: s.LANGUAGE ?? 'en',
       CUSTOM_STOP_WORDS: s.CUSTOM_STOP_WORDS ?? [],
       RECENCY_STRATEGY: s.RECENCY_STRATEGY ?? 'exponential',
@@ -313,8 +320,19 @@
   // Initialize Pagefind and preload the WASM index.
   async function initPagefind() {
     const pagefindPath = (instanceConfig && instanceConfig.pagefindPath) || '/pagefind/pagefind.js';
+
+    if (pagefindInstance) {
+      pagefind = pagefindInstance;
+      const base = pagefindPath.replace(/\/pagefind\/pagefind\.js.*$/, '');
+      try {
+        pagefindBase = base.startsWith('http') ? new URL(base).pathname : base;
+      } catch (_) { pagefindBase = base; }
+      return;
+    }
+
     pagefind = await import(pagefindPath);
     await pagefind.init();
+    pagefindInstance = pagefind;
 
     // Record the path-only base so resolveUrl() can strip it back off.
     // pagefind's fullUrl() prepends baseUrl to every stored root-relative URL.
@@ -1234,7 +1252,7 @@
     followUpCount = 0;
     if (!preserveFilters) {
       var effectiveFilters = initialFilters ? Object.assign({}, initialFilters) : {};
-      if (!effectiveFilters.language && defaultLangCode) {
+      if (!effectiveFilters.language && defaultLangCode && CONFIG.AUTO_LANGUAGE_FILTER) {
         var langs = CONFIG.AI_LANGUAGES || [];
         if (langs.length > 1 && langs.includes(defaultLangCode)) {
           effectiveFilters.language = new Set([defaultLangCode]);
@@ -1333,9 +1351,7 @@
     }
 
     if (!preserveFilters) {
-      // Pagefind exposes aggregate filter counts on the search response object,
-      // not on individual result.data() objects. Use them directly.
-      filterCounts = primarySearch.filters || {};
+      filterCounts = computeFilterCounts(allScoredResults);
     }
 
     renderFilters();
