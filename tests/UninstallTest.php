@@ -38,7 +38,7 @@ class UninstallTest extends TestCase {
     public function test_uninstall_deletes_scolta_settings(): void {
         $source = file_get_contents(dirname(__DIR__) . '/uninstall.php');
         $this->assertStringContainsString(
-            "delete_option('scolta_settings')",
+            "delete_option( 'scolta_settings' )",
             $source
         );
     }
@@ -69,9 +69,14 @@ class UninstallTest extends TestCase {
             'uninstall.php must target the /scolta subdirectory of uploads'
         );
         $this->assertStringContainsString(
-            'rmdir',
+            'WP_Filesystem',
             $source,
-            'uninstall.php must call rmdir (or WP_Filesystem->rmdir) to remove the directory'
+            'uninstall.php must use WP_Filesystem to remove the directory'
+        );
+        $this->assertStringContainsString(
+            '->delete(',
+            $source,
+            'uninstall.php must call WP_Filesystem->delete() to remove the directory'
         );
     }
 
