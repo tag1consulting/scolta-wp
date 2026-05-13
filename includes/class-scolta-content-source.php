@@ -157,7 +157,7 @@ class Scolta_Content_Source implements ContentSourceInterface {
 
 		$content = apply_filters( 'the_content', $post->post_content );
 
-		if ( empty( trim( strip_tags( $content ) ) ) ) {
+		if ( empty( trim( wp_strip_all_tags( $content ) ) ) ) {
 			wp_reset_postdata();
 			return null;
 		}

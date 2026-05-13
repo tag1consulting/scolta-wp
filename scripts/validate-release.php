@@ -1,6 +1,6 @@
 <?php
 /**
- * Validate scolta-wp is ready for release.
+ * Validate scolta is ready for release.
  *
  * WordPress has THREE places where the version must match:
  * 1. composer.json "version" field

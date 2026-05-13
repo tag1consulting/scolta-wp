@@ -1,0 +1,11 @@
+/.editorconfig
+/.env.example
+/.gitignore
+/.gitattributes
+/.github/
+/tests/
+/scripts/
+/phpcs.xml.dist
+/BUILDING.md
+/CLAUDE.md
+/.distignore

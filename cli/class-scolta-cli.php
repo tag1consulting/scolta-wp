@@ -105,13 +105,16 @@ class Scolta_CLI {
 	 * @subcommand build
 	 */
 	public function build( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_build( $args, $assoc_args );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -252,7 +255,7 @@ class Scolta_CLI {
 		foreach ( $deleted_ids as $id ) {
 			$filepath = rtrim( $build_dir, '/' ) . '/' . $id . '.html';
 			if ( file_exists( $filepath ) ) {
-				unlink( $filepath );
+				wp_delete_file( $filepath );
 			}
 		}
 		if ( count( $deleted_ids ) > 0 ) {
@@ -352,13 +355,16 @@ class Scolta_CLI {
 	 * @subcommand diagnose
 	 */
 	public function diagnose( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_diagnose( $assoc_args );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -489,8 +495,14 @@ class Scolta_CLI {
 					\RecursiveIteratorIterator::CHILD_FIRST
 				);
 				foreach ( $it as $f ) {
-					$f->isDir() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
+					if ( $f->isDir() ) {
+						// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- CLI diagnostic temp dir cleanup, not a production path.
+						rmdir( $f->getPathname() );
+					} else {
+						wp_delete_file( $f->getPathname() );
+					}
 				}
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- CLI diagnostic temp dir cleanup, not a production path.
 				rmdir( $dir );
 			}
 		}
@@ -598,7 +610,9 @@ class Scolta_CLI {
 	 * @subcommand export
 	 */
 	public function export( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$incremental = \WP_CLI\Utils\get_flag_value( $assoc_args, 'incremental', false );
@@ -627,7 +641,7 @@ class Scolta_CLI {
 			foreach ( $deleted_ids as $id ) {
 				$filepath = rtrim( $build_dir, '/' ) . '/' . $id . '.html';
 				if ( file_exists( $filepath ) ) {
-					unlink( $filepath );
+					wp_delete_file( $filepath );
 				}
 			}
 
@@ -648,6 +662,7 @@ class Scolta_CLI {
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -661,7 +676,9 @@ class Scolta_CLI {
 	 * @subcommand rebuild-index
 	 */
 	public function rebuild_index( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$settings        = get_option( 'scolta_settings', array() );
@@ -694,6 +711,7 @@ class Scolta_CLI {
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -707,13 +725,16 @@ class Scolta_CLI {
 	 * @subcommand status
 	 */
 	public function status( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_status();
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -834,7 +855,9 @@ class Scolta_CLI {
 	 * @subcommand clear-cache
 	 */
 	public function clear_cache( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$generation = (int) get_option( 'scolta_generation', 0 );
@@ -853,6 +876,7 @@ class Scolta_CLI {
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -865,7 +889,9 @@ class Scolta_CLI {
 	 * @subcommand check-setup
 	 */
 	public function check_setup( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$settings = get_option( 'scolta_settings', array() );
@@ -901,6 +927,7 @@ class Scolta_CLI {
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -914,13 +941,16 @@ class Scolta_CLI {
 	 * @subcommand download-pagefind
 	 */
 	public function download_pagefind( array $args, array $assoc_args ): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_download_pagefind();
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		} finally {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.ini_set_ini_set -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
 	}
@@ -988,15 +1018,16 @@ class Scolta_CLI {
 		// Extract the binary.
 		$target_binary = $target_dir . '/pagefind';
 
-		// Use tar to extract.
+		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- shell_exec required to run tar for binary extraction in CLI context.
 		$result = shell_exec( 'tar -xzf ' . escapeshellarg( $tmp_file ) . ' -C ' . escapeshellarg( $target_dir ) . ' pagefind 2>&1' );
-		unlink( $tmp_file );
+		wp_delete_file( $tmp_file );
 
 		if ( ! file_exists( $target_binary ) ) {
 			\WP_CLI::error( "Extraction failed. Binary not found at {$target_binary}" );
 			return;
 		}
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- CLI binary install requires setting executable bit.
 		chmod( $target_binary, 0755 );
 
 		if ( ! is_executable( $target_binary ) ) {
@@ -1028,6 +1059,7 @@ class Scolta_CLI {
 		}
 
 		if ( ! is_dir( $output_dir ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- CLI index build requires creating output directory.
 			mkdir( $output_dir, 0755, true );
 		}
 
@@ -1042,12 +1074,14 @@ class Scolta_CLI {
 			1 => array( 'pipe', 'w' ),
 			2 => array( 'pipe', 'w' ),
 		);
-		$process     = proc_open( $cmd, $descriptors, $pipes );
+		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- proc_open required for Pagefind subprocess execution in CLI context.
+		$process = proc_open( $cmd, $descriptors, $pipes );
 		if ( ! is_resource( $process ) ) {
 			\WP_CLI::error( 'Failed to start Pagefind process.' );
 			return;
 		}
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- proc_open pipe management requires direct stream functions.
 		fclose( $pipes[0] );
 		stream_set_blocking( $pipes[1], false );
 		stream_set_blocking( $pipes[2], false );
@@ -1057,10 +1091,12 @@ class Scolta_CLI {
 		$start   = time();
 
 		while ( true ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- proc_open pipe management requires direct stream functions.
 			$chunk = fread( $pipes[1], 8192 );
 			if ( $chunk !== false && $chunk !== '' ) {
 				$output .= $chunk;
 			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- proc_open pipe management requires direct stream functions.
 			$chunk = fread( $pipes[2], 8192 );
 			if ( $chunk !== false && $chunk !== '' ) {
 				$output .= $chunk;
@@ -1075,7 +1111,9 @@ class Scolta_CLI {
 
 			if ( ( time() - $start ) > $timeout ) {
 				proc_terminate( $process, 15 );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- proc_open pipe management requires direct stream functions.
 				fclose( $pipes[1] );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- proc_open pipe management requires direct stream functions.
 				fclose( $pipes[2] );
 				proc_close( $process );
 				\WP_CLI::error( "Pagefind timed out after {$timeout}s. Try running it manually: {$cmd}" );
@@ -1085,7 +1123,9 @@ class Scolta_CLI {
 			usleep( 100000 ); // 100ms poll.
 		}
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- proc_open pipe management requires direct stream functions.
 		fclose( $pipes[1] );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- proc_open pipe management requires direct stream functions.
 		fclose( $pipes[2] );
 		proc_close( $process );
 

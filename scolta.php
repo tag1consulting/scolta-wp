@@ -15,7 +15,6 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       scolta
- * Domain Path:       /languages
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,9 +25,9 @@ define( 'SCOLTA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_FILE', __FILE__ );
 
 // Composer autoloader (scolta-php).
-$autoloader = SCOLTA_PLUGIN_DIR . 'vendor/autoload.php';
-if ( file_exists( $autoloader ) ) {
-	require_once $autoloader;
+$scolta_autoloader = SCOLTA_PLUGIN_DIR . 'vendor/autoload.php';
+if ( file_exists( $scolta_autoloader ) ) {
+	require_once $scolta_autoloader;
 }
 
 // Plugin includes.
