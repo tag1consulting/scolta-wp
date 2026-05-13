@@ -155,6 +155,7 @@ function scolta_activate(): void {
 		update_option( 'scolta_settings', $merged );
 
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-time activation; setting autoload=no on scolta_settings.
 		$wpdb->update(
 			$wpdb->options,
 			array( 'autoload' => 'no' ),
@@ -261,6 +262,7 @@ add_action(
 function scolta_deactivate(): void {
 	// Clean up expand transients.
 	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Transient cleanup during deactivation; bulk delete cannot use delete_transient().
 	$wpdb->query(
 		$wpdb->prepare(
 			"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",

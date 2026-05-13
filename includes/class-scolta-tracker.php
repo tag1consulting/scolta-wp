@@ -57,6 +57,7 @@ class Scolta_Tracker {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom tracker table; caching would defeat change-tracking purpose.
 		$wpdb->replace(
 			$table,
 			array(
@@ -79,7 +80,7 @@ class Scolta_Tracker {
 		$table = $wpdb->prefix . self::TABLE;
 
 		// $table is always $wpdb->prefix + known constant — safe to interpolate.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		if ( $action ) {
 			return $wpdb->get_results(
 				$wpdb->prepare(
@@ -90,7 +91,7 @@ class Scolta_Tracker {
 		}
 
 		return $wpdb->get_results( "SELECT * FROM {$table} ORDER BY changed_at ASC" );
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -101,7 +102,7 @@ class Scolta_Tracker {
 		$table = $wpdb->prefix . self::TABLE;
 
 		// $table is always $wpdb->prefix + known constant — safe to interpolate.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		if ( $action ) {
 			return (int) $wpdb->get_var(
 				$wpdb->prepare(
@@ -112,7 +113,7 @@ class Scolta_Tracker {
 		}
 
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -123,7 +124,7 @@ class Scolta_Tracker {
 	public static function clear(): void {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( "TRUNCATE TABLE {$table}" );
 	}
 
@@ -144,7 +145,7 @@ class Scolta_Tracker {
 
 		$placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
 		// $table is always $wpdb->prefix + known constant — safe to interpolate.
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$query = $wpdb->prepare(
 			"INSERT INTO {$table} (content_id, content_type, action, changed_at)
              SELECT ID, post_type, 'index', NOW()
@@ -155,7 +156,7 @@ class Scolta_Tracker {
 		);
 
 		$wpdb->query( $query );
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return self::get_pending_count( 'index' );
 	}
@@ -166,6 +167,7 @@ class Scolta_Tracker {
 	public static function table_exists(): bool {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema introspection cannot be cached.
 		return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
 	}
 }

@@ -230,11 +230,14 @@ class Scolta_Rest_Api {
 		$trust_proxy = get_option( 'scolta_trust_proxy_headers', false );
 
 		if ( $trust_proxy && ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-			$parts = explode( ',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'] );
+			$forwarded = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+			$parts     = explode( ',', $forwarded );
 			return trim( $parts[0] );
 		}
 
-		return (string) ( $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0' );
+		return isset( $_SERVER['REMOTE_ADDR'] )
+			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )
+			: '0.0.0.0';
 	}
 
 	/**
