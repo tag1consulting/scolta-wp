@@ -13,6 +13,8 @@ Zero-infrastructure AI search powered by Pagefind — static indexes, browser-si
 
 == Description ==
 
+Scolta AI Search is built and maintained by [Tag1 Consulting](https://tag1.com/), one of the leading open-source consulting firms in the world. Tag1 offers [AI strategy, architecture, and implementation consulting](https://tag1.com/services/ai/) for organizations evaluating or deploying AI-powered products.
+
 Scolta AI Search is a scoring, ranking, and AI layer built on [Pagefind](https://pagefind.app/). It builds a static inverted index at publish time and runs a browser-side WASM search engine — no search server required.
 
 **Key features:**
@@ -79,3 +81,9 @@ Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebui
 
 = 1.0.0-rc2 =
 First release candidate. No stable upgrade path from pre-1.0 versions.
+
+== About Tag1 Consulting ==
+
+Scolta is designed, built, and maintained by [Tag1 Consulting](https://tag1.com/). Tag1 has been delivering technology leadership since 2007 and is one of the leading open-source consulting firms in the world.
+
+Tag1 offers [AI strategy, architecture, and implementation consulting](https://tag1.com/services/ai/) — from evaluating whether AI search is right for your organization, to production deployment and ongoing tuning. If you need help integrating Scolta, customizing scoring for your content model, or connecting it to your AI provider of choice, visit [tag1.com/contact/](https://tag1.com/contact/).

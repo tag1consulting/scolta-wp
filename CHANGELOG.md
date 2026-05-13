@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Documentation now clearly attributes Scolta to Tag1 Consulting** with links to [tag1.com](https://tag1.com/) and Tag1's AI consulting services in both `README.md` and `readme.txt`. Added an "About Tag1 Consulting" section to both documents.
 - **WordPress Plugin Check (PCP) compliance for wordpress.org submission.** Added `readme.txt` with required metadata headers (`Stable Tag`, `Tested up to`, `License`, `License URI`). Created `.distignore` and `.gitattributes` to exclude dev/test files from release ZIPs. Removed `Domain Path` header (no translation files). Prefixed `$autoloader` global in `scolta.php`. Fixed `uninstall.php`: prefixed local variables, used `esc_sql()` for `DROP TABLE`, replaced `unlink()` with `wp_delete_file()`. Replaced `strip_tags()` with `wp_strip_all_tags()` in content source. Added targeted `phpcs:ignore` for legitimate CLI uses of `ini_set()`, `proc_open()`, `shell_exec()`, and direct filesystem functions. Added `phpcs:ignore` to `error_log()` calls already guarded by `WP_DEBUG`. Updated release ZIP directory from `scolta-wp/` to `scolta/` to match the plugin slug.
 
 ## [1.0.0-rc2] - 2026-05-12
