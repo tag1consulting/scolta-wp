@@ -20,10 +20,11 @@ delete_option('scolta_trust_proxy_headers');
 // Drop the tracker table.
 global $wpdb;
 $scolta_table = $wpdb->prefix . 'scolta_tracker';
-// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name built from trusted $wpdb->prefix, escaped via esc_sql().
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Uninstall cleanup: dropping custom tracker table.
 $wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $scolta_table ) . '`' );
 
 // Clean up transients.
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall cleanup: bulk delete transients; cannot use delete_transient() for wildcard patterns.
 $wpdb->query(
 	$wpdb->prepare(
 		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",

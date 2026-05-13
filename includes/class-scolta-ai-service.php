@@ -147,12 +147,15 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		}
 
 		// Also check $_ENV and $_SERVER (some hosts populate these differently).
+		// Server environment variables: not user input, no sanitization needed.
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 		if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) ) {
 			return $_ENV['SCOLTA_API_KEY'];
 		}
 		if ( ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
 			return $_SERVER['SCOLTA_API_KEY'];
 		}
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 
 		// wp-config.php constant (better than database, not as good as env var).
 		if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {

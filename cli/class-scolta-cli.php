@@ -865,6 +865,7 @@ class Scolta_CLI {
 
 			// Also clean up any stale transients from old generations.
 			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk transient cleanup in CLI; cannot use delete_transient() for wildcard patterns.
 			$deleted = $wpdb->query(
 				$wpdb->prepare(
 					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",

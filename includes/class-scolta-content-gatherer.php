@@ -69,7 +69,7 @@ class Scolta_Content_Gatherer {
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQL.NotPrepared
 		$sql  = "SELECT ID, UNIX_TIMESTAMP(post_modified_gmt) FROM {$wpdb->posts}"
 			. " WHERE ID IN ({$placeholders})";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk timestamp lookup for incremental indexing; core API has no batch equivalent.
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, ...$ids_int ), ARRAY_N );
 
 		$result = array();
@@ -186,6 +186,7 @@ class Scolta_Content_Gatherer {
 					$item = new ContentItem(
 						id: 'post-' . $post->ID,
 						title: $post->post_title,
+						// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core the_content filter, not a custom hook.
 						bodyHtml: apply_filters( 'the_content', $post->post_content ),
 						url: get_permalink( $post ),
 						date: get_the_date( 'Y-m-d', $post ),
