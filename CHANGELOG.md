@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **`expand_primary_weight` now correctly weights original vs. expansion results** (via updated `scolta.js` copy from scolta-php). See [scolta-php#86](https://github.com/tag1consulting/scolta-php/issues/86).
 - Fix phpcs:ignore sniff names to match PCP plugin checker (Squiz.PHP.DiscouragedFunctions.Discouraged, Generic.PHP.ForbiddenFunctions.Found)
 - **PCP distribution build: zero errors, zero warnings.** Updated `readme.txt` Tested up to 6.9 (WordPress 6.9 released). Updated `phpcs:ignore` sniff names to match PCP's bundled WPCS version: `proc_open` now uses `WordPress.PHP.DiscouragedPHPFunctions.system_calls_proc_open`; `ini_set()` now uses `WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_ini_set`. Converted `uninstall.php` filesystem cleanup to use `WP_Filesystem` unconditionally (no raw-`rmdir` fallback) — WordPress is fully bootstrapped during plugin deletion. Added `WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare` to tracker's `phpcs:disable` block covering dynamic `IN ({$placeholders})` construction.
 - **`composer.json` now uses a VCS repository for `tag1/scolta-php`** instead of a local `path` reference. The path reference (`../scolta-php`) only resolved inside the monorepo dev layout; standalone clones (wordpress.org reviewers, demo sites, CI) received a Composer error. Switched to `type: vcs` pointing to GitHub. `composer.lock` is deleted and added to `.gitignore` — consumers generate their own on `composer install`.
