@@ -279,6 +279,7 @@ class Scolta_Rest_Api {
 		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			$msg   = $result['exception']->getMessage();
 			$trace = $result['exception']->getTraceAsString();
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
 			error_log( '[scolta] Expand failed: ' . $msg . "\n" . $trace );
 		}
 
@@ -309,6 +310,7 @@ class Scolta_Rest_Api {
 		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			$msg   = $result['exception']->getMessage();
 			$trace = $result['exception']->getTraceAsString();
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
 			error_log( '[scolta] Summarize failed: ' . $msg . "\n" . $trace );
 		}
 
@@ -336,6 +338,7 @@ class Scolta_Rest_Api {
 		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			$msg   = $result['exception']->getMessage();
 			$trace = $result['exception']->getTraceAsString();
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
 			error_log( '[scolta] Follow-up failed: ' . $msg . "\n" . $trace );
 		}
 

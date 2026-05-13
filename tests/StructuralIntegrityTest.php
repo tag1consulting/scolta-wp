@@ -200,14 +200,14 @@ class StructuralIntegrityTest extends TestCase {
     public function test_release_workflow_creates_correct_zip_folder(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            'mv package scolta-wp',
+            'mv package scolta',
             $workflow,
-            'Release workflow must rename package dir to scolta-wp before zipping'
+            'Release workflow must rename package dir to scolta before zipping'
         );
         $this->assertStringNotContainsString(
-            'zip -r ../scolta-wp-${VERSION}.zip .',
+            'zip -r ../scolta-${VERSION}.zip .',
             $workflow,
-            'Must not zip from current dir (creates flat archive without scolta-wp/ folder)'
+            'Must not zip from current dir (creates flat archive without scolta/ folder)'
         );
     }
 }

@@ -231,6 +231,7 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 			// SDK not configured or provider missing — fall through to built-in.
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				$msg = '[scolta] WP AI SDK failed, falling back to built-in: ';
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
 				error_log( $msg . $e->getMessage() );
 			}
 			return null;
@@ -251,6 +252,7 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		} catch ( \Exception $e ) {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				$msg = '[scolta] WP AI SDK conversation failed, falling back: ';
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
 				error_log( $msg . $e->getMessage() );
 			}
 			return null;

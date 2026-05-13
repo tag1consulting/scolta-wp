@@ -13,7 +13,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Check out scolta-wp into 'package/' so that '../scolta-php' resolves correctly
+      # Check out the plugin into 'package/' so that '../scolta-php' resolves correctly
       - uses: actions/checkout@v4
         with:
           path: package
@@ -45,25 +45,34 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           cd ..
-          mv package scolta-wp
-          zip -r scolta-wp-${VERSION}.zip scolta-wp/ \
-            --exclude "scolta-wp/.git*" \
-            --exclude "scolta-wp/tests/*" \
-            --exclude "scolta-wp/node_modules/*" \
-            --exclude "scolta-wp/.claude/*"
+          mv package scolta
+          zip -r scolta-${VERSION}.zip scolta/ \
+            --exclude "scolta/.git*" \
+            --exclude "scolta/tests/*" \
+            --exclude "scolta/node_modules/*" \
+            --exclude "scolta/.claude/*" \
+            --exclude "scolta/.editorconfig" \
+            --exclude "scolta/.env.example" \
+            --exclude "scolta/.github/*" \
+            --exclude "scolta/scripts/*" \
+            --exclude "scolta/phpcs.xml.dist" \
+            --exclude "scolta/BUILDING.md" \
+            --exclude "scolta/CLAUDE.md" \
+            --exclude "scolta/.distignore" \
+            --exclude "scolta/.gitattributes"
 
       - name: Extract CHANGELOG entry
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
-            scolta-wp/CHANGELOG.md > release-notes.txt
+            scolta/CHANGELOG.md > release-notes.txt
           cat release-notes.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.txt
-          files: scolta-wp-*.zip
+          files: scolta-*.zip
           fail_on_unmatched_files: true
 
   validate-zip:
@@ -77,8 +86,8 @@ jobs:
           for i in 1 2 3 4 5; do
             gh release download "${GITHUB_REF_NAME}" \
               --repo "${{ github.repository }}" \
-              --pattern "scolta-wp-${VERSION}.zip" \
-              --output scolta-wp.zip && break
+              --pattern "scolta-${VERSION}.zip" \
+              --output scolta.zip && break
             echo "Retry $i/5..."
             sleep 5
           done
@@ -88,23 +97,23 @@ jobs:
       - name: Validate archive structure
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          unzip -l scolta-wp.zip > zip-contents.txt
+          unzip -l scolta.zip > zip-contents.txt
           cat zip-contents.txt
 
-          # Top-level directory must be scolta-wp/
-          if ! grep -qE '^[[:space:]]+[0-9].*scolta-wp/$' zip-contents.txt; then
-            echo "ERROR: Top-level directory is not scolta-wp/"
+          # Top-level directory must be scolta/
+          if ! grep -qE '^[[:space:]]+[0-9].*scolta/$' zip-contents.txt; then
+            echo "ERROR: Top-level directory is not scolta/"
             exit 1
           fi
 
           # vendor/autoload.php must be present
-          if ! grep -q 'scolta-wp/vendor/autoload.php' zip-contents.txt; then
+          if ! grep -q 'scolta/vendor/autoload.php' zip-contents.txt; then
             echo "ERROR: vendor/autoload.php is missing from archive"
             exit 1
           fi
 
           # Main plugin file must be present
-          if ! grep -q 'scolta-wp/scolta.php' zip-contents.txt; then
+          if ! grep -q 'scolta/scolta.php' zip-contents.txt; then
             echo "ERROR: scolta.php is missing from archive"
             exit 1
           fi
