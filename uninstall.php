@@ -6,16 +6,16 @@
  * Removes all plugin data: options, tracker table, and transients.
  */
 
-defined('WP_UNINSTALL_PLUGIN') || exit;
+defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // Remove plugin option.
-delete_option('scolta_settings');
-delete_option('scolta_resolved_prompts');
-delete_option('scolta_prompt_cache_version');
-delete_option('scolta_generation');
-delete_option('scolta_build_status');
-delete_option('scolta_build_force');
-delete_option('scolta_trust_proxy_headers');
+delete_option( 'scolta_settings' );
+delete_option( 'scolta_resolved_prompts' );
+delete_option( 'scolta_prompt_cache_version' );
+delete_option( 'scolta_generation' );
+delete_option( 'scolta_build_status' );
+delete_option( 'scolta_build_force' );
+delete_option( 'scolta_trust_proxy_headers' );
 
 // Drop the tracker table.
 global $wpdb;
@@ -34,28 +34,14 @@ $wpdb->query(
 );
 
 // Remove index directories from uploads.
+if ( ! function_exists( 'WP_Filesystem' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+}
+WP_Filesystem();
+global $wp_filesystem;
+
 $scolta_upload_dir = wp_upload_dir();
 $scolta_dir        = $scolta_upload_dir['basedir'] . '/scolta';
-if ( is_dir( $scolta_dir ) ) {
-	// Use WP_Filesystem if available; otherwise fall back to recursive removal.
-	if ( function_exists( 'WP_Filesystem' ) && WP_Filesystem() ) {
-		global $wp_filesystem;
-		$wp_filesystem->rmdir( $scolta_dir, true );
-	} else {
-		// Manual recursive removal as a fallback when WP_Filesystem is unavailable.
-		$scolta_iterator = new RecursiveIteratorIterator(
-			new RecursiveDirectoryIterator( $scolta_dir, RecursiveDirectoryIterator::SKIP_DOTS ),
-			RecursiveIteratorIterator::CHILD_FIRST
-		);
-		foreach ( $scolta_iterator as $scolta_file ) {
-			if ( $scolta_file->isDir() ) {
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- WP_Filesystem unavailable in this fallback path.
-				rmdir( $scolta_file->getRealPath() );
-			} else {
-				wp_delete_file( $scolta_file->getRealPath() );
-			}
-		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- WP_Filesystem unavailable in this fallback path.
-		@rmdir( $scolta_dir ); // phpcs:ignore WordPress.PHP.NoSilencingOperator.Discouraged -- best-effort, may already be removed.
-	}
+if ( $wp_filesystem->exists( $scolta_dir ) ) {
+	$wp_filesystem->delete( $scolta_dir, true );
 }
