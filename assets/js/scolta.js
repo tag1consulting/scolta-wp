@@ -1034,13 +1034,7 @@
   }
 
   // Merge scored results, keeping highest score per URL.
-  // currentWeight / expandedWeight: explicit set weights for the WASM merge. Defaults to
-  // 1.0/1.0 (equal weight) for intra-expansion merges; the expand-vs-primary merge passes
-  // CONFIG.EXPAND_PRIMARY_WEIGHT / (1 - CONFIG.EXPAND_PRIMARY_WEIGHT) so that a higher
-  // expand_primary_weight value gives more weight to original results, as the config name implies.
-  function mergeResults(currentResults, newResults, currentWeight, expandedWeight) {
-    const cw = (currentWeight  !== undefined) ? currentWeight  : 1.0;
-    const ew = (expandedWeight !== undefined) ? expandedWeight : 1.0;
+  function mergeResults(currentResults, newResults) {
     if (scoltaWasm) {
       const original = currentResults.map(r => ({
         title: r.data.meta?.title || '',
@@ -1058,8 +1052,8 @@
       }));
       const input = JSON.stringify({
         sets: [
-          { results: original, weight: cw },
-          { results: expanded, weight: ew },
+          { results: original, weight: 1.0 },
+          { results: expanded, weight: getInstanceConfig().EXPAND_PRIMARY_WEIGHT },
         ],
         deduplicate_by: "url",
         normalize_urls: true,
@@ -1200,11 +1194,8 @@
 
     const queries = [];
     let weightIndex = 0;
-    // Per-term scores are scaled by (1 - expand_primary_weight) so that expansion terms
-    // start at the correct base weight relative to the primary query results.
-    const expandBase = 1.0 - CONFIG.EXPAND_PRIMARY_WEIGHT;
     for (const term of validTerms) {
-      const weight = Math.max(expandBase - (weightIndex * 0.05), 0.1);
+      const weight = Math.max(CONFIG.EXPAND_PRIMARY_WEIGHT - (weightIndex * 0.05), 0.4);
       queries.push({ term, weight });
       weightIndex++;
 
@@ -1212,7 +1203,7 @@
       if (words.length > 1) {
         for (const word of words) {
           if (word.length > 2 && !queries.some(q => q.term === word)) {
-            const wordWeight = Math.max(expandBase - (weightIndex * 0.05), 0.1);
+            const wordWeight = Math.max(CONFIG.EXPAND_PRIMARY_WEIGHT - (weightIndex * 0.05), 0.4);
             queries.push({ term: word, weight: wordWeight });
             weightIndex++;
           }
@@ -1227,12 +1218,7 @@
       return;
     }
 
-    allScoredResults = mergeResults(
-      allScoredResults,
-      expandedResults,
-      CONFIG.EXPAND_PRIMARY_WEIGHT,
-      1.0 - CONFIG.EXPAND_PRIMARY_WEIGHT
-    );
+    allScoredResults = mergeResults(allScoredResults, expandedResults);
     allScoredResults.sort((a, b) => b.score - a.score);
     allScoredResults = deduplicateByTitle(allScoredResults);
     displayedCount = 0;
