@@ -59,7 +59,9 @@ jobs:
             --exclude "scolta/BUILDING.md" \
             --exclude "scolta/CLAUDE.md" \
             --exclude "scolta/.distignore" \
-            --exclude "scolta/.gitattributes"
+            --exclude "scolta/.gitattributes" \
+            --exclude "*.sh"
+
 
       - name: Extract CHANGELOG entry
         run: |
