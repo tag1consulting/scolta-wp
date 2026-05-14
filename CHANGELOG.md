@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **`make_handler()` now passes `sortableFields` to `AiEndpointHandler`.** The `sortable_fields` setting was stored in `ScoltaConfig` and accepted by `AiEndpointHandler`, but never forwarded from the WordPress REST layer. Without this, the sort intent prompt was never appended to expand-query calls and `sort_hint` was never returned regardless of configuration.
+
 ### Added
 - **Sort hint wired into search flow** (via updated `scolta.js` copy from scolta-php). When the expand-query endpoint returns a `sort_hint`, results are sorted by the named metadata field with a dismissible badge above results. See [scolta-php#93](https://github.com/tag1consulting/scolta-php/issues/93).
 - **WooCommerce product metadata extraction.** When a product post is indexed, `price` is emitted as `data-pagefind-sort` (enabling price-based ordering) and `regular_price`, `sale_price`, `sku`, `stock_status`, and `product_cat` are emitted as `data-pagefind-meta` (available in search results). Non-product posts and sites without WooCommerce are unaffected. ([#61](https://github.com/tag1consulting/scolta-wp/issues/61))
