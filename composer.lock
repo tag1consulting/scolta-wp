@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9b5236ecff103419cbbf0407598bbdf8",
+    "content-hash": "5f2eca92ec27042d7eb61194a8831cd2",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -1061,16 +1061,10 @@
         {
             "name": "tag1/scolta-php",
             "version": "1.0.0-rc3",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/tag1consulting/scolta-php.git",
-                "reference": "cb8b78b0a024e1789d7374efdd8a9094f72bbf9e"
-            },
             "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/tag1consulting/scolta-php/zipball/cb8b78b0a024e1789d7374efdd8a9094f72bbf9e",
-                "reference": "cb8b78b0a024e1789d7374efdd8a9094f72bbf9e",
-                "shasum": ""
+                "type": "path",
+                "url": "../scolta-php",
+                "reference": "e578de204b292a581833d3f1f8ce4b464afcd712"
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.0",
@@ -1128,11 +1122,10 @@
                 "MIT"
             ],
             "description": "AI-powered search with Pagefind — PHP language binding",
-            "support": {
-                "source": "https://github.com/tag1consulting/scolta-php/tree/v1.0.0-rc3",
-                "issues": "https://github.com/tag1consulting/scolta-php/issues"
-            },
-            "time": "2026-05-13T15:02:51+00:00"
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
         },
         {
             "name": "voku/portable-ascii",
@@ -3621,7 +3614,9 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "tag1/scolta-php": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

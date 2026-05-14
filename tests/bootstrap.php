@@ -456,6 +456,43 @@ if (!function_exists('wp_cache_flush_group')) {
     function wp_cache_flush_group(string $group): bool { return true; }
 }
 
+// Post meta stubs.
+if (!function_exists('get_post_meta')) {
+    function get_post_meta(int $post_id, string $key = '', bool $single = false) {
+        $meta = $GLOBALS['test_post_meta'][$post_id][$key] ?? ($single ? '' : []);
+        return $single ? $meta : (array) $meta;
+    }
+}
+if (!function_exists('update_post_meta')) {
+    function update_post_meta(int $post_id, string $meta_key, $meta_value, $prev_value = ''): bool {
+        $GLOBALS['test_post_meta'][$post_id][$meta_key] = $meta_value;
+        return true;
+    }
+}
+
+// Taxonomy stubs.
+if (!function_exists('wp_get_post_terms')) {
+    function wp_get_post_terms(int $post_id, string $taxonomy, array $args = []) {
+        return $GLOBALS['test_post_terms'][$post_id][$taxonomy] ?? [];
+    }
+}
+if (!function_exists('is_wp_error')) {
+    function is_wp_error($thing): bool { return $thing instanceof WP_Error; }
+}
+if (!class_exists('WP_Error')) {
+    class WP_Error {
+        private array $errors = [];
+        public function __construct(string $code = '', string $message = '') {
+            if ($code) { $this->errors[$code] = [$message]; }
+        }
+        public function get_error_message(string $code = ''): string {
+            if ($code) { return $this->errors[$code][0] ?? ''; }
+            $first = reset($this->errors);
+            return $first[0] ?? '';
+        }
+    }
+}
+
 if (!defined('DAY_IN_SECONDS')) {
     define('DAY_IN_SECONDS', 86400);
 }

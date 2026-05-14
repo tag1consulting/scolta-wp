@@ -183,6 +183,13 @@ class Scolta_Content_Gatherer {
 				);
 
 				foreach ( $query->posts as $post ) {
+					$woo_meta = ( 'product' === $post->post_type )
+						? self::extract_woocommerce_metadata( $post )
+						: array(
+							'metadata' => array(),
+							'sortable' => array(),
+						);
+
 					$item = new ContentItem(
 						id: 'post-' . $post->ID,
 						title: $post->post_title,
@@ -191,6 +198,8 @@ class Scolta_Content_Gatherer {
 						url: get_permalink( $post ),
 						date: get_the_date( 'Y-m-d', $post ),
 						siteName: $site_name,
+						metadata: $woo_meta['metadata'],
+						sortable: $woo_meta['sortable'],
 					);
 
 					/**
@@ -216,6 +225,8 @@ class Scolta_Content_Gatherer {
 										'siteName' => $item->siteName,
 										'language' => $item->language,
 										'filters'  => $item->filters,
+										'metadata' => $item->metadata,
+										'sortable' => $item->sortable,
 									),
 								)
 							);
@@ -246,5 +257,69 @@ class Scolta_Content_Gatherer {
 			// callbacks that PHP's refcount GC cannot collect.
 			gc_collect_cycles();
 		}
+	}
+
+	/**
+	 * Extract WooCommerce product metadata from post meta and taxonomy.
+	 *
+	 * Returns two arrays keyed for ContentItem's `metadata` and `sortable`
+	 * parameters. Price is placed in `sortable` so Pagefind emits both
+	 * data-pagefind-meta and data-pagefind-sort for ordering. All other
+	 * product fields are placed in `metadata` for display only.
+	 *
+	 * Returns empty arrays when WooCommerce is not active or fields are absent.
+	 *
+	 * @param \WP_Post $post The WooCommerce product post.
+	 * @return array{metadata: array<string, string>, sortable: array<string, string>}
+	 *
+	 * @since 1.0.0
+	 */
+	private static function extract_woocommerce_metadata( \WP_Post $post ): array {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return array(
+				'metadata' => array(),
+				'sortable' => array(),
+			);
+		}
+
+		$metadata = array();
+		$sortable = array();
+
+		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- post meta lookup for specific known keys on a single post.
+		$price = get_post_meta( $post->ID, '_price', true );
+		if ( '' !== $price && false !== $price ) {
+			$sortable['price'] = (string) $price;
+		}
+
+		$regular_price = get_post_meta( $post->ID, '_regular_price', true );
+		if ( '' !== $regular_price && false !== $regular_price ) {
+			$metadata['regular_price'] = (string) $regular_price;
+		}
+
+		$sale_price = get_post_meta( $post->ID, '_sale_price', true );
+		if ( '' !== $sale_price && false !== $sale_price ) {
+			$metadata['sale_price'] = (string) $sale_price;
+		}
+
+		$sku = get_post_meta( $post->ID, '_sku', true );
+		if ( '' !== $sku && false !== $sku ) {
+			$metadata['sku'] = (string) $sku;
+		}
+
+		$stock_status = get_post_meta( $post->ID, '_stock_status', true );
+		if ( '' !== $stock_status && false !== $stock_status ) {
+			$metadata['stock_status'] = (string) $stock_status;
+		}
+		// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+
+		$terms = wp_get_post_terms( $post->ID, 'product_cat', array( 'fields' => 'names' ) );
+		if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+			$metadata['product_cat'] = implode( ', ', $terms );
+		}
+
+		return array(
+			'metadata' => $metadata,
+			'sortable' => $sortable,
+		);
 	}
 }
