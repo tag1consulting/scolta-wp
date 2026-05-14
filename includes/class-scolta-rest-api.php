@@ -256,6 +256,7 @@ class Scolta_Rest_Api {
 			new \Scolta_Prompt_Enricher(),
 			$config->aiLanguages,
 			aiSummaryMaxTokens: $config->aiSummaryMaxTokens,
+			sortableFields: $config->sortableFields,
 		);
 	}
 
