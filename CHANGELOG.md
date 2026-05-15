@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Tests
+- **`CliMemoryHandlingTest`** — 15 structural tests verifying `memory_abort` and `index_only_complete` branch logic in `do_build_php()`. Guards against regressions in the conditions that trigger background resume and ensure helpful error messages when the memory limit is hit before any chunks are committed.
+
 ### Fixed
 - **`wp scolta build` no longer exits with an error on memory pressure.** When `IndexBuildOrchestrator` detects RSS at 75% of the memory limit after a chunk it returns `memory_abort` (a voluntary yield) instead of crashing. `Scolta_CLI::do_build_php()` now handles `memory_abort` and `index_only_complete` by spawning `wp scolta build --indexer=php --resume` in the background. The child starts with a clean heap; the build continues in multiple cycles with no crash-loop noise. Requires [scolta-php#107](https://github.com/tag1consulting/scolta-php/pull/107). ([#87](https://github.com/tag1consulting/scolta-php/issues/87))
 - **Sort override no longer loses the subject filter** (via updated `scolta.js` from [scolta-php#105](https://github.com/tag1consulting/scolta-php/pull/105)). "Most expensive tooth" now returns tooth/dental items sorted by price — previously OR-matched common terms dominated the price-sorted set. The LLM returns `subject_terms` alongside `sort_hint`; `scolta.js` runs a parallel subject-only search and intersects with sorted results.
