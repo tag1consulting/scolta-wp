@@ -257,6 +257,9 @@ class Scolta_Rest_Api {
 			$config->aiLanguages,
 			aiSummaryMaxTokens: $config->aiSummaryMaxTokens,
 			sortableFields: $config->sortableFields,
+			sortableFieldDescriptions: $config->sortableFieldDescriptions,
+			filterFields: $config->filterFields,
+			filterFieldDescriptions: $config->filterFieldDescriptions,
 		);
 	}
 
