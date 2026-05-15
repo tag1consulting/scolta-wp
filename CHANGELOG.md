@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Sort override no longer loses the subject filter** (via updated `scolta.js` from [scolta-php#105](https://github.com/tag1consulting/scolta-php/pull/105)). "Most expensive tooth" now returns tooth/dental items sorted by price — previously OR-matched common terms dominated the price-sorted set. The LLM returns `subject_terms` alongside `sort_hint`; `scolta.js` runs a parallel subject-only search and intersects with sorted results.
 - **`make_handler()` now passes `sortableFields` to `AiEndpointHandler`.** The `sortable_fields` setting was stored in `ScoltaConfig` and accepted by `AiEndpointHandler`, but never forwarded from the WordPress REST layer. Without this, the sort intent prompt was never appended to expand-query calls and `sort_hint` was never returned regardless of configuration.
 
 ### Added
