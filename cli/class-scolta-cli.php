@@ -1102,7 +1102,8 @@ class Scolta_CLI {
 			\WP_CLI::warning( 'Could not parse pagefind-entry.json: ' . $e->getMessage() );
 		}
 
-		$glob_frags     = glob( $index_dir . '/*.pf_fragment' ) ?: array();
+		$glob_frags     = glob( $index_dir . '/*.pf_fragment' );
+		$glob_frags     = ! empty( $glob_frags ) ? $glob_frags : array();
 		$fragment_count = count( $glob_frags );
 		\WP_CLI::log( "  Fragments: {$fragment_count}" );
 

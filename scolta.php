@@ -173,7 +173,7 @@ function scolta_activate(): void {
 
 	// Ensure index directories exist in uploads (writable on all managed hosts).
 	wp_mkdir_p( $upload_dir['basedir'] . '/scolta/build' );
-	wp_mkdir_p( $upload_dir['basedir'] . '/scolta/pagefind' ); // pre-create; orchestrator writes here
+	wp_mkdir_p( $upload_dir['basedir'] . '/scolta/pagefind' );
 
 	// New installs: set defaults with autoload disabled.
 	if ( false === get_option( 'scolta_settings' ) ) {

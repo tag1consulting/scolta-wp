@@ -44,7 +44,8 @@ class Scolta_Shortcode {
 		if ( str_ends_with( wp_normalize_path( rtrim( $output_dir, '/' ) ), '/pagefind' ) ) {
 			_doing_it_wrong(
 				__CLASS__ . '::render',
-				'output_dir should not end in /pagefind. The PHP indexer appends /pagefind automatically. Remove the suffix to avoid double-nested index directories.',
+				'output_dir should not end in /pagefind. The PHP indexer appends /pagefind ' .
+				'automatically. Remove the suffix to avoid double-nested index directories.',
 				'1.0.0'
 			);
 		}
