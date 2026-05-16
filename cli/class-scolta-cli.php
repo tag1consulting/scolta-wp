@@ -157,7 +157,7 @@ class Scolta_CLI {
 		$resume        = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
 		$restart       = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
 		$strict_errors = \WP_CLI\Utils\get_flag_value( $assoc_args, 'strict-errors', false );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 		$state_dir  = $this->get_state_dir();
 
 		$budget_opt = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
@@ -196,6 +196,7 @@ class Scolta_CLI {
 		$report = $orchestrator->build( $intent, $items, $logger, $reporter, force: (bool) $force );
 
 		if ( $report->success ) {
+			scolta_cleanup_nested_indexes( $output_dir );
 			$generation = (int) get_option( 'scolta_generation', 0 );
 			update_option( 'scolta_generation', $generation + 1 );
 			\WP_CLI::success(
@@ -318,7 +319,7 @@ class Scolta_CLI {
 		$skip_pagefind = \WP_CLI\Utils\get_flag_value( $assoc_args, 'skip-pagefind', false );
 
 		$build_dir  = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
 
 		$source   = new \Scolta_Content_Source( $config );
@@ -788,7 +789,7 @@ class Scolta_CLI {
 			}
 
 			$build_dir  = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
-			$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+			$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 
 			$resolver = new PagefindBinary(
 				configuredPath: $settings['pagefind_binary'] ?? null,
@@ -837,7 +838,7 @@ class Scolta_CLI {
 		$settings   = get_option( 'scolta_settings', array() );
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
 		$build_dir  = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 
 		// Tracker status.
 		\WP_CLI::log( '--- Tracker ---' );
@@ -974,6 +975,154 @@ class Scolta_CLI {
 			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
 			ini_set( 'display_errors', $prev );
 		}
+	}
+
+	/**
+	 * Clean up stale Pagefind index artifacts and validate the current index.
+	 *
+	 * Scans for and removes double-nested pagefind/pagefind directories left by
+	 * the old output_dir default (which ended in /pagefind, causing the PHP
+	 * indexer to write to /pagefind/pagefind/ instead of /pagefind/).
+	 *
+	 * Also validates the current index: checks pagefind-entry.json exists at
+	 * the expected path, reports version/page_count, and confirms the shortcode
+	 * path detection matches the orchestrator's expected path.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp scolta cleanup
+	 *
+	 * @subcommand cleanup
+	 */
+	public function cleanup( array $args, array $assoc_args ): void {
+		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
+		$prev = ini_get( 'display_errors' );
+		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
+		ini_set( 'display_errors', '0' );
+		try {
+			$this->do_cleanup();
+		} catch ( \Throwable $e ) {
+			\WP_CLI::error( $e->getMessage() );
+		} finally {
+			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
+			ini_set( 'display_errors', $prev );
+		}
+	}
+
+	/**
+	 * Run the cleanup logic.
+	 */
+	private function do_cleanup(): void {
+		$settings   = get_option( 'scolta_settings', array() );
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+
+		\WP_CLI::log( "Output directory: {$output_dir}" );
+
+		// 1. Scan for any pagefind/pagefind nesting under the scolta uploads tree.
+		$scolta_base = wp_upload_dir()['basedir'] . '/scolta';
+		$removed     = 0;
+		if ( is_dir( $scolta_base ) ) {
+			$dir_iter = new \RecursiveIteratorIterator(
+				new \RecursiveDirectoryIterator( $scolta_base, \FilesystemIterator::SKIP_DOTS ),
+				\RecursiveIteratorIterator::SELF_FIRST
+			);
+			foreach ( $dir_iter as $item ) {
+				if ( ! $item->isDir() ) {
+					continue;
+				}
+				$path = wp_normalize_path( $item->getPathname() );
+				if ( str_ends_with( $path, '/pagefind/pagefind' ) ) {
+					\WP_CLI::log( "  Removing double-nested: {$path}" );
+					$inner = new \RecursiveIteratorIterator(
+						new \RecursiveDirectoryIterator( $path, \FilesystemIterator::SKIP_DOTS ),
+						\RecursiveIteratorIterator::CHILD_FIRST
+					);
+					foreach ( $inner as $f ) {
+						if ( $f->isDir() ) {
+							// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- CLI cleanup of stale artifact.
+							rmdir( $f->getPathname() );
+						} else {
+							wp_delete_file( $f->getPathname() );
+						}
+					}
+					// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- CLI cleanup of stale artifact.
+					rmdir( $path );
+					++$removed;
+					$dir_iter->next(); // skip now-removed subtree
+				}
+			}
+		}
+
+		if ( $removed > 0 ) {
+			\WP_CLI::success( "Removed {$removed} double-nested pagefind director" . ( $removed === 1 ? 'y' : 'ies' ) . '.' );
+		} else {
+			\WP_CLI::log( 'No double-nested pagefind directories found.' );
+		}
+
+		// 2. Check for stale ABSPATH/scolta-pagefind directory.
+		$old_abspath_dir = rtrim( ABSPATH, '/' ) . '/scolta-pagefind';
+		if ( is_dir( $old_abspath_dir ) ) {
+			\WP_CLI::warning( "Stale ABSPATH index found at {$old_abspath_dir} — remove manually if not needed." );
+		}
+
+		// 3. Validate the current index.
+		\WP_CLI::log( '' );
+		\WP_CLI::log( '--- Index Validation ---' );
+
+		if ( file_exists( $output_dir . '/pagefind/pagefind-entry.json' ) ) {
+			$index_dir    = $output_dir . '/pagefind';
+			$layout       = 'php-indexer';
+			$index_exists = true;
+		} elseif ( file_exists( $output_dir . '/pagefind-entry.json' ) ) {
+			$index_dir    = $output_dir;
+			$layout       = 'binary-indexer';
+			$index_exists = true;
+		} else {
+			$index_dir    = null;
+			$layout       = 'none';
+			$index_exists = false;
+		}
+
+		if ( ! $index_exists ) {
+			\WP_CLI::warning( 'No index found. Run: wp scolta build' );
+			return;
+		}
+
+		\WP_CLI::log( "  Layout:   {$layout}" );
+		\WP_CLI::log( "  Path:     {$index_dir}" );
+
+		$entry_file = $index_dir . '/pagefind-entry.json';
+		try {
+			$entry      = json_decode( (string) file_get_contents( $entry_file ), true, 512, JSON_THROW_ON_ERROR );
+			$version    = $entry['version'] ?? 'unknown';
+			$page_count = count( $entry['pages'] ?? array() );
+			\WP_CLI::log( "  Version:  {$version}" );
+			\WP_CLI::log( "  Pages:    {$page_count}" );
+		} catch ( \JsonException $e ) {
+			\WP_CLI::warning( 'Could not parse pagefind-entry.json: ' . $e->getMessage() );
+		}
+
+		$glob_frags     = glob( $index_dir . '/*.pf_fragment' ) ?: array();
+		$fragment_count = count( $glob_frags );
+		\WP_CLI::log( "  Fragments: {$fragment_count}" );
+
+		// 4. Confirm shortcode and orchestrator agree on where the index lives.
+		$expected_shortcode_path = $output_dir . '/pagefind/pagefind-entry.json';
+		$shortcode_match         = file_exists( $expected_shortcode_path )
+			&& realpath( $expected_shortcode_path ) === realpath( $entry_file );
+
+		if ( $shortcode_match ) {
+			\WP_CLI::log( '  Shortcode path: MATCH (PHP-indexer layout detected correctly)' );
+		} else {
+			$fallback_path = $output_dir . '/pagefind-entry.json';
+			if ( file_exists( $fallback_path ) && realpath( $fallback_path ) === realpath( $entry_file ) ) {
+				\WP_CLI::log( '  Shortcode path: MATCH (binary-indexer layout detected correctly)' );
+			} else {
+				\WP_CLI::warning( 'Shortcode path mismatch — check output_dir setting and rebuild.' );
+			}
+		}
+
+		\WP_CLI::success( 'Cleanup and validation complete.' );
 	}
 
 	/**

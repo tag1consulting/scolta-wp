@@ -642,10 +642,10 @@ class Scolta_Admin {
 	}
 
 	public static function render_output_dir_field(): void {
-		$value = self::get_setting( 'output_dir', wp_upload_dir()['basedir'] . '/scolta/pagefind' );
+		$value = self::get_setting( 'output_dir', scolta_default_output_dir() );
 		?>
 		<input type="text" name="scolta_settings[output_dir]" value="<?php echo esc_attr( $value ); ?>" class="large-text" />
-		<p class="description"><?php esc_html_e( 'Directory for the Pagefind search index. Must be web-accessible. Defaults to wp-content/uploads/scolta/pagefind.', 'scolta' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Parent directory for the Pagefind search index. Must be web-accessible. The PHP indexer writes the index to a pagefind/ subdirectory here. Defaults to wp-content/uploads/scolta.', 'scolta' ); ?></p>
 		<?php
 	}
 
@@ -1090,7 +1090,7 @@ class Scolta_Admin {
 		// Pagefind paths.
 		$clean['pagefind_binary']    = sanitize_text_field( $input['pagefind_binary'] ?? 'pagefind' );
 		$clean['build_dir']          = wp_normalize_path( $input['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build' );
-		$clean['output_dir']         = wp_normalize_path( $input['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind' );
+		$clean['output_dir']         = wp_normalize_path( $input['output_dir'] ?? scolta_default_output_dir() );
 		$clean['auto_rebuild']       = ! empty( $input['auto_rebuild'] );
 		$clean['auto_rebuild_delay'] = max( 60, min( 3600, (int) ( $input['auto_rebuild_delay'] ?? 300 ) ) );
 
@@ -1314,7 +1314,7 @@ class Scolta_Admin {
 	private static function render_status_summary(): void {
 		$settings        = get_option( 'scolta_settings', array() );
 		$build_dir       = $settings['build_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/build';
-		$output_dir      = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir      = $settings['output_dir'] ?? scolta_default_output_dir();
 		$indexer_setting = $settings['indexer'] ?? 'auto';
 
 		$binary_resolver  = new \Tag1\Scolta\Binary\PagefindBinary(
@@ -1687,8 +1687,8 @@ class Scolta_Admin {
 	 */
 	public static function get_health_status(): array {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
-		$index_file = $output_dir . '/pagefind.js';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+		$index_file = $output_dir . '/pagefind/pagefind.js';
 
 		if ( ! file_exists( $index_file ) ) {
 			return array(
@@ -1700,8 +1700,9 @@ class Scolta_Admin {
 			);
 		}
 
+		$index_dir      = $output_dir . '/pagefind';
 		$mtime          = filemtime( $index_file );
-		$glob_result    = glob( $output_dir . '/fragment/*' );
+		$glob_result    = glob( $index_dir . '/fragment/*' );
 		$fragment_count = count( ! empty( $glob_result ) ? $glob_result : array() );
 
 		return array(
@@ -1730,7 +1731,7 @@ class Scolta_Admin {
 		check_admin_referer( 'scolta_rebuild_now', 'scolta_rebuild_nonce' );
 
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 
 		$redirect = admin_url( 'options-general.php?page=scolta' );
 

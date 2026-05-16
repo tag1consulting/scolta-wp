@@ -19,13 +19,16 @@ class ShortcodeTest extends TestCase {
         scolta_activate();
 
         // Create a fake pagefind index so the index-missing check passes.
-        $settings = get_option('scolta_settings', []);
-        $output_dir = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind';
-        if (!is_dir($output_dir)) {
-            @mkdir($output_dir, 0755, true);
+        // With the canonical default, output_dir = uploads/scolta and the PHP indexer
+        // writes the index to output_dir/pagefind/.
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = ($settings['output_dir'] ?? scolta_default_output_dir());
+        $index_dir  = $output_dir . '/pagefind';
+        if (!is_dir($index_dir)) {
+            @mkdir($index_dir, 0755, true);
         }
-        if (!file_exists($output_dir . '/pagefind-entry.json')) {
-            file_put_contents($output_dir . '/pagefind-entry.json', '{}');
+        if (!file_exists($index_dir . '/pagefind-entry.json')) {
+            file_put_contents($index_dir . '/pagefind-entry.json', '{}');
         }
     }
 
@@ -166,7 +169,7 @@ class ShortcodeTest extends TestCase {
     public function test_render_shows_admin_warning_when_index_missing(): void {
         // Remove the fake index file.
         $settings = get_option('scolta_settings', []);
-        $index_file = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind/pagefind-entry.json';
+        $index_file = ($settings['output_dir'] ?? scolta_default_output_dir()) . '/pagefind/pagefind-entry.json';
         if (file_exists($index_file)) {
             unlink($index_file);
         }
@@ -181,7 +184,7 @@ class ShortcodeTest extends TestCase {
     public function test_render_returns_empty_for_nonadmin_when_index_missing(): void {
         // Remove the fake index file.
         $settings = get_option('scolta_settings', []);
-        $index_file = ($settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind') . '/pagefind/pagefind-entry.json';
+        $index_file = ($settings['output_dir'] ?? scolta_default_output_dir()) . '/pagefind/pagefind-entry.json';
         if (file_exists($index_file)) {
             unlink($index_file);
         }
