@@ -37,7 +37,18 @@ class Scolta_Shortcode {
 	 */
 	public static function render( array $atts = array() ): string {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? wp_upload_dir()['basedir'] . '/scolta/pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+
+		// Warn developers who saved a custom output_dir ending in /pagefind — the PHP
+		// indexer always appends /pagefind itself, so this causes double-nesting.
+		if ( str_ends_with( wp_normalize_path( rtrim( $output_dir, '/' ) ), '/pagefind' ) ) {
+			_doing_it_wrong(
+				__CLASS__ . '::render',
+				'output_dir should not end in /pagefind. The PHP indexer appends /pagefind ' .
+				'automatically. Remove the suffix to avoid double-nested index directories.',
+				'1.0.0'
+			);
+		}
 
 		// The PHP indexer writes to {output_dir}/pagefind/ (atomic swap subdirectory).
 		// The binary pipeline writes directly to {output_dir}/ (flat structure).

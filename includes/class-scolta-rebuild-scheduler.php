@@ -78,7 +78,7 @@ class Scolta_Rebuild_Scheduler {
 	 */
 	public static function handle_start(): void {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 		$state_dir  = wp_upload_dir()['basedir'] . '/scolta/state';
 		$force      = get_option( 'scolta_build_force', false );
 		delete_option( 'scolta_build_force' );
@@ -149,7 +149,7 @@ class Scolta_Rebuild_Scheduler {
 		}
 
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 		$state_dir  = wp_upload_dir()['basedir'] . '/scolta/state';
 
 		$indexer     = new PhpIndexer( $state_dir, $output_dir, wp_salt( 'auth' ) );
@@ -177,7 +177,7 @@ class Scolta_Rebuild_Scheduler {
 	 */
 	public static function handle_finalize(): void {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? ABSPATH . 'scolta-pagefind';
+		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 		$state_dir  = wp_upload_dir()['basedir'] . '/scolta/state';
 
 		$indexer = new PhpIndexer( $state_dir, $output_dir, wp_salt( 'auth' ) );
@@ -186,6 +186,7 @@ class Scolta_Rebuild_Scheduler {
 		delete_transient( 'scolta_build_chunks' );
 
 		if ( $result->success ) {
+			scolta_cleanup_nested_indexes( $output_dir );
 			// Increment generation counter for cache invalidation.
 			$gen = (int) get_option( 'scolta_generation', 0 );
 			update_option( 'scolta_generation', $gen + 1 );

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 use Tag1\Scolta\Config\ScoltaConfig;
 
@@ -225,10 +227,10 @@ class AiServiceTest extends TestCase {
         $this->assertEquals('none', Scolta_Ai_Service::get_api_key_source());
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function test_api_key_from_constant(): void {
-        if (!defined('SCOLTA_API_KEY')) {
-            define('SCOLTA_API_KEY', 'const-key-456');
-        }
+        define('SCOLTA_API_KEY', 'const-key-456');
         // The constant path only fires if env is empty.
         putenv('SCOLTA_API_KEY');
         $key = Scolta_Ai_Service::get_api_key();

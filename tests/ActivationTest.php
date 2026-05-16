@@ -105,16 +105,35 @@ class ActivationTest extends TestCase {
     }
 
     public function test_activation_migrates_old_output_dir_default(): void {
-        // Simulate an existing install using the pre-managed-hosting default.
+        // Simulate an existing install using the pre-managed-hosting ABSPATH default.
         $old_output = ABSPATH . 'scolta-pagefind';
         update_option('scolta_settings', ['output_dir' => $old_output]);
 
         scolta_activate();
 
         $settings = get_option('scolta_settings');
-        $expected = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $expected = scolta_default_output_dir();
         $this->assertEquals($expected, $settings['output_dir'],
-            'output_dir with old ABSPATH default should be migrated to uploads path');
+            'output_dir with old ABSPATH default should be migrated to canonical default');
+    }
+
+    public function test_activation_migrates_old_pagefind_suffix_default(): void {
+        // Simulate an existing install using the old /scolta/pagefind default (had /pagefind
+        // suffix that caused double-nesting in the PHP indexer's atomicSwap).
+        $old_output = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        update_option('scolta_settings', ['output_dir' => $old_output]);
+
+        scolta_activate();
+
+        $settings = get_option('scolta_settings');
+        $expected = scolta_default_output_dir();
+        $this->assertEquals($expected, $settings['output_dir'],
+            'output_dir with old /scolta/pagefind suffix should be migrated to canonical default (no /pagefind)');
+        $this->assertStringNotContainsString(
+            '/scolta/pagefind',
+            $settings['output_dir'],
+            'Migrated output_dir must not end with /pagefind'
+        );
     }
 
     public function test_activation_preserves_custom_build_dir(): void {
@@ -149,7 +168,7 @@ class ActivationTest extends TestCase {
         $settings = get_option('scolta_settings');
         $uploads   = wp_upload_dir()['basedir'];
         $this->assertEquals($uploads . '/scolta/build', $settings['build_dir']);
-        $this->assertEquals($uploads . '/scolta/pagefind', $settings['output_dir']);
+        $this->assertEquals($uploads . '/scolta', $settings['output_dir']);
     }
 
     public function test_settings_round_trip_uses_uploads_paths(): void {
@@ -162,14 +181,15 @@ class ActivationTest extends TestCase {
         $settings = get_option('scolta_settings', []);
         $uploads_base = wp_upload_dir()['basedir'];
 
-        // Both paths must be under wp-content/uploads/scolta/.
+        // Both paths must be under wp-content/uploads/scolta (build_dir has a subdir).
         $this->assertStringStartsWith(
             $uploads_base . '/scolta/',
             $settings['build_dir'] ?? '',
             'build_dir must default to uploads-based path after activation'
         );
+        // output_dir is the scolta root itself (no subdir suffix).
         $this->assertStringStartsWith(
-            $uploads_base . '/scolta/',
+            $uploads_base . '/scolta',
             $settings['output_dir'] ?? '',
             'output_dir must default to uploads-based path after activation'
         );
@@ -192,16 +212,17 @@ class ActivationTest extends TestCase {
             $admin_source,
             'Admin form must not use old output_dir default (ABSPATH/scolta-pagefind)'
         );
-        // Admin must use uploads-based paths.
+        // Admin must use uploads-based path for build_dir.
         $this->assertStringContainsString(
             "'/scolta/build'",
             $admin_source,
             'Admin form must default build_dir to uploads-based path'
         );
+        // Admin must delegate output_dir default to the canonical helper (no inline literal).
         $this->assertStringContainsString(
-            "'/scolta/pagefind'",
+            'scolta_default_output_dir()',
             $admin_source,
-            'Admin form must default output_dir to uploads-based path'
+            'Admin form must use scolta_default_output_dir() for output_dir default'
         );
     }
 

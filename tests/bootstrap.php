@@ -456,6 +456,20 @@ if (!function_exists('wp_cache_flush_group')) {
     function wp_cache_flush_group(string $group): bool { return true; }
 }
 
+if (!function_exists('_doing_it_wrong')) {
+    function _doing_it_wrong(string $function, string $message, string $version): void {
+        if (isset($GLOBALS['scolta_doing_it_wrong'])) {
+            $GLOBALS['scolta_doing_it_wrong'][] = compact('function', 'message', 'version');
+        }
+    }
+}
+
+if (!function_exists('wp_delete_file')) {
+    function wp_delete_file(string $file): void {
+        @unlink($file);
+    }
+}
+
 // Post meta stubs.
 if (!function_exists('get_post_meta')) {
     function get_post_meta(int $post_id, string $key = '', bool $single = false) {

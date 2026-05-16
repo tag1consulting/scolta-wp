@@ -60,6 +60,53 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 }
 
 /**
+ * Return the canonical default output_dir for the Pagefind index.
+ *
+ * The value is the parent directory — without a trailing /pagefind suffix.
+ * The PHP indexer's IndexBuildOrchestrator always appends /pagefind during
+ * atomicSwap(), so passing a path that already ends in /pagefind creates
+ * double-nested directories. Every fallback in every file must use this
+ * function instead of an inline literal.
+ *
+ * @return string Absolute filesystem path, no trailing slash.
+ */
+function scolta_default_output_dir(): string {
+	return wp_upload_dir()['basedir'] . '/scolta';
+}
+
+/**
+ * Remove any double-nested pagefind/pagefind directory under output_dir.
+ *
+ * Called after every successful index build to clean up artifacts left by
+ * the old /pagefind-suffixed output_dir default. Safe to call when the
+ * nested directory does not exist.
+ *
+ * @param string $output_dir The configured output_dir (parent of the index).
+ */
+function scolta_cleanup_nested_indexes( string $output_dir ): void {
+	$nested_dir = rtrim( $output_dir, '/' ) . '/pagefind/pagefind';
+	if ( ! is_dir( $nested_dir ) ) {
+		return;
+	}
+	$it = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $nested_dir, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::CHILD_FIRST
+	);
+	foreach ( $it as $file ) {
+		if ( $file->isDir() ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Removing stale index artifact.
+			rmdir( $file->getPathname() );
+		} else {
+			wp_delete_file( $file->getPathname() );
+		}
+	}
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Removing stale index artifact.
+	rmdir( $nested_dir );
+	// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Operational notice for stale artifact removal.
+	error_log( 'Scolta: Removed stale double-nested pagefind directory: ' . $nested_dir );
+}
+
+/**
  * Check whether the Pagefind binary is available and executable.
  *
  * Used during activation to auto-select the PHP indexer when no binary exists.
@@ -93,7 +140,7 @@ function scolta_activate(): void {
 		'pagefind_index_path'        => wp_upload_dir()['baseurl'] . '/scolta/pagefind',
 		'pagefind_binary'            => 'pagefind',
 		'build_dir'                  => wp_upload_dir()['basedir'] . '/scolta/build',
-		'output_dir'                 => wp_upload_dir()['basedir'] . '/scolta/pagefind',
+		'output_dir'                 => scolta_default_output_dir(),
 		'indexer'                    => 'auto',
 		'memory_budget_profile'      => 'conservative',
 		'auto_rebuild'               => true,
@@ -138,17 +185,24 @@ function scolta_activate(): void {
 		// and fix autoload flag.
 		$existing = get_option( 'scolta_settings', array() );
 
-		// Migrate build_dir/output_dir from old defaults (WP_CONTENT_DIR and ABSPATH)
-		// to uploads-based paths that work on managed hosting.
+		// Migrate build_dir/output_dir from old defaults to current uploads-based paths.
 		$old_build     = wp_normalize_path( WP_CONTENT_DIR . '/scolta-build' );
-		$old_output    = wp_normalize_path( ABSPATH . 'scolta-pagefind' );
 		$build_matches = wp_normalize_path( $existing['build_dir'] ?? '' ) === $old_build;
 		if ( ! isset( $existing['build_dir'] ) || $build_matches ) {
 			$existing['build_dir'] = $upload_dir['basedir'] . '/scolta/build';
 		}
-		$output_matches = wp_normalize_path( $existing['output_dir'] ?? '' ) === $old_output;
-		if ( ! isset( $existing['output_dir'] ) || $output_matches ) {
-			$existing['output_dir'] = $upload_dir['basedir'] . '/scolta/pagefind';
+		// Two old output_dir defaults that both need migration:
+		// 1. ABSPATH . 'scolta-pagefind'  (very old default, pre-uploads migration)
+		// 2. uploads/scolta/pagefind       (old default with /pagefind suffix that caused
+		//    double-nesting in the PHP indexer's atomicSwap)
+		$old_output_abspath  = wp_normalize_path( ABSPATH . 'scolta-pagefind' );
+		$old_output_pagefind = wp_normalize_path( $upload_dir['basedir'] . '/scolta/pagefind' );
+		$current_output      = wp_normalize_path( $existing['output_dir'] ?? '' );
+		if ( ! isset( $existing['output_dir'] )
+			|| $current_output === $old_output_abspath
+			|| $current_output === $old_output_pagefind
+		) {
+			$existing['output_dir'] = scolta_default_output_dir();
 		}
 
 		$merged = array_merge( $defaults, $existing );
