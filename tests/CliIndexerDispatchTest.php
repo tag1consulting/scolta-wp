@@ -52,9 +52,7 @@ class CliIndexerDispatchTest extends TestCase {
 
 	public static function set_up_before_class(): void {
 		parent::set_up_before_class();
-		$ref = new \ReflectionMethod( Scolta_CLI::class, 'do_build' );
-		$ref->setAccessible( true );
-		self::$do_build = $ref;
+		self::$do_build = new \ReflectionMethod( Scolta_CLI::class, 'do_build' );
 	}
 
 	public function set_up(): void {
