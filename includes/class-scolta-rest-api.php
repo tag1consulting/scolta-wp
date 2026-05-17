@@ -201,8 +201,9 @@ class Scolta_Rest_Api {
 
 		$count = (int) get_transient( $key );
 		if ( $count >= $limit ) {
+			$message  = __( 'Too many requests. Please slow down.', 'scolta-ai-search' );
 			$response = new \WP_REST_Response(
-				array( 'error' => __( 'Too many requests. Please slow down.', 'scolta-ai-search' ) ),
+				array( 'error' => $message ),
 				429
 			);
 			$response->header( 'Retry-After', '60' );

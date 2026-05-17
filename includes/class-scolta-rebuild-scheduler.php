@@ -101,7 +101,7 @@ class Scolta_Rebuild_Scheduler {
 			// translators: shown when background rebuild attempted with binary indexer.
 			$msg = __(
 				'Binary indexer not supported in background mode. Use wp scolta build.',
-				'scolta'
+				'scolta-ai-search'
 			);
 			self::finish( $msg );
 			return;
