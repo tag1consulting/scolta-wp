@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Added
+- **Health endpoint now includes index detail: fragment count, last-build timestamp, and integrity status.** The `GET /wp-json/scolta/v1/health` response previously returned only `index_exists: true/false`. It now mirrors the Laravel adapter by including an `index` object with `built`, `fragments` (count of Pagefind fragment files), `last_build` (ISO 8601 timestamp of most recent build), and `integrity` (validity check of pagefind.js and fragments). When integrity fails, the overall `status` is set to `degraded`. ([#57](https://github.com/tag1consulting/scolta-wp/issues/57))
+
 ### Fixed
 - **Align `readme.txt` Stable Tag with `SCOLTA_VERSION`.** The Stable Tag was `1.0.0-rc2` while the plugin header and constant were `1.0.0-dev`, causing a mismatch that WordPress.org flags during plugin review. Both are now consistent. A new `VersionConsistencyTest::test_readme_stable_tag_matches_constant` test enforces this invariant going forward. ([#68](https://github.com/tag1consulting/scolta-wp/issues/68))
 - **Add `== External Services ==` section to `readme.txt`.** Documents all external HTTP connections as required by WordPress.org plugin review guidelines: GitHub API (pagefind download), Pagefind binary from the Pagefind org on GitHub, and AI provider APIs (Anthropic, OpenAI, OpenAI-compatible endpoints, wp-ai-services). Includes terms of service and privacy policy links for each service. ([#70](https://github.com/tag1consulting/scolta-wp/issues/70))
