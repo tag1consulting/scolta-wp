@@ -181,6 +181,19 @@ if (!function_exists('rest_url')) {
 }
 
 // Script/style stubs (with optional tracking for tests).
+if (!function_exists('wp_register_script')) {
+    function wp_register_script($handle, $src = '', array $deps = [], $ver = false, $args = []): bool {
+        return true;
+    }
+}
+if (!function_exists('wp_add_inline_script')) {
+    function wp_add_inline_script(string $handle, string $data, string $position = 'after'): bool {
+        if (isset($GLOBALS['scolta_inline_scripts'])) {
+            $GLOBALS['scolta_inline_scripts'][$handle][] = $data;
+        }
+        return true;
+    }
+}
 if (!function_exists('wp_enqueue_script')) {
     function wp_enqueue_script(string $handle, string $src = '', array $deps = [], $ver = false, $args = []): void {
         if (isset($GLOBALS['scolta_enqueued_scripts'])) {
@@ -270,6 +283,13 @@ if (!function_exists('wp_date')) {
 if (!function_exists('checked')) {
     function checked($checked, $current = true, bool $echo = true): string {
         $result = (string) $checked === (string) $current ? ' checked="checked"' : '';
+        if ($echo) { echo $result; }
+        return $result;
+    }
+}
+if (!function_exists('selected')) {
+    function selected($selected, $current = true, bool $echo = true): string {
+        $result = (string) $selected === (string) $current ? ' selected="selected"' : '';
         if ($echo) { echo $result; }
         return $result;
     }

@@ -20,6 +20,7 @@ class Scolta_Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( self::class, 'add_settings_page' ) );
 		add_action( 'admin_init', array( self::class, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_admin_scripts' ) );
 		add_action( 'admin_notices', array( self::class, 'maybe_show_setup_notice' ) );
 		add_action( 'wp_dashboard_setup', array( self::class, 'add_dashboard_widget' ) );
 
@@ -40,6 +41,105 @@ class Scolta_Admin {
 
 		// Show auto-configured Amazee.ai model notice.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_amazee_models_notice' ) );
+	}
+
+	/**
+	 * Enqueue admin scripts for the Scolta settings page.
+	 *
+	 * Registers a handle with no source file and attaches all settings-page
+	 * inline scripts via wp_add_inline_script() rather than echoing <script>
+	 * tags directly in field renderer callbacks.
+	 *
+	 * @param string $hook Current admin page hook suffix.
+	 */
+	public static function enqueue_admin_scripts( string $hook ): void {
+		if ( 'settings_page_scolta' !== $hook ) {
+			return;
+		}
+
+		wp_register_script( 'scolta-admin', false, array(), false, true );
+		wp_enqueue_script( 'scolta-admin' );
+
+		wp_localize_script(
+			'scolta-admin',
+			'scoltaAdminL10n',
+			array(
+				'confirmRemoveDbKey' => __( 'Remove the API key from the database? Make sure you have set the SCOLTA_API_KEY environment variable first.', 'scolta-ai-search' ),
+				'testing'            => __( 'Testing…', 'scolta-ai-search' ),
+				'connected'          => __( 'Connected', 'scolta-ai-search' ),
+				'failed'             => __( 'Failed', 'scolta-ai-search' ),
+				'networkError'       => __( 'Network error', 'scolta-ai-search' ),
+			)
+		);
+
+		wp_add_inline_script(
+			'scolta-admin',
+			'(function(){
+	var sel = document.getElementById("scolta_preset");
+	if (!sel) return;
+	sel.addEventListener("change", function(){
+		document.querySelectorAll(".scolta-preset-desc").forEach(function(el){
+			el.style.display = "none";
+		});
+		var active = document.querySelector(".scolta-preset-desc--" + sel.value);
+		if (active) active.style.display = "";
+	});
+}());'
+		);
+
+		wp_add_inline_script(
+			'scolta-admin',
+			'(function(){
+	var btn = document.getElementById("scolta-remove-db-key");
+	if (!btn) return;
+	btn.addEventListener("click", function() {
+		var l10n = window.scoltaAdminL10n || {};
+		if (!confirm(l10n.confirmRemoveDbKey || "")) return;
+		var nonceField = document.getElementById("scolta_remove_db_key_nonce");
+		var data = new FormData();
+		data.append("action", "scolta_remove_db_key");
+		if (nonceField) data.append("_wpnonce", nonceField.value);
+		fetch(ajaxurl, { method: "POST", body: data })
+			.then(function(r) { return r.json(); })
+			.then(function(d) {
+				var status = document.getElementById("scolta-remove-db-key-status");
+				if (status) status.textContent = d.success ? " Removed." : " Failed.";
+				if (d.success) location.reload();
+			});
+	});
+}());'
+		);
+
+		wp_add_inline_script(
+			'scolta-admin',
+			'(function(){
+	var btn = document.getElementById("scolta-test-connection-btn");
+	if (!btn) return;
+	btn.addEventListener("click", function() {
+		var l10n = window.scoltaAdminL10n || {};
+		var result = document.getElementById("scolta-test-result");
+		btn.disabled = true;
+		result.innerHTML = "<span style=\"color:#666\">" + (l10n.testing || "Testing…") + "</span>";
+		result.style.display = "inline";
+		var data = new FormData();
+		data.append("action", "scolta_test_connection");
+		data.append("nonce", btn.dataset.nonce);
+		fetch(ajaxurl, { method: "POST", body: data })
+			.then(function(r) { return r.json(); })
+			.then(function(d) {
+				if (d.success) {
+					result.innerHTML = "<span style=\"color:#28a745\">✓ " + (l10n.connected || "Connected") + "</span> (" + d.data.provider + " / " + d.data.model + ", " + d.data.response_time + "ms)";
+				} else {
+					result.innerHTML = "<span style=\"color:#dc3545\">✗ " + (l10n.failed || "Failed") + ":</span> " + d.data.error;
+				}
+			})
+			.catch(function() {
+				result.innerHTML = "<span style=\"color:#dc3545\">✗ " + (l10n.networkError || "Network error") + "</span>";
+			})
+			.finally(function() { btn.disabled = false; });
+	});
+}());'
+		);
 	}
 
 	/**
@@ -212,19 +312,6 @@ class Scolta_Admin {
 			);
 		}
 		echo '</div>';
-		echo '<script>
-(function(){
-	var sel = document.getElementById("scolta_preset");
-	if (!sel) return;
-	sel.addEventListener("change", function(){
-		document.querySelectorAll(".scolta-preset-desc").forEach(function(el){
-			el.style.display = "none";
-		});
-		var active = document.querySelector(".scolta-preset-desc--" + sel.value);
-		if (active) active.style.display = "";
-	});
-}());
-</script>';
 	}
 
 	public static function render_scoring_section(): void {
@@ -331,20 +418,6 @@ class Scolta_Admin {
 				echo '<span id="scolta-remove-db-key-status"></span>';
 				wp_nonce_field( 'scolta_remove_db_key', 'scolta_remove_db_key_nonce' );
 				echo '</p></div>';
-				echo '<script>
-                    document.getElementById("scolta-remove-db-key")?.addEventListener("click", function() {
-                        if (!confirm("' . esc_js( __( 'Remove the API key from the database? Make sure you have set the SCOLTA_API_KEY environment variable first.', 'scolta-ai-search' ) ) . '")) return;
-                        var data = new FormData();
-                        data.append("action", "scolta_remove_db_key");
-                        data.append("_wpnonce", document.getElementById("scolta_remove_db_key_nonce").value);
-                        fetch(ajaxurl, { method: "POST", body: data })
-                            .then(function(r) { return r.json(); })
-                            .then(function(d) {
-                                document.getElementById("scolta-remove-db-key-status").textContent = d.success ? " Removed." : " Failed.";
-                                if (d.success) location.reload();
-                            });
-                    });
-                </script>';
 				break;
 
 			default:
@@ -368,31 +441,6 @@ class Scolta_Admin {
 			echo '</button>';
 			echo '<span id="scolta-test-result" style="margin-left: 10px; display: none;"></span>';
 			echo '</div>';
-			echo '<script>
-                document.getElementById("scolta-test-connection-btn")?.addEventListener("click", function() {
-                    var btn = this;
-                    var result = document.getElementById("scolta-test-result");
-                    btn.disabled = true;
-                    result.innerHTML = "<span style=\"color:#666\">' . esc_js( __( 'Testing\u2026', 'scolta-ai-search' ) ) . '</span>";
-                    result.style.display = "inline";
-                    var data = new FormData();
-                    data.append("action", "scolta_test_connection");
-                    data.append("nonce", btn.dataset.nonce);
-                    fetch(ajaxurl, { method: "POST", body: data })
-                        .then(function(r) { return r.json(); })
-                        .then(function(d) {
-                            if (d.success) {
-                                result.innerHTML = "<span style=\"color:#28a745\">\u2713 ' . esc_js( __( 'Connected', 'scolta-ai-search' ) ) . '</span> (" + d.data.provider + " / " + d.data.model + ", " + d.data.response_time + "ms)";
-                            } else {
-                                result.innerHTML = "<span style=\"color:#dc3545\">\u2717 ' . esc_js( __( 'Failed', 'scolta-ai-search' ) ) . ':</span> " + d.data.error;
-                            }
-                        })
-                        .catch(function() {
-                            result.innerHTML = "<span style=\"color:#dc3545\">\u2717 ' . esc_js( __( 'Network error', 'scolta-ai-search' ) ) . '</span>";
-                        })
-                        .finally(function() { btn.disabled = false; });
-                });
-            </script>';
 		}
 	}
 
