@@ -287,4 +287,62 @@ class OutputDirTest extends TestCase {
             'Scolta_CLI must have a public cleanup() method'
         );
     }
+
+    // -------------------------------------------------------------------
+    // A5. dir_to_url() uses wp_upload_dir() for uploads-based index paths
+    // -------------------------------------------------------------------
+
+    public function test_pagefind_url_uses_uploads_baseurl(): void {
+        $GLOBALS['scolta_enqueued_scripts']  = [];
+        $GLOBALS['scolta_enqueued_styles']   = [];
+        $GLOBALS['scolta_localized_scripts'] = [];
+
+        $output_dir = scolta_default_output_dir();
+        $index_dir  = $output_dir . '/pagefind';
+        if ( ! is_dir( $index_dir ) ) {
+            @mkdir( $index_dir, 0755, true );
+        }
+        file_put_contents( $index_dir . '/pagefind-entry.json', '{}' );
+        file_put_contents( $index_dir . '/pagefind.js', '' );
+
+        Scolta_Shortcode::render();
+
+        $config       = $GLOBALS['scolta_localized_scripts']['scolta-search'] ?? [];
+        $pagefind_url = $config['pagefindPath'] ?? '';
+
+        $this->assertStringStartsWith(
+            wp_upload_dir()['baseurl'],
+            $pagefind_url,
+            'pagefindPath must be rooted at wp_upload_dir()[baseurl], not site_url()'
+        );
+        $this->assertStringNotContainsString(
+            'scolta-pagefind',
+            $pagefind_url,
+            'pagefindPath must not contain the old ABSPATH-relative fallback slug'
+        );
+
+        unset(
+            $GLOBALS['scolta_enqueued_scripts'],
+            $GLOBALS['scolta_enqueued_styles'],
+            $GLOBALS['scolta_localized_scripts']
+        );
+    }
+
+    public function test_dir_to_url_not_based_on_abspath_for_uploads(): void {
+        // Verify dir_to_url() is NOT using realpath(ABSPATH) as the primary resolution
+        // path for uploads-based directories. The shortcode source must not call
+        // realpath(ABSPATH) before the uploads check.
+        $source = file_get_contents( dirname( __DIR__ ) . '/includes/class-scolta-shortcode.php' );
+
+        // The uploads check must appear before the ABSPATH realpath call.
+        $uploads_pos = strpos( $source, "wp_upload_dir()" );
+        $abspath_pos = strpos( $source, "realpath( ABSPATH )" );
+
+        $this->assertNotFalse( $uploads_pos, 'dir_to_url() must call wp_upload_dir()' );
+        $this->assertLessThan(
+            $abspath_pos,
+            $uploads_pos,
+            'wp_upload_dir() check must come before realpath(ABSPATH) in dir_to_url()'
+        );
+    }
 }

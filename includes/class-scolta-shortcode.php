@@ -150,31 +150,42 @@ class Scolta_Shortcode {
 	}
 
 	/**
-	 * Convert an absolute filesystem path to a site-relative URL.
+	 * Convert an absolute filesystem path to a URL.
 	 *
-	 * WordPress doesn't have a single built-in for this, but the math
-	 * is straightforward: strip the ABSPATH prefix and prepend the site URL.
+	 * Checks from most-specific to least-specific so offloaded uploads (S3/CDN)
+	 * resolve correctly: uploads → wp-content → site root → last-resort fallback.
 	 */
 	private static function dir_to_url( string $dir ): string {
-		// Normalize both paths for comparison.
-		$real_abspath = realpath( ABSPATH );
-		$abspath      = rtrim( ! empty( $real_abspath ) ? $real_abspath : ABSPATH, '/' );
+		// Resolve symlinks once for all comparisons.
 		$real_dir     = realpath( $dir );
-		$dir          = rtrim( ! empty( $real_dir ) ? $real_dir : $dir, '/' );
+		$dir_resolved = rtrim( ! empty( $real_dir ) ? $real_dir : $dir, '/' );
 
-		if ( str_starts_with( $dir, $abspath ) ) {
-			$relative = substr( $dir, strlen( $abspath ) );
-			return site_url( $relative );
+		// Uploads directory — the canonical location for plugin-written index files.
+		// Use wp_upload_dir() so offloaded uploads (S3, CDN) get the right base URL.
+		$upload_info = wp_upload_dir();
+		$uploads_dir = rtrim( $upload_info['basedir'], '/' );
+		$uploads_url = rtrim( $upload_info['baseurl'], '/' );
+		if ( str_starts_with( $dir_resolved, $uploads_dir ) ) {
+			$relative = substr( $dir_resolved, strlen( $uploads_dir ) );
+			return $uploads_url . $relative;
 		}
 
-		// If the dir is in wp-content, use content_url().
+		// wp-content directory (non-uploads plugin/theme files).
 		$content_dir = rtrim( WP_CONTENT_DIR, '/' );
-		if ( str_starts_with( $dir, $content_dir ) ) {
-			$relative = substr( $dir, strlen( $content_dir ) );
+		if ( str_starts_with( $dir_resolved, $content_dir ) ) {
+			$relative = substr( $dir_resolved, strlen( $content_dir ) );
 			return content_url( $relative );
 		}
 
-		// Fallback: assume it's relative to site root.
+		// Site root (anything else under ABSPATH).
+		$real_abspath = realpath( ABSPATH );
+		$abspath      = rtrim( ! empty( $real_abspath ) ? $real_abspath : ABSPATH, '/' );
+		if ( str_starts_with( $dir_resolved, $abspath ) ) {
+			$relative = substr( $dir_resolved, strlen( $abspath ) );
+			return site_url( $relative );
+		}
+
+		// Last resort.
 		return site_url( '/scolta-pagefind' );
 	}
 }
