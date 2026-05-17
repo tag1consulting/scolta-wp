@@ -15,7 +15,7 @@
   <rule ref="WordPress-Extra"/>
 
   <config name="minimum_supported_wp_version" value="6.0"/>
-  <config name="text_domain" value="scolta"/>
+  <config name="text_domain" value="scolta-ai-search"/>
 
   <!-- Allow long lines in tests and admin HTML templates -->
   <rule ref="Generic.Files.LineLength">
