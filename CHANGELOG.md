@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Sync scolta.js: foreign language search no longer flashes "No Results Found" before expansion results appear.** See [scolta-php#111](https://github.com/tag1consulting/scolta-php/issues/111).
 - **Text domain changed from `scolta` to `scolta-ai-search` in all i18n function calls.** WordPress.org requires the text domain to match the plugin slug so community translations work via translate.wordpress.org. All 236 occurrences of `'scolta'` as the text domain argument in `__()`, `_e()`, `esc_html__()`, `esc_html_e()`, `esc_attr__()`, `esc_attr_e()`, `_n()`, `_x()`, `_ex()`, and `_nx()` have been updated. The `Text Domain:` plugin header has also been updated. Non-i18n uses of `'scolta'` (option names, slugs, hook names, Action Scheduler group names) are unchanged. ([#72](https://github.com/tag1consulting/scolta-wp/issues/72))
 
 ### Tests
