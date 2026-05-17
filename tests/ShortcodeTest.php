@@ -198,6 +198,33 @@ class ShortcodeTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // Attribution
+    // -------------------------------------------------------------------
+
+    public function test_attribution_hidden_by_default(): void {
+        $output = Scolta_Shortcode::render();
+        $this->assertStringNotContainsString( 'Powered by Scolta', $output );
+    }
+
+    public function test_attribution_shown_when_enabled(): void {
+        $settings                      = get_option( 'scolta_settings', [] );
+        $settings['show_attribution']  = true;
+        update_option( 'scolta_settings', $settings );
+
+        $output = Scolta_Shortcode::render();
+        $this->assertStringContainsString( 'Powered by Scolta', $output );
+    }
+
+    public function test_attribution_hidden_when_explicitly_disabled(): void {
+        $settings                      = get_option( 'scolta_settings', [] );
+        $settings['show_attribution']  = false;
+        update_option( 'scolta_settings', $settings );
+
+        $output = Scolta_Shortcode::render();
+        $this->assertStringNotContainsString( 'Powered by Scolta', $output );
+    }
+
+    // -------------------------------------------------------------------
     // Register behavior
     // -------------------------------------------------------------------
 

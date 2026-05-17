@@ -139,7 +139,14 @@ class Scolta_Shortcode {
 		);
 
 		// Output the container that scolta.js targets.
-		return '<div id="scolta-search"></div>';
+		$attribution = '';
+		if ( $config->showAttribution ) {
+			$attribution = '<p class="scolta-attribution">'
+				. esc_html__( 'Powered by Scolta', 'scolta-ai-search' )
+				. '</p>';
+		}
+
+		return '<div id="scolta-search"></div>' . $attribution;
 	}
 
 	/**

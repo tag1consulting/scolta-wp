@@ -419,4 +419,38 @@ class AdminSanitizeTest extends TestCase {
             );
         }
     }
+
+    // -------------------------------------------------------------------
+    // show_attribution
+    // -------------------------------------------------------------------
+
+    public function test_show_attribution_defaults_to_false(): void {
+        $input = $this->defaultInput();
+        unset($input['show_attribution']);
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertFalse($result['show_attribution']);
+    }
+
+    public function test_show_attribution_enabled_when_set(): void {
+        $input = $this->defaultInput();
+        $input['show_attribution'] = '1';
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertTrue($result['show_attribution']);
+    }
+
+    public function test_show_attribution_field_registered_in_settings(): void {
+        $file = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
+        $this->assertStringContainsString(
+            "'show_attribution'",
+            $file,
+            'show_attribution must be registered as a settings field'
+        );
+    }
+
+    public function test_show_attribution_render_method_exists(): void {
+        $this->assertTrue(
+            method_exists('Scolta_Admin', 'render_show_attribution_field'),
+            'Scolta_Admin must have render_show_attribution_field() method'
+        );
+    }
 }

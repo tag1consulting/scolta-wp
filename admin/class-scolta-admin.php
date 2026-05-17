@@ -135,6 +135,7 @@ class Scolta_Admin {
 		add_settings_field( 'max_pagefind_results', __( 'Max Pagefind Results', 'scolta-ai-search' ), array( self::class, 'render_max_pagefind_results_field' ), 'scolta', 'scolta_display_section' );
 		add_settings_field( 'ai_summary_top_n', __( 'AI Summary Top N', 'scolta-ai-search' ), array( self::class, 'render_ai_summary_top_n_field' ), 'scolta', 'scolta_display_section' );
 		add_settings_field( 'ai_summary_max_chars', __( 'AI Summary Max Chars', 'scolta-ai-search' ), array( self::class, 'render_ai_summary_max_chars_field' ), 'scolta', 'scolta_display_section' );
+		add_settings_field( 'show_attribution', __( 'Scolta Attribution', 'scolta-ai-search' ), array( self::class, 'render_show_attribution_field' ), 'scolta', 'scolta_display_section' );
 
 		// --- Section: Cache ---
 		add_settings_section( 'scolta_cache_section', __( 'Cache', 'scolta-ai-search' ), array( self::class, 'render_cache_section' ), 'scolta' );
@@ -856,6 +857,17 @@ class Scolta_Admin {
 		<?php
 	}
 
+	public static function render_show_attribution_field(): void {
+		$value = self::get_setting( 'show_attribution', false );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[show_attribution]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Show "Powered by Scolta" on the search page', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Off by default. Enable only with explicit site administrator consent.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
 	// -- Cache field --
 
 	public static function render_cache_ttl_field(): void {
@@ -1127,12 +1139,13 @@ class Scolta_Admin {
 		$curve_decoded          = json_decode( $curve_raw, true );
 		$clean['recency_curve'] = is_array( $curve_decoded ) ? $curve_decoded : array();
 
-		// Display — all 5 fields.
+		// Display — all 6 fields.
 		$clean['excerpt_length']       = max( 50, min( 1000, (int) ( $input['excerpt_length'] ?? 300 ) ) );
 		$clean['results_per_page']     = max( 1, min( 100, (int) ( $input['results_per_page'] ?? 10 ) ) );
 		$clean['max_pagefind_results'] = max( 10, min( 500, (int) ( $input['max_pagefind_results'] ?? 50 ) ) );
 		$clean['ai_summary_top_n']     = max( 1, min( 20, (int) ( $input['ai_summary_top_n'] ?? 10 ) ) );
 		$clean['ai_summary_max_chars'] = max( 500, min( 10000, (int) ( $input['ai_summary_max_chars'] ?? 4000 ) ) );
+		$clean['show_attribution']     = ! empty( $input['show_attribution'] );
 
 		// Cache.
 		$clean['cache_ttl'] = max( 0, min( 7776000, (int) ( $input['cache_ttl'] ?? 2592000 ) ) );
