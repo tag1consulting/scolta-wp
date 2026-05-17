@@ -384,15 +384,19 @@ class Scolta_Rest_Api {
 		if ( $result['index_exists'] ) {
 			$index_file = $output_dir . '/pagefind/pagefind.js';
 			$mtime      = file_exists( $index_file ) ? filemtime( $index_file ) : false;
-			$fragments  = glob( $output_dir . '/pagefind/fragment/*' ) ?: array();
+			$glob_result = glob( $output_dir . '/pagefind/fragment/*' );
+			$fragments   = false !== $glob_result ? $glob_result : array();
 
 			$result['index'] = array(
 				'built'      => true,
 				'fragments'  => count( $fragments ),
-				'last_build' => $mtime ? date( 'c', $mtime ) : null,
+				'last_build' => $mtime ? gmdate( 'c', $mtime ) : null,
 			);
 
-			$integrity = array( 'valid' => true, 'issues' => array() );
+			$integrity = array(
+				'valid'  => true,
+				'issues' => array(),
+			);
 
 			$js_size = file_exists( $index_file ) ? filesize( $index_file ) : false;
 			if ( false === $js_size || 0 === $js_size ) {
