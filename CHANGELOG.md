@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **Replace inline `<script>` tags in admin class with `wp_add_inline_script()`.** The three `echo '<script>'` blocks in `render_preset_field()` and `render_api_key_status_field()` have been converted to use `wp_register_script()` / `wp_add_inline_script()` via a new `enqueue_admin_scripts()` method hooked on `admin_enqueue_scripts`. Translated strings are passed via `wp_localize_script()` as `scoltaAdminL10n`. Required by WordPress.org plugin review guidelines. ([#66](https://github.com/tag1consulting/scolta-wp/issues/66))
+
 ### Added
 - **"Show Scolta attribution" setting (default: off).** Adds a checkbox to Settings → Scolta → Display: "Show 'Powered by Scolta' on the search page". When disabled (the default), no attribution appears in shortcode output. When enabled by the site administrator, a `<p class="scolta-attribution">Powered by Scolta</p>` element is appended to the `[scolta_search]` shortcode output. Requires scolta-php ≥ 1.0.0-dev (which adds the `showAttribution` config option). ([#67](https://github.com/tag1consulting/scolta-wp/issues/67))
 
