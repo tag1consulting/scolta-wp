@@ -88,7 +88,7 @@ class Scolta_Rebuild_Scheduler {
 		$items     = $exporter->exportToItems( $raw_items );
 
 		if ( empty( $items ) ) {
-			self::finish( __( 'No indexable content found.', 'scolta' ) );
+			self::finish( __( 'No indexable content found.', 'scolta-ai-search' ) );
 			return;
 		}
 
@@ -110,7 +110,7 @@ class Scolta_Rebuild_Scheduler {
 		// Fingerprint check: skip rebuild if content hasn't changed.
 		$indexer = new PhpIndexer( $state_dir, $output_dir, wp_salt( 'auth' ) );
 		if ( ! $force && $indexer->shouldBuild( $items ) === null ) {
-			self::finish( __( 'No changes detected.', 'scolta' ) );
+			self::finish( __( 'No changes detected.', 'scolta-ai-search' ) );
 			return;
 		}
 
@@ -144,7 +144,7 @@ class Scolta_Rebuild_Scheduler {
 	public static function handle_chunk( int $chunk_index ): void {
 		$chunks = get_transient( 'scolta_build_chunks' );
 		if ( ! $chunks || ! isset( $chunks[ $chunk_index ] ) ) {
-			self::finish( __( 'Chunk data missing.', 'scolta' ) );
+			self::finish( __( 'Chunk data missing.', 'scolta-ai-search' ) );
 			return;
 		}
 
@@ -194,7 +194,7 @@ class Scolta_Rebuild_Scheduler {
 
 		$finish_msg = $result->success
 			? $result->message
-			: ( __( 'Failed: ', 'scolta' ) . $result->error );
+			: ( __( 'Failed: ', 'scolta-ai-search' ) . $result->error );
 		self::finish( $finish_msg );
 	}
 

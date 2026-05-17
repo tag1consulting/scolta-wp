@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **Text domain changed from `scolta` to `scolta-ai-search` in all i18n function calls.** WordPress.org requires the text domain to match the plugin slug so community translations work via translate.wordpress.org. All 236 occurrences of `'scolta'` as the text domain argument in `__()`, `_e()`, `esc_html__()`, `esc_html_e()`, `esc_attr__()`, `esc_attr_e()`, `_n()`, `_x()`, `_ex()`, and `_nx()` have been updated. The `Text Domain:` plugin header has also been updated. Non-i18n uses of `'scolta'` (option names, slugs, hook names, Action Scheduler group names) are unchanged. ([#72](https://github.com/tag1consulting/scolta-wp/issues/72))
+
 ### Tests
 - **`CliMemoryHandlingTest`** — 15 structural tests verifying `memory_abort` and `index_only_complete` branch logic in `do_build_php()`. Guards against regressions in the conditions that trigger background resume and ensure helpful error messages when the memory limit is hit before any chunks are committed.
 - **`OutputDirTest`** — Tests verifying the unified `output_dir` default, `_doing_it_wrong()` validation, dual-layout detection preference, `scolta_cleanup_nested_indexes()` behavior, and that all components (CLI, shortcode, rebuild scheduler, REST API) use the canonical helper.

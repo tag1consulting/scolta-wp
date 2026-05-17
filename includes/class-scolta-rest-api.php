@@ -202,7 +202,7 @@ class Scolta_Rest_Api {
 		$count = (int) get_transient( $key );
 		if ( $count >= $limit ) {
 			$response = new \WP_REST_Response(
-				array( 'error' => __( 'Too many requests. Please slow down.', 'scolta' ) ),
+				array( 'error' => __( 'Too many requests. Please slow down.', 'scolta-ai-search' ) ),
 				429
 			);
 			$response->header( 'Retry-After', '60' );
@@ -396,7 +396,7 @@ class Scolta_Rest_Api {
 			delete_transient( Scolta_Rebuild_Scheduler::LOCK_KEY );
 			$status = array(
 				'status'  => 'idle',
-				'message' => __( 'Previous rebuild timed out. Lock cleared.', 'scolta' ),
+				'message' => __( 'Previous rebuild timed out. Lock cleared.', 'scolta-ai-search' ),
 			);
 			update_option( 'scolta_build_status', $status );
 		}
@@ -414,7 +414,7 @@ class Scolta_Rest_Api {
 	public static function handle_rebuild_now( \WP_REST_Request $request ): \WP_REST_Response {
 		if ( get_transient( Scolta_Rebuild_Scheduler::LOCK_KEY ) ) {
 			return new \WP_REST_Response(
-				array( 'error' => __( 'Rebuild already in progress.', 'scolta' ) ),
+				array( 'error' => __( 'Rebuild already in progress.', 'scolta-ai-search' ) ),
 				409
 			);
 		}
@@ -422,7 +422,7 @@ class Scolta_Rest_Api {
 		$force = $request->get_param( 'force' ) ?? false;
 		Scolta_Rebuild_Scheduler::start_rebuild( (bool) $force );
 		return new \WP_REST_Response(
-			array( 'message' => __( 'Rebuild scheduled.', 'scolta' ) ),
+			array( 'message' => __( 'Rebuild scheduled.', 'scolta-ai-search' ) ),
 			200
 		);
 	}

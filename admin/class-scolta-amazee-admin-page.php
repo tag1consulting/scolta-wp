@@ -58,8 +58,8 @@ class Scolta_Amazee_Admin_Page {
 	public static function add_submenu(): void {
 		add_submenu_page(
 			'scolta',
-			__( 'Amazee.ai', 'scolta' ),
-			__( 'Amazee.ai', 'scolta' ),
+			__( 'Amazee.ai', 'scolta-ai-search' ),
+			__( 'Amazee.ai', 'scolta-ai-search' ),
 			'manage_options',
 			'scolta-amazee',
 			array( self::class, 'render_page' ),
@@ -111,7 +111,7 @@ class Scolta_Amazee_Admin_Page {
 		$flow    = self::get_flow_state();
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Amazee.ai Configuration', 'scolta' ); ?></h1>
+			<h1><?php esc_html_e( 'Amazee.ai Configuration', 'scolta-ai-search' ); ?></h1>
 			<div id="scolta-amazee-app"
 				data-step="<?php echo esc_attr( self::determine_step( $creds, $flow ) ); ?>"
 				data-email="<?php echo esc_attr( $flow['email'] ?? '' ); ?>">
@@ -134,7 +134,7 @@ class Scolta_Amazee_Admin_Page {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 		$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
 		if ( ! is_email( $email ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid email address.', 'scolta' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid email address.', 'scolta-ai-search' ) ) );
 		}
 
 		try {
@@ -192,7 +192,7 @@ class Scolta_Amazee_Admin_Page {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 		$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
 		if ( ! is_email( $email ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid email address.', 'scolta' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Invalid email address.', 'scolta-ai-search' ) ) );
 		}
 
 		try {
@@ -225,7 +225,7 @@ class Scolta_Amazee_Admin_Page {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 		$code = sanitize_text_field( wp_unslash( $_POST['code'] ?? '' ) );
 		if ( empty( $flow['email'] ) || $code === '' ) {
-			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta-ai-search' ) ) );
 		}
 
 		try {
@@ -254,7 +254,7 @@ class Scolta_Amazee_Admin_Page {
 
 		$flow = self::get_flow_state();
 		if ( empty( $flow['session_token'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta-ai-search' ) ) );
 		}
 
 		try {
@@ -276,7 +276,7 @@ class Scolta_Amazee_Admin_Page {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 		$region_id = sanitize_text_field( wp_unslash( $_POST['region_id'] ?? '' ) );
 		if ( empty( $flow['session_token'] ) || $region_id === '' ) {
-			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Session expired. Please start again.', 'scolta-ai-search' ) ) );
 		}
 
 		try {
@@ -313,7 +313,7 @@ class Scolta_Amazee_Admin_Page {
 	private static function check_nonce_and_caps(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'scolta' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Insufficient permissions.', 'scolta-ai-search' ) ), 403 );
 		}
 	}
 
@@ -365,13 +365,13 @@ class Scolta_Amazee_Admin_Page {
 			<?php
 			printf(
 				/* translators: %s: Amazee.ai region name */
-				esc_html__( 'Connected to Amazee.ai (region: %s).', 'scolta' ),
+				esc_html__( 'Connected to Amazee.ai (region: %s).', 'scolta-ai-search' ),
 				'<strong>' . esc_html( $creds['region'] ) . '</strong>'
 			);
 			?>
 		</p>
 		<button type="button" id="scolta-amazee-disconnect" class="button button-secondary">
-			<?php esc_html_e( 'Disconnect', 'scolta' ); ?>
+			<?php esc_html_e( 'Disconnect', 'scolta-ai-search' ); ?>
 		</button>
 		<?php
 	}
@@ -381,15 +381,15 @@ class Scolta_Amazee_Admin_Page {
 	 */
 	private static function render_start_step(): void {
 		?>
-		<p><?php esc_html_e( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.', 'scolta' ); ?></p>
-		<label for="scolta-amazee-email"><?php esc_html_e( 'Email address', 'scolta' ); ?></label>
+		<p><?php esc_html_e( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.', 'scolta-ai-search' ); ?></p>
+		<label for="scolta-amazee-email"><?php esc_html_e( 'Email address', 'scolta-ai-search' ); ?></label>
 		<input type="email" id="scolta-amazee-email" class="regular-text" />
 		<p>
 			<button type="button" id="scolta-amazee-trial" class="button button-primary">
-				<?php esc_html_e( 'Start free trial', 'scolta' ); ?>
+				<?php esc_html_e( 'Start free trial', 'scolta-ai-search' ); ?>
 			</button>
 			<button type="button" id="scolta-amazee-signin" class="button button-secondary">
-				<?php esc_html_e( 'Sign in to existing account', 'scolta' ); ?>
+				<?php esc_html_e( 'Sign in to existing account', 'scolta-ai-search' ); ?>
 			</button>
 		</p>
 		<?php
@@ -406,19 +406,19 @@ class Scolta_Amazee_Admin_Page {
 			<?php
 			printf(
 				/* translators: %s: email address */
-				esc_html__( 'A verification code has been sent to %s. Enter it below.', 'scolta' ),
+				esc_html__( 'A verification code has been sent to %s. Enter it below.', 'scolta-ai-search' ),
 				'<strong>' . esc_html( $flow['email'] ?? '' ) . '</strong>'
 			);
 			?>
 		</p>
-		<label for="scolta-amazee-code"><?php esc_html_e( 'Verification code', 'scolta' ); ?></label>
+		<label for="scolta-amazee-code"><?php esc_html_e( 'Verification code', 'scolta-ai-search' ); ?></label>
 		<input type="text" id="scolta-amazee-code" class="regular-text" autocomplete="one-time-code" />
 		<p>
 			<button type="button" id="scolta-amazee-verify" class="button button-primary">
-				<?php esc_html_e( 'Verify code', 'scolta' ); ?>
+				<?php esc_html_e( 'Verify code', 'scolta-ai-search' ); ?>
 			</button>
 			<button type="button" id="scolta-amazee-back" class="button button-secondary">
-				<?php esc_html_e( 'Back', 'scolta' ); ?>
+				<?php esc_html_e( 'Back', 'scolta-ai-search' ); ?>
 			</button>
 		</p>
 		<?php
@@ -429,15 +429,15 @@ class Scolta_Amazee_Admin_Page {
 	 */
 	private static function render_region_step(): void {
 		?>
-		<p><?php esc_html_e( 'Select the region where your AI requests will be processed.', 'scolta' ); ?></p>
-		<p id="scolta-amazee-regions-loading"><?php esc_html_e( 'Loading regions&hellip;', 'scolta' ); ?></p>
+		<p><?php esc_html_e( 'Select the region where your AI requests will be processed.', 'scolta-ai-search' ); ?></p>
+		<p id="scolta-amazee-regions-loading"><?php esc_html_e( 'Loading regions&hellip;', 'scolta-ai-search' ); ?></p>
 		<div id="scolta-amazee-regions-list" style="display:none;"></div>
 		<p>
 			<button type="button" id="scolta-amazee-connect" class="button button-primary" style="display:none;">
-				<?php esc_html_e( 'Connect', 'scolta' ); ?>
+				<?php esc_html_e( 'Connect', 'scolta-ai-search' ); ?>
 			</button>
 			<button type="button" id="scolta-amazee-back" class="button button-secondary">
-				<?php esc_html_e( 'Back', 'scolta' ); ?>
+				<?php esc_html_e( 'Back', 'scolta-ai-search' ); ?>
 			</button>
 		</p>
 		<?php
