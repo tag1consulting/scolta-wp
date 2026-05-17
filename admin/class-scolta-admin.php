@@ -57,7 +57,7 @@ class Scolta_Admin {
 			return;
 		}
 
-		wp_register_script( 'scolta-admin', false, array(), false, true );
+		wp_register_script( 'scolta-admin', false, array(), SCOLTA_VERSION, true );
 		wp_enqueue_script( 'scolta-admin' );
 
 		wp_localize_script(
