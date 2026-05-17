@@ -60,7 +60,13 @@ jobs:
             --exclude "scolta/CLAUDE.md" \
             --exclude "scolta/.distignore" \
             --exclude "scolta/.gitattributes" \
-            --exclude "*.sh"
+            --exclude "*.sh" \
+            --exclude "*.log" \
+            --exclude "scolta/vendor/*/tests" \
+            --exclude "scolta/vendor/*/tests/*" \
+            --exclude "scolta/vendor/*/phpunit.xml*" \
+            --exclude "scolta/vendor/*/phpstan.neon*" \
+            --exclude "scolta/vendor/*/.php-cs-fixer*"
 
 
       - name: Extract CHANGELOG entry
@@ -120,4 +126,18 @@ jobs:
             exit 1
           fi
 
-          echo "Archive structure OK: correct directory, vendor/autoload.php, scolta.php all present."
+          # No .log files should be present (WordPress.org review requirement)
+          if grep -q '\.log$' zip-contents.txt; then
+            echo "ERROR: Archive contains .log files (must be excluded):"
+            grep '\.log$' zip-contents.txt
+            exit 1
+          fi
+
+          # No tests/ content in vendor directories (WordPress.org review requirement)
+          if grep -qE 'scolta/vendor/.+/tests/' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor tests/ content (must be excluded):"
+            grep -E 'scolta/vendor/.+/tests/' zip-contents.txt
+            exit 1
+          fi
+
+          echo "Archive structure OK: correct directory, vendor/autoload.php, scolta.php all present, no forbidden files."

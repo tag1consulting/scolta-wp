@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Exclude log files and vendor test fixtures from release ZIP.** The `release.yml` ZIP builder now excludes `*.log` files, `vendor/*/tests/` directories, and dev-only config files (`phpunit.xml*`, `phpstan.neon*`, `.php-cs-fixer*`) from all vendor packages. The `validate-zip` CI job now fails if any `.log` files or vendor `tests/` content appear in the archive. ([#69](https://github.com/tag1consulting/scolta-wp/issues/69))
 - **Replace inline `<script>` tags in admin class with `wp_add_inline_script()`.** The three `echo '<script>'` blocks in `render_preset_field()` and `render_api_key_status_field()` have been converted to use `wp_register_script()` / `wp_add_inline_script()` via a new `enqueue_admin_scripts()` method hooked on `admin_enqueue_scripts`. Translated strings are passed via `wp_localize_script()` as `scoltaAdminL10n`. Required by WordPress.org plugin review guidelines. ([#66](https://github.com/tag1consulting/scolta-wp/issues/66))
 
 ### Added
