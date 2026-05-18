@@ -6,6 +6,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.0.0-rc4] - 2026-05-18
+
 ### Added
 - **Health endpoint now includes index detail: fragment count, last-build timestamp, and integrity status.** The `GET /wp-json/scolta/v1/health` response previously returned only `index_exists: true/false`. It now mirrors the Laravel adapter by including an `index` object with `built`, `fragments` (count of Pagefind fragment files), `last_build` (ISO 8601 timestamp of most recent build), and `integrity` (validity check of pagefind.js and fragments). When integrity fails, the overall `status` is set to `degraded`. ([#57](https://github.com/tag1consulting/scolta-wp/issues/57))
 
