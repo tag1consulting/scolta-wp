@@ -64,6 +64,9 @@ jobs:
             --exclude "*.log" \
             --exclude "scolta/vendor/*/tests" \
             --exclude "scolta/vendor/*/tests/*" \
+            --exclude "scolta/vendor/*/test" \
+            --exclude "scolta/vendor/*/test/*" \
+            --exclude "scolta/vendor/tag1/scolta-php/assets/wasm/*" \
             --exclude "scolta/vendor/*/phpunit.xml*" \
             --exclude "scolta/vendor/*/phpstan.neon*" \
             --exclude "scolta/vendor/*/.php-cs-fixer*"
@@ -133,10 +136,28 @@ jobs:
             exit 1
           fi
 
-          # No tests/ content in vendor directories (WordPress.org review requirement)
+          # No tests/ or test/ content in vendor directories (WordPress.org review requirement)
           if grep -qE 'scolta/vendor/.+/tests/' zip-contents.txt; then
             echo "ERROR: Archive contains vendor tests/ content (must be excluded):"
             grep -E 'scolta/vendor/.+/tests/' zip-contents.txt
+            exit 1
+          fi
+          if grep -qE 'scolta/vendor/.+/test/' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor test/ content (must be excluded):"
+            grep -E 'scolta/vendor/.+/test/' zip-contents.txt
+            exit 1
+          fi
+
+          # WASM must not be duplicated from vendor/tag1/scolta-php/assets/wasm/
+          if grep -q 'scolta/vendor/tag1/scolta-php/assets/wasm/' zip-contents.txt; then
+            echo "ERROR: Archive contains duplicate WASM from vendor/tag1/scolta-php/assets/wasm/ (plugin ships its own copy in assets/wasm/):"
+            grep 'scolta/vendor/tag1/scolta-php/assets/wasm/' zip-contents.txt
+            exit 1
+          fi
+
+          # WASM must be present at the canonical plugin location
+          if ! grep -q 'scolta/assets/wasm/scolta_core_bg.wasm' zip-contents.txt; then
+            echo "ERROR: scolta_core_bg.wasm is missing from assets/wasm/"
             exit 1
           fi
 
