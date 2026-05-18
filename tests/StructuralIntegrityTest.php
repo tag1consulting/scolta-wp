@@ -210,4 +210,40 @@ class StructuralIntegrityTest extends TestCase {
             'Must not zip from current dir (creates flat archive without scolta/ folder)'
         );
     }
+
+    public function test_release_workflow_excludes_vendor_test_singular(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '--exclude "scolta/vendor/*/test/*"',
+            $workflow,
+            'Release workflow must exclude vendor test/ directories (singular — e.g. wamania/php-stemmer/test/files/)'
+        );
+    }
+
+    public function test_release_workflow_excludes_vendor_wasm(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '--exclude "scolta/vendor/tag1/scolta-php/assets/wasm/*"',
+            $workflow,
+            'Release workflow must exclude duplicate WASM from vendor/tag1/scolta-php/assets/wasm/'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_test_singular(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            "scolta/vendor/.+/test/",
+            $workflow,
+            'validate-zip job must check for vendor test/ directories (singular)'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_no_vendor_wasm(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'scolta/vendor/tag1/scolta-php/assets/wasm/',
+            $workflow,
+            'validate-zip job must check that vendor WASM is excluded'
+        );
+    }
 }
