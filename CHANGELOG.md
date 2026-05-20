@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Changed
+- **Sync scolta.js from scolta-php: replace sort intersection with filter+sort discovery.** The sort path now discovers available Pagefind filters at init and matches subject_terms keywords against filter values, passing matched filters to Pagefind alongside the sort override. Replaces the fragile subject intersection heuristic. Sites with structured metadata get precise filter+sort; sites without get honest sort-only. ([scolta-php#130](https://github.com/tag1consulting/scolta-php/pull/130))
 - **`tag1/scolta-php` constraint changed from `@dev` to `^1.0@RC` for Packagist compatibility.** Downstream users no longer need `minimum-stability: dev`. The inline `@RC` flag allows RC resolution without affecting the consumer's root stability setting. Drop `@RC` when 1.0.0 stable ships.
 - **`minimum-stability` changed from `dev` to `RC`.** Matches the constraint; local dev still resolves from the path repo.
 
