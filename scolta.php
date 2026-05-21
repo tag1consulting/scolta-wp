@@ -159,6 +159,7 @@ function scolta_activate(): void {
 		'recency_penalty_after_days' => 1825,
 		'recency_max_penalty'        => 0.3,
 		'expand_primary_weight'      => 0.5,
+		'cross_list_bonus'           => 0.15,
 		// Display.
 		'excerpt_length'             => 300,
 		'results_per_page'           => 10,
