@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Pagefind bundle URL uses `http://` scheme on HTTPS sites behind reverse proxies.** `dir_to_url()` now applies `set_url_scheme()` to the uploads-derived URL, ensuring the Pagefind bundle and CSS URLs match the page's scheme. Also normalizes symlinked paths via `realpath()` on all comparison branches for consistent path resolution. ([#97](https://github.com/tag1consulting/scolta-wp/issues/97))
 - **AI Overview renders `*italic*` markdown as literal asterisks.** Updated `scolta.js` copy from scolta-php to include `*italic*` → `<em>` and `***bold italic***` → `<strong><em>` rendering. ([tag1consulting/scolta-php#125](https://github.com/tag1consulting/scolta-php/issues/125))
 - **Sync scolta.js from scolta-php: multi-value filter array counting.** `computeFilterCounts()` now iterates all values in multi-value filter arrays instead of only counting `val[0]`. Articles tagged with multiple topics now increment each topic in the facet display.
 

@@ -318,6 +318,19 @@ if (!function_exists('as_unschedule_all_actions')) {
     function as_unschedule_all_actions($hook, $args = null, $group = '') {}
 }
 
+// SSL / scheme stubs.
+if (!function_exists('is_ssl')) {
+    function is_ssl(): bool { return $GLOBALS['test_is_ssl'] ?? true; }
+}
+if (!function_exists('set_url_scheme')) {
+    function set_url_scheme(string $url, ?string $scheme = null): string {
+        if (!$scheme) {
+            $scheme = is_ssl() ? 'https' : 'http';
+        }
+        return preg_replace('#^\w+://#', $scheme . '://', $url);
+    }
+}
+
 // Misc stubs.
 if (!function_exists('is_admin')) {
     function is_admin(): bool { return false; }
@@ -459,11 +472,12 @@ if (!function_exists('get_the_date')) {
 }
 if (!function_exists('wp_upload_dir')) {
     function wp_upload_dir(): array {
+        $baseurl = $GLOBALS['test_upload_baseurl'] ?? 'https://example.com/wp-content/uploads';
         return [
             'basedir' => WP_CONTENT_DIR . '/uploads',
-            'baseurl' => 'https://example.com/wp-content/uploads',
+            'baseurl' => $baseurl,
             'path' => WP_CONTENT_DIR . '/uploads/' . date('Y/m'),
-            'url' => 'https://example.com/wp-content/uploads/' . date('Y/m'),
+            'url' => $baseurl . '/' . date('Y/m'),
         ];
     }
 }

@@ -225,6 +225,84 @@ class ShortcodeTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // URL scheme correction (issue #97)
+    // -------------------------------------------------------------------
+
+    public function test_pagefind_url_uses_https_when_siteurl_is_http_but_is_ssl_true(): void {
+        $GLOBALS['test_upload_baseurl'] = 'http://example.com/wp-content/uploads';
+        $GLOBALS['test_is_ssl'] = true;
+
+        scolta_activate();
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+        $index_dir  = $output_dir . '/pagefind';
+        @mkdir($index_dir, 0755, true);
+        file_put_contents($index_dir . '/pagefind-entry.json', '{}');
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertStringStartsWith(
+            'https://',
+            $config['pagefindPath'],
+            'Pagefind URL must use https:// when is_ssl() returns true'
+        );
+        $this->assertStringNotContainsString(
+            'http://',
+            $config['pagefindPath'],
+            'Pagefind URL must not contain http:// on an HTTPS page'
+        );
+
+        unset($GLOBALS['test_upload_baseurl'], $GLOBALS['test_is_ssl']);
+    }
+
+    public function test_pagefind_url_stays_https_when_siteurl_already_https(): void {
+        $GLOBALS['test_upload_baseurl'] = 'https://example.com/wp-content/uploads';
+        $GLOBALS['test_is_ssl'] = true;
+
+        scolta_activate();
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+        $index_dir  = $output_dir . '/pagefind';
+        @mkdir($index_dir, 0755, true);
+        file_put_contents($index_dir . '/pagefind-entry.json', '{}');
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertStringStartsWith(
+            'https://',
+            $config['pagefindPath'],
+            'Pagefind URL must remain https:// when siteurl is already HTTPS'
+        );
+
+        unset($GLOBALS['test_upload_baseurl'], $GLOBALS['test_is_ssl']);
+    }
+
+    public function test_pagefind_url_uses_http_when_not_ssl(): void {
+        $GLOBALS['test_upload_baseurl'] = 'http://example.com/wp-content/uploads';
+        $GLOBALS['test_is_ssl'] = false;
+
+        scolta_activate();
+        $settings   = get_option('scolta_settings', []);
+        $output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+        $index_dir  = $output_dir . '/pagefind';
+        @mkdir($index_dir, 0755, true);
+        file_put_contents($index_dir . '/pagefind-entry.json', '{}');
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertStringStartsWith(
+            'http://',
+            $config['pagefindPath'],
+            'Pagefind URL should use http:// when is_ssl() returns false'
+        );
+
+        unset($GLOBALS['test_upload_baseurl'], $GLOBALS['test_is_ssl']);
+    }
+
+    // -------------------------------------------------------------------
     // Register behavior
     // -------------------------------------------------------------------
 
