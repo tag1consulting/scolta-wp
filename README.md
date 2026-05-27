@@ -430,6 +430,7 @@ wp scolta rebuild-index                  # Rebuild index from existing HTML file
 wp scolta diagnose                       # Profile gather / HtmlCleaner / indexer phases
 wp scolta diagnose --count=2000          # Larger sample for more accurate projection
 wp scolta status                         # Show tracker, content, index, and AI status
+wp scolta cleanup                        # Remove stale double-nested pagefind directories
 wp scolta clear-cache                    # Clear Scolta AI response caches
 wp scolta download-pagefind              # Download the Pagefind binary for your platform
 wp scolta check-setup                    # Verify PHP, indexer, and configuration

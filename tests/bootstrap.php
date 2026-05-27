@@ -20,6 +20,9 @@ if (!defined('WP_CONTENT_DIR')) {
 if (!file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
     file_put_contents(ABSPATH . 'wp-admin/includes/upgrade.php', "<?php\n// Stub for testing.\n");
 }
+if (!file_exists(ABSPATH . 'wp-admin/includes/file.php')) {
+    file_put_contents(ABSPATH . 'wp-admin/includes/file.php', "<?php\n// Stub for testing.\n");
+}
 if (!defined('WPINC')) {
     define('WPINC', 'wp-includes');
 }
@@ -624,6 +627,40 @@ if (!class_exists('WP_Query')) {
         public array $posts = [];
         public int $max_num_pages = 0;
         public function __construct(array $args = []) {}
+    }
+}
+
+// WP_Filesystem stubs.
+if (!class_exists('WP_Filesystem_Direct')) {
+    class WP_Filesystem_Direct {
+        public function exists(string $path): bool { return file_exists($path); }
+        public function delete(string $path, bool $recursive = false): bool {
+            if (!file_exists($path)) { return false; }
+            if (is_dir($path) && $recursive) {
+                $it = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::CHILD_FIRST
+                );
+                foreach ($it as $file) {
+                    if ($file->isDir()) { @rmdir($file->getPathname()); }
+                    else { @unlink($file->getPathname()); }
+                }
+                return @rmdir($path);
+            }
+            if (is_dir($path)) { return @rmdir($path); }
+            return @unlink($path);
+        }
+        public function rmdir(string $path, bool $recursive = false): bool {
+            return $this->delete($path, $recursive);
+        }
+    }
+}
+if (!function_exists('WP_Filesystem')) {
+    function WP_Filesystem(): bool {
+        if (empty($GLOBALS['wp_filesystem'])) {
+            $GLOBALS['wp_filesystem'] = new WP_Filesystem_Direct();
+        }
+        return true;
     }
 }
 

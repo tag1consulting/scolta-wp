@@ -88,20 +88,14 @@ function scolta_cleanup_nested_indexes( string $output_dir ): void {
 	if ( ! is_dir( $nested_dir ) ) {
 		return;
 	}
-	$it = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $nested_dir, FilesystemIterator::SKIP_DOTS ),
-		RecursiveIteratorIterator::CHILD_FIRST
-	);
-	foreach ( $it as $file ) {
-		if ( $file->isDir() ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Removing stale index artifact.
-			rmdir( $file->getPathname() );
-		} else {
-			wp_delete_file( $file->getPathname() );
-		}
+
+	global $wp_filesystem;
+	if ( empty( $wp_filesystem ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
 	}
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- Removing stale index artifact.
-	rmdir( $nested_dir );
+
+	$wp_filesystem->delete( $nested_dir, true );
 	// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Operational notice for stale artifact removal.
 	error_log( 'Scolta: Removed stale double-nested pagefind directory: ' . $nested_dir );
 }
@@ -332,6 +326,7 @@ function scolta_deactivate(): void {
 		as_unschedule_all_actions( 'scolta_process_chunk', null, 'scolta' );
 		as_unschedule_all_actions( 'scolta_finalize_build', array(), 'scolta' );
 		as_unschedule_all_actions( 'scolta_debounced_rebuild', array(), 'scolta' );
+		as_unschedule_all_actions( 'scolta_amazee_provision', array(), 'scolta' );
 	}
 
 	// Clear build locks and state.
