@@ -246,4 +246,51 @@ class StructuralIntegrityTest extends TestCase {
             'validate-zip job must check that vendor WASM is excluded'
         );
     }
+
+    // -------------------------------------------------------------------
+    // Release ZIP bloat prevention
+    // -------------------------------------------------------------------
+
+    public function test_composer_lock_not_gitignored(): void {
+        $gitignore = file_get_contents($this->root . '/.gitignore');
+        $this->assertStringNotContainsString(
+            'composer.lock',
+            $gitignore,
+            'composer.lock must not be gitignored — CI release workflow requires it for partial updates'
+        );
+    }
+
+    public function test_composer_lock_exists(): void {
+        $this->assertFileExists(
+            $this->root . '/composer.lock',
+            'composer.lock must be committed — CI release workflow requires it for partial updates'
+        );
+    }
+
+    public function test_release_workflow_excludes_nested_vendor(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '--exclude "scolta/vendor/*/vendor/*"',
+            $workflow,
+            'Release workflow must exclude nested vendor/ directories to prevent path-repo build leaks'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_nested_vendor(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            "scolta/vendor/[^/]+/vendor/",
+            $workflow,
+            'validate-zip job must check for nested vendor/ directories'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_size(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'ZIP_SIZE',
+            $workflow,
+            'validate-zip job must include a ZIP size check'
+        );
+    }
 }

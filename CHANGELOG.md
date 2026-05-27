@@ -6,7 +6,11 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+- **Recommitted `composer.lock`** (was gitignored in pre-1.0 cleanup). Required for CI release workflow's `composer update tag1/scolta-php` partial update step.
+- **Added nested `vendor/*/vendor/*` exclusion** to release ZIP command, preventing path-repo builds from shipping dev dependencies.
+- **Added ZIP size limit (5 MB) and nested vendor/ check** to `validate-zip` CI job.
+- **Structural tests** to prevent `.gitignore` regression on `composer.lock` and ensure release workflow hardening persists.
 
 ## [1.0.0] - 2026-05-27
 
