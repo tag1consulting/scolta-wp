@@ -11,6 +11,8 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - **Added nested `vendor/*/vendor/*` exclusion** to release ZIP command, preventing path-repo builds from shipping dev dependencies.
 - **Added ZIP size limit (5 MB) and nested vendor/ check** to `validate-zip` CI job.
 - **Structural tests** to prevent `.gitignore` regression on `composer.lock` and ensure release workflow hardening persists.
+- **Updated `readme.txt` Tested up to WordPress 7.0** (was 6.9). wordpress.org rejects uploads where this value is below the current WordPress version.
+- **Added `check-wp-version` job to release workflow** that queries the WordPress API and fails the release if `Tested up to` is stale. Runs before the build job so stale versions are caught before creating the ZIP or GitHub release.
 
 ## [1.0.0] - 2026-05-27
 
@@ -373,7 +375,8 @@ Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 4
 - Settings stored as a single serialized option (`scolta_settings`)
 - Asset enqueueing via `wp_enqueue_script` and `wp_enqueue_style` from scolta-php vendor path
 
-[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc4...HEAD
+[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc4...v1.0.0
 [1.0.0-rc4]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc3...1.0.0-rc4
 [1.0.0-rc3]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc2...1.0.0-rc3
 [1.0.0-rc2]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc1...1.0.0-rc2

@@ -293,4 +293,13 @@ class StructuralIntegrityTest extends TestCase {
             'validate-zip job must include a ZIP size check'
         );
     }
+
+    public function test_release_workflow_has_wp_version_check(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'check-wp-version',
+            $workflow,
+            'Release workflow must include a check-wp-version job to prevent stale Tested up to values'
+        );
+    }
 }
