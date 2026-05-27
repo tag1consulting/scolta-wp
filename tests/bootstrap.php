@@ -23,6 +23,9 @@ if (!file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
 if (!defined('WPINC')) {
     define('WPINC', 'wp-includes');
 }
+if (!defined('WP_DEBUG')) {
+    define('WP_DEBUG', true);
+}
 
 // Plugin constants are defined by scolta.php when it's loaded below.
 // We don't pre-define them here to avoid redefinition warnings.

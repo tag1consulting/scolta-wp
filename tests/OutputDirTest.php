@@ -130,28 +130,65 @@ class OutputDirTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // A4. Shortcode emits _doing_it_wrong when output_dir ends in /pagefind
+    // A4. Shortcode normalizes output_dir ending in /pagefind
     // -------------------------------------------------------------------
+
+    public function test_output_dir_pagefind_suffix_is_silently_normalized(): void {
+        $GLOBALS['scolta_enqueued_scripts']  = [];
+        $GLOBALS['scolta_enqueued_styles']   = [];
+        $GLOBALS['scolta_localized_scripts'] = [];
+
+        $bad_dir  = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $good_dir = wp_upload_dir()['basedir'] . '/scolta';
+        update_option( 'scolta_settings', [ 'output_dir' => $bad_dir ] );
+
+        // Create the index at the path render() will find after normalization.
+        $index_dir = $good_dir . '/pagefind';
+        if ( ! is_dir( $index_dir ) ) {
+            @mkdir( $index_dir, 0755, true );
+        }
+        file_put_contents( $index_dir . '/pagefind-entry.json', '{}' );
+
+        $html = Scolta_Shortcode::render();
+
+        $this->assertStringContainsString( 'scolta-search', $html,
+            'Render must succeed after normalizing output_dir' );
+
+        $config       = $GLOBALS['scolta_localized_scripts']['scolta-search'] ?? [];
+        $pagefind_url = $config['pagefindPath'] ?? '';
+
+        $this->assertStringNotContainsString( '/pagefind/pagefind/pagefind.js', $pagefind_url,
+            'pagefindPath must not contain double-nested /pagefind/pagefind/' );
+        $this->assertStringContainsString( '/scolta/pagefind/pagefind.js', $pagefind_url,
+            'pagefindPath must point to the correct single-nested path' );
+
+        unset(
+            $GLOBALS['scolta_enqueued_scripts'],
+            $GLOBALS['scolta_enqueued_styles'],
+            $GLOBALS['scolta_localized_scripts']
+        );
+    }
 
     public function test_shortcode_warns_when_output_dir_ends_in_pagefind(): void {
         $GLOBALS['scolta_enqueued_scripts'] = [];
         $GLOBALS['scolta_enqueued_styles']  = [];
         $GLOBALS['scolta_localized_scripts'] = [];
 
-        $bad_dir = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $bad_dir  = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $good_dir = wp_upload_dir()['basedir'] . '/scolta';
         update_option( 'scolta_settings', [ 'output_dir' => $bad_dir ] );
 
-        // Create the index at the correct sub-path so render() doesn't bail early.
-        $index_path = $bad_dir . '/pagefind';
-        if ( ! is_dir( $index_path ) ) {
-            @mkdir( $index_path, 0755, true );
+        // Create the index at the normalized path so render() doesn't bail early.
+        $index_dir = $good_dir . '/pagefind';
+        if ( ! is_dir( $index_dir ) ) {
+            @mkdir( $index_dir, 0755, true );
         }
-        file_put_contents( $index_path . '/pagefind-entry.json', '{}' );
+        file_put_contents( $index_dir . '/pagefind-entry.json', '{}' );
 
         Scolta_Shortcode::render();
 
         $warnings = $GLOBALS['scolta_doing_it_wrong'] ?? [];
-        $this->assertNotEmpty( $warnings, '_doing_it_wrong() must fire when output_dir ends in /pagefind' );
+        $this->assertNotEmpty( $warnings, '_doing_it_wrong() must fire when output_dir ends in /pagefind and WP_DEBUG is true' );
 
         $functions = array_column( $warnings, 'function' );
         $this->assertContains(
@@ -161,6 +198,46 @@ class OutputDirTest extends TestCase {
         );
 
         // Cleanup.
+        unset(
+            $GLOBALS['scolta_enqueued_scripts'],
+            $GLOBALS['scolta_enqueued_styles'],
+            $GLOBALS['scolta_localized_scripts']
+        );
+    }
+
+    public function test_warning_gated_behind_wp_debug(): void {
+        $source = file_get_contents( dirname( __DIR__ ) . '/includes/class-scolta-shortcode.php' );
+        $this->assertStringContainsString(
+            "defined( 'WP_DEBUG' ) && WP_DEBUG",
+            $source,
+            '_doing_it_wrong() call must be gated behind WP_DEBUG check'
+        );
+    }
+
+    public function test_render_clean_html_with_pagefind_suffix(): void {
+        $GLOBALS['scolta_enqueued_scripts']  = [];
+        $GLOBALS['scolta_enqueued_styles']   = [];
+        $GLOBALS['scolta_localized_scripts'] = [];
+
+        $bad_dir  = wp_upload_dir()['basedir'] . '/scolta/pagefind';
+        $good_dir = wp_upload_dir()['basedir'] . '/scolta';
+        update_option( 'scolta_settings', [ 'output_dir' => $bad_dir ] );
+
+        $index_dir = $good_dir . '/pagefind';
+        if ( ! is_dir( $index_dir ) ) {
+            @mkdir( $index_dir, 0755, true );
+        }
+        file_put_contents( $index_dir . '/pagefind-entry.json', '{}' );
+
+        $html = Scolta_Shortcode::render();
+
+        $this->assertStringNotContainsString( 'Notice', $html,
+            'Render output must not contain PHP notice text' );
+        $this->assertStringNotContainsString( 'output_dir', $html,
+            'Render output must not leak configuration warnings' );
+        $this->assertStringContainsString( 'id="scolta-search"', $html,
+            'Render must produce the search container' );
+
         unset(
             $GLOBALS['scolta_enqueued_scripts'],
             $GLOBALS['scolta_enqueued_styles'],
