@@ -166,7 +166,8 @@ class Scolta_Shortcode {
 		// siteurl option, which may be http:// on reverse-proxy HTTPS setups.
 		$upload_info    = wp_upload_dir();
 		$real_uploads   = realpath( $upload_info['basedir'] );
-		$uploads_dir    = rtrim( ! empty( $real_uploads ) ? $real_uploads : $upload_info['basedir'], '/' );
+		$uploads_base   = ! empty( $real_uploads ) ? $real_uploads : $upload_info['basedir'];
+		$uploads_dir    = rtrim( $uploads_base, '/' );
 		$uploads_url    = rtrim( $upload_info['baseurl'], '/' );
 		if ( str_starts_with( $dir_resolved, $uploads_dir ) ) {
 			$relative = substr( $dir_resolved, strlen( $uploads_dir ) );
