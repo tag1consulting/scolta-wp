@@ -54,6 +54,7 @@
       // Title/content match scoring
       TITLE_MATCH_BOOST: s.TITLE_MATCH_BOOST ?? 1.0,
       TITLE_ALL_TERMS_MULTIPLIER: s.TITLE_ALL_TERMS_MULTIPLIER ?? 1.5,
+      EXACT_TITLE_MATCH_BOOST: s.EXACT_TITLE_MATCH_BOOST ?? 5.0,
       CONTENT_MATCH_BOOST: s.CONTENT_MATCH_BOOST ?? 0.4,
 
       // Display
@@ -66,7 +67,8 @@
       AI_SUMMARIZE: s.AI_SUMMARIZE ?? true,
       AI_SUMMARY_TOP_N: s.AI_SUMMARY_TOP_N ?? 5,
       AI_SUMMARY_MAX_CHARS: s.AI_SUMMARY_MAX_CHARS ?? 2000,
-      EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.7,
+      EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.5,
+      CROSS_LIST_BONUS: s.CROSS_LIST_BONUS ?? 0.15,
       AI_MAX_FOLLOWUPS: s.AI_MAX_FOLLOWUPS ?? 3,
       AI_LANGUAGES: s.AI_LANGUAGES ?? ['en'],
       LANGUAGE: s.LANGUAGE ?? 'en',
@@ -232,6 +234,8 @@
   let pagefindBase = '';   // Set during initPagefind(); used by resolveUrl().
   let currentSortOverride = null;    // { field, direction } or null — active sort override
   let llmAppliedFilters = {};        // { dimension: value } — filters injected by LLM expansion
+  let expansionInFlight = false;     // true while an expand-query HTTP request is pending
+  let cachedPagefindFilters = null;  // { dimension: { value: count } } — from pagefind.filters()
 
   // Detect default language filter from instanceConfig.currentLanguage or <html lang>.
   // Applied on every fresh search unless the URL already specifies f_language.
@@ -260,6 +264,7 @@
       RECENCY_MAX_PENALTY: s.RECENCY_MAX_PENALTY ?? 0.3,
       TITLE_MATCH_BOOST: s.TITLE_MATCH_BOOST ?? 1.0,
       TITLE_ALL_TERMS_MULTIPLIER: s.TITLE_ALL_TERMS_MULTIPLIER ?? 1.5,
+      EXACT_TITLE_MATCH_BOOST: s.EXACT_TITLE_MATCH_BOOST ?? 5.0,
       CONTENT_MATCH_BOOST: s.CONTENT_MATCH_BOOST ?? 0.4,
       PHRASE_ADJACENT_MULTIPLIER: s.PHRASE_ADJACENT_MULTIPLIER ?? 2.5,
       PHRASE_NEAR_MULTIPLIER: s.PHRASE_NEAR_MULTIPLIER ?? 1.5,
@@ -272,7 +277,8 @@
       AI_SUMMARIZE: s.AI_SUMMARIZE ?? true,
       AI_SUMMARY_TOP_N: s.AI_SUMMARY_TOP_N ?? 5,
       AI_SUMMARY_MAX_CHARS: s.AI_SUMMARY_MAX_CHARS ?? 2000,
-      EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.7,
+      EXPAND_PRIMARY_WEIGHT: s.EXPAND_PRIMARY_WEIGHT ?? 0.5,
+      CROSS_LIST_BONUS: s.CROSS_LIST_BONUS ?? 0.15,
       AI_MAX_FOLLOWUPS: s.AI_MAX_FOLLOWUPS ?? 3,
       AI_LANGUAGES: s.AI_LANGUAGES ?? ['en'],
       AUTO_LANGUAGE_FILTER: s.AUTO_LANGUAGE_FILTER ?? false,
@@ -329,6 +335,11 @@
       try {
         pagefindBase = base.startsWith('http') ? new URL(base).pathname : base;
       } catch (_) { pagefindBase = base; }
+      if (!cachedPagefindFilters) {
+        try {
+          cachedPagefindFilters = await pagefind.filters();
+        } catch (_) { /* ignore — filters are optional */ }
+      }
       return;
     }
 
@@ -373,6 +384,14 @@
 
     // Warm the index: triggers WASM compilation + fragment download.
     await pagefind.search("");
+
+    try {
+      cachedPagefindFilters = await pagefind.filters();
+      console.log('[scolta] Pagefind filters cached:', Object.keys(cachedPagefindFilters));
+    } catch (e) {
+      console.warn('[scolta] Failed to cache Pagefind filters:', e.message);
+    }
+
     console.log("[scolta] Pagefind index preloaded");
   }
 
@@ -503,7 +522,7 @@
     }
   }
 
-  async function summarizeResults(query, results, expandedTerms = [], sortHint = null, filterHint = null) {
+  async function summarizeResults(query, results, expandedTerms = [], sortHint = null, filterHint = null, userFilters = {}) {
     const CONFIG = getInstanceConfig();
     const endpoints = getInstanceEndpoints();
     if (!CONFIG.AI_SUMMARIZE || results.length === 0) return null;
@@ -564,6 +583,18 @@
         .map(([dim, val]) => `"${dim}: ${val}"`);
       if (filterParts.length > 0) {
         contextHeader += `[Results are filtered by ${filterParts.join(', ')}]\n`;
+      }
+    }
+    if (userFilters && typeof userFilters === 'object') {
+      const userFilterParts = [];
+      for (const dim of Object.keys(userFilters)) {
+        const vals = userFilters[dim];
+        if (vals instanceof Set && vals.size > 0) {
+          userFilterParts.push(dim + ': ' + [...vals].join(', '));
+        }
+      }
+      if (userFilterParts.length > 0) {
+        contextHeader += '[User has filtered results by ' + userFilterParts.join('; ') + ']\n';
       }
     }
     if (contextHeader) {
@@ -736,13 +767,12 @@
     return html;
   }
 
-  // Apply inline formatting: **bold** and [text](url) links.
-  // Links are only rendered if the URL matches allowedLinkDomains
-  // (empty list = allow all links).
   function formatInline(text) {
     const allowedDomains = getInstanceAllowedLinkDomains();
     return text
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
         if (allowedDomains.length === 0) {
           return `<a href="${url}" target="_blank" rel="noopener">${linkText}</a>`;
@@ -982,7 +1012,7 @@
       for (const [dim, vals] of Object.entries(filters)) {
         if (vals instanceof Set && vals.size > 0) {
           const arr = [...vals];
-          pagefindFilters[dim] = arr.length === 1 ? arr[0] : arr;
+          pagefindFilters[dim] = arr.length === 1 ? arr[0] : { any: arr };
         }
       }
       if (Object.keys(pagefindFilters).length > 0) {
@@ -993,6 +1023,65 @@
       searchOpts.sort = { [sortHint.field]: sortHint.direction };
     }
     return pagefind.search(query, searchOpts);
+  }
+
+  const SKIP_FILTER_DIMENSIONS = new Set(['site', 'language', 'content_type', 'entity_type']);
+
+  function matchSubjectToFilters(subjectTerms, availableFilters, filterDescriptions) {
+    if (!subjectTerms || !subjectTerms.length || !availableFilters) return {};
+
+    const keywords = new Set();
+    for (const term of subjectTerms) {
+      for (const word of term.toLowerCase().split(/\s+/)) {
+        if (word.length > 2) keywords.add(word);
+      }
+    }
+
+    const matched = {};
+    for (const [dimension, values] of Object.entries(availableFilters)) {
+      if (SKIP_FILTER_DIMENSIONS.has(dimension.toLowerCase())) continue;
+
+      // Pass 1: direct substring matching against filter value names.
+      for (const filterValue of Object.keys(values)) {
+        const lowerValue = filterValue.toLowerCase();
+        for (const keyword of keywords) {
+          if (lowerValue === keyword
+              || (lowerValue.length > 2 && keyword.includes(lowerValue))
+              || (keyword.length > 2 && lowerValue.includes(keyword))) {
+            matched[dimension] = filterValue;
+            break;
+          }
+        }
+        if (matched[dimension]) break;
+      }
+
+      // Pass 2: subcategory matching via filter descriptions.
+      // Descriptions like "Science (physics, chemistry, biology)" let us
+      // match "physics" → "Science" even though "physics" isn't a filter value.
+      if (!matched[dimension] && filterDescriptions) {
+        const desc = (filterDescriptions[dimension] || '').toLowerCase();
+        for (const filterValue of Object.keys(values)) {
+          const escapedValue = filterValue.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const pattern = new RegExp(escapedValue + '\\s*\\(([^)]+)\\)');
+          const m = desc.match(pattern);
+          if (m) {
+            const subcategories = m[1].split(',').map(s => s.trim());
+            for (const sub of subcategories) {
+              if (keywords.has(sub) || [...keywords].some(kw =>
+                (sub.length > 2 && kw.includes(sub)) ||
+                (kw.length > 2 && sub.includes(kw))
+              )) {
+                matched[dimension] = filterValue;
+                break;
+              }
+            }
+          }
+          if (matched[dimension]) break;
+        }
+      }
+    }
+
+    return matched;
   }
 
   // Pagefind's data.locations are not word positions — compute from content instead.
@@ -1015,6 +1104,8 @@
 
   // Score a set of loaded results against a query.
   function scoreResults(loaded, query, sourceWeight, primaryQuery) {
+    const CONFIG = getInstanceConfig();
+    let scored;
     if (scoltaWasm) {
       // WASM scoring — canonical Rust implementation
       const queryTerms = extractSearchTerms(query);
@@ -1032,9 +1123,8 @@
       });
       // WASM config keys are snake_case; getInstanceConfig() returns
       // SCREAMING_SNAKE_CASE for the platform adapter layer. Convert here.
-      const screaming = getInstanceConfig();
       const wasmConfig = {};
-      for (const [k, v] of Object.entries(screaming)) {
+      for (const [k, v] of Object.entries(CONFIG)) {
         wasmConfig[k.toLowerCase()] = v;
       }
       const input = JSON.stringify({
@@ -1045,8 +1135,8 @@
       });
       try {
         const output = scoltaWasm.score_results(input);
-        const scored = JSON.parse(output);
-        return scored.map(item => ({
+        const wasmScored = JSON.parse(output);
+        scored = wasmScored.map(item => ({
           data: loaded[item.pagefind_index] || loaded.find(d =>
             resolveUrl(d.url || '') === item.url
           ) || loaded[0],
@@ -1056,16 +1146,30 @@
         console.warn("[scolta] WASM score_results failed, using fallback:", e.message);
       }
     }
-    // JS fallback scoring
-    const count = loaded.length;
-    return loaded.map((data, i) => {
-      const pagefindScore = count > 1 ? 1 - (i / (count - 1)) : 1;
-      const recency = recencyScoreFallback(data.meta?.date);
-      const titleBoost = titleMatchScoreFallback(data.meta?.title, query);
-      const contentBoost = contentMatchScoreFallback(data.excerpt, query);
-      const finalScore = (pagefindScore + recency + titleBoost + contentBoost) * sourceWeight;
-      return { data, score: finalScore };
-    });
+    if (!scored) {
+      // JS fallback scoring
+      const count = loaded.length;
+      scored = loaded.map((data, i) => {
+        const pagefindScore = count > 1 ? 1 - (i / (count - 1)) : 1;
+        const recency = recencyScoreFallback(data.meta?.date);
+        const titleBoost = titleMatchScoreFallback(data.meta?.title, query);
+        const contentBoost = contentMatchScoreFallback(data.excerpt, query);
+        const finalScore = (pagefindScore + recency + titleBoost + contentBoost) * sourceWeight;
+        return { data, score: finalScore };
+      });
+    }
+    // Exact title match: when the result's title IS the query, apply a large
+    // multiplicative boost so it always ranks #1 regardless of BM25 scores.
+    const normalizedQuery = (primaryQuery || query).toLowerCase().trim();
+    if (normalizedQuery && CONFIG.EXACT_TITLE_MATCH_BOOST > 1.0) {
+      for (const r of scored) {
+        const title = (r.data.meta?.title || '').toLowerCase().trim();
+        if (title && title === normalizedQuery) {
+          r.score *= CONFIG.EXACT_TITLE_MATCH_BOOST;
+        }
+      }
+    }
+    return scored;
   }
 
   // Score multiple independent queries in one WASM call.
@@ -1094,10 +1198,12 @@
       const filters = r.data.filters || {};
       for (const [dim, val] of Object.entries(filters)) {
         if (!val) continue;
-        const v = Array.isArray(val) ? val[0] : val;
-        if (!v) continue;
-        if (!counts[dim]) counts[dim] = {};
-        counts[dim][v] = (counts[dim][v] || 0) + 1;
+        const values = Array.isArray(val) ? val : [val];
+        for (const v of values) {
+          if (!v) continue;
+          if (!counts[dim]) counts[dim] = {};
+          counts[dim][v] = (counts[dim][v] || 0) + 1;
+        }
       }
     }
     return counts;
@@ -1212,19 +1318,24 @@
       }
     }
     // JS fallback merge
+    const BONUS = getInstanceConfig().CROSS_LIST_BONUS;
     const urlMap = new Map();
     for (const r of currentResults) {
       const url = resolveUrl(r.data.url || '');
-      const prev = urlMap.get(url);
-      if (!prev || r.score > prev.score) {
-        urlMap.set(url, r);
+      if (!urlMap.has(url)) {
+        urlMap.set(url, { ...r });
+      } else {
+        const prev = urlMap.get(url);
+        prev.score = Math.max(prev.score, r.score) + BONUS;
       }
     }
     for (const r of newResults) {
       const url = resolveUrl(r.data.url || '');
-      const prev = urlMap.get(url);
-      if (!prev || r.score > prev.score) {
-        urlMap.set(url, r);
+      if (!urlMap.has(url)) {
+        urlMap.set(url, { ...r });
+      } else {
+        const prev = urlMap.get(url);
+        prev.score = Math.max(prev.score, r.score) + BONUS;
       }
     }
     return [...urlMap.values()];
@@ -1278,9 +1389,10 @@
       const scoredVsTerm = scoreResults(loaded, term, weight, originalQuery);
       const scoredVsOriginal = scoreResults(loaded, originalQuery, weight * 0.5);
 
+      const BONUS = getInstanceConfig().CROSS_LIST_BONUS;
       const best = scoredVsTerm.map((r, idx) => ({
         data: r.data,
-        score: Math.max(r.score, scoredVsOriginal[idx].score),
+        score: r.score + (scoredVsOriginal[idx].score > 0 ? Math.min(scoredVsOriginal[idx].score * 0.3, BONUS) : 0),
       }));
       results = mergeResults(results, best);
     }
@@ -1311,40 +1423,60 @@
       }
     }
 
-    if (sortOverride && sortOverride.field && sortOverride.direction) {
-      // Native sort path: pass sort to Pagefind so it sorts ALL matching documents
-      // at the index level before returning. We load the top N from each already-sorted
-      // result set, then merge by URL dedup and sort the merged set by the sort field.
-      // This avoids the old bug where BM25 selected the top-50 first, then we tried
-      // to sort those 50 — expensive items outside the top-50 were never loaded.
-      const termSet = new Set([searchQuery]);
-      for (const term of validTerms) {
-        termSet.add(term);
-        const words = extractSearchTerms(term);
-        if (words.length > 1) {
-          for (const word of words) {
-            if (word.length > 2) termSet.add(word);
+    let useSortPath = !!(sortOverride && sortOverride.field && sortOverride.direction);
+    let subjectFilters = {};
+
+    if (useSortPath) {
+      const filterDescs = (instanceConfig && instanceConfig.filterFieldDescriptions) || {};
+      subjectFilters = matchSubjectToFilters(subjectTerms, cachedPagefindFilters, filterDescs);
+      const hasFilterMatch = Object.keys(subjectFilters).length > 0;
+
+      if (hasFilterMatch) {
+        console.log('[scolta:sort] Subject filter match:', JSON.stringify(subjectFilters));
+      } else if (subjectTerms && subjectTerms.length > 0) {
+        console.log('[scolta:sort] No filter match for subject terms — dropping sort, using relevance');
+        currentSortOverride = null;
+        useSortPath = false;
+      } else {
+        console.log('[scolta:sort] No subject terms, using sort only');
+      }
+    }
+
+    if (useSortPath) {
+      const hasFilterMatch = Object.keys(subjectFilters).length > 0;
+
+      const mergedFilters = {};
+      for (const [dim, vals] of Object.entries(activeFilters)) {
+        mergedFilters[dim] = vals;
+      }
+      if (hasFilterMatch) {
+        for (const [dim, val] of Object.entries(subjectFilters)) {
+          if (!mergedFilters[dim]) {
+            mergedFilters[dim] = new Set([val]);
+          }
+          if (!activeFilters[dim]) {
+            activeFilters[dim] = new Set([val]);
+          }
+          if (!llmAppliedFilters[dim]) {
+            llmAppliedFilters[dim] = val;
           }
         }
       }
 
-      // Run sorted searches and subject-only search in parallel.
-      const subjectSearchP = (subjectTerms && subjectTerms.length > 0)
-        ? pagefindSearch(subjectTerms.join(' '), activeFilters)
-        : Promise.resolve(null);
+      const termSet = new Set([searchQuery]);
+      for (const term of validTerms) {
+        termSet.add(term);
+      }
 
-      const [searches, subjectSearch] = await Promise.all([
-        Promise.all([...termSet].map(t => pagefindSearch(t, activeFilters, sortOverride))),
-        subjectSearchP,
-      ]);
+      const searches = await Promise.all(
+        [...termSet].map(t => pagefindSearch(t, mergedFilters, sortOverride))
+      );
 
       if (version !== searchVersion) {
         console.log('[scolta:expand] Discarding stale expansion after sort search (version', version, 'vs current', searchVersion, ')');
         return;
       }
 
-      // Load top N from each sorted search and merge by URL (first occurrence wins —
-      // searches are already sorted by the sort field, so first-seen is the best match).
       const urlMap = new Map();
       await Promise.all(searches.map(async (search) => {
         const toLoad = Math.min(search.results.length, CONFIG.MAX_PAGEFIND_RESULTS);
@@ -1356,19 +1488,6 @@
         }
       }));
 
-      // Load subject-filter results for intersection.
-      let subjectUrlSet = null;
-      if (subjectSearch && subjectSearch.results.length > 0) {
-        const subjectToLoad = Math.min(subjectSearch.results.length, CONFIG.MAX_PAGEFIND_RESULTS);
-        const subjectLoaded = await Promise.all(
-          subjectSearch.results.slice(0, subjectToLoad).map(r => r.data())
-        );
-        const normUrl = u => (u || '').replace(/\.html$/, '').replace(/\/$/, '').toLowerCase();
-        subjectUrlSet = new Set(subjectLoaded.map(d => normUrl(resolveUrl(d.url || ''))));
-      } else if (subjectTerms && subjectTerms.length > 0) {
-        subjectUrlSet = new Set(); // subject search ran but returned nothing
-      }
-
       if (version !== searchVersion) {
         console.log('[scolta:expand] Discarding stale expansion after sort load (version', version, 'vs current', searchVersion, ')');
         return;
@@ -1376,10 +1495,35 @@
 
       const field = sortOverride.field;
       const desc = sortOverride.direction === 'desc';
-      const withField = [...urlMap.values()].filter(data => {
+      let withField = [...urlMap.values()].filter(data => {
         const v = data.meta?.[field];
         return v !== undefined && v !== null && v !== '';
       });
+
+      const SORT_FALLBACK_THRESHOLD = 20;
+      if (withField.length > 0 && withField.length < SORT_FALLBACK_THRESHOLD) {
+        console.log('[scolta:sort] Sorted search returned only ' + withField.length + ' results with field "' + field + '", re-running unsorted for JS-side sort');
+        const unsortedSearches = await Promise.all(
+          [...termSet].map(t => pagefindSearch(t, mergedFilters, null))
+        );
+        if (version !== searchVersion) return;
+        const fallbackMap = new Map();
+        await Promise.all(unsortedSearches.map(async (search) => {
+          const toLoad = Math.min(search.results.length, CONFIG.MAX_PAGEFIND_RESULTS);
+          if (toLoad === 0) return;
+          const loaded = await Promise.all(search.results.slice(0, toLoad).map(r => r.data()));
+          for (const data of loaded) {
+            const url = resolveUrl(data.url || '');
+            if (!fallbackMap.has(url)) fallbackMap.set(url, data);
+          }
+        }));
+        if (version !== searchVersion) return;
+        withField = [...fallbackMap.values()].filter(data => {
+          const v = data.meta?.[field];
+          return v !== undefined && v !== null && v !== '';
+        });
+        console.log('[scolta:sort] Fallback unsorted search yielded ' + withField.length + ' results with field "' + field + '"');
+      }
 
       if (withField.length === 0) {
         console.log('[scolta:sort] Sort field "' + field + '" absent from all results, falling back to relevance');
@@ -1394,53 +1538,18 @@
           return desc ? -cmp : cmp;
         });
 
-        // Dual-search intersection: when subject terms are available, keep only
-        // sorted results whose URL also appears in the subject-only search.
-        // This prevents OR-matched common terms (e.g. "expensive") from dominating
-        // results when the user's actual subject (e.g. "tooth") is rarer.
-        if (subjectUrlSet && subjectUrlSet.size > 0) {
-          const normUrl = u => (u || '').replace(/\.html$/, '').replace(/\/$/, '').toLowerCase();
-          const intersection = withField.filter(d => subjectUrlSet.has(normUrl(resolveUrl(d.url || ''))));
-          if (intersection.length >= 3) {
-            allScoredResults = intersection.map(data => ({ data, score: 0 }));
-          } else if (intersection.length > 0) {
-            // Intersection too small — prepend subject-matched items, append the rest.
-            const intNorms = new Set(intersection.map(d => normUrl(resolveUrl(d.url || ''))));
-            const remainder = withField.filter(d => !intNorms.has(normUrl(resolveUrl(d.url || ''))));
-            allScoredResults = [...intersection, ...remainder].map(data => ({ data, score: 0 }));
-          } else {
-            console.warn('[scolta:sort] Subject filter intersection empty, using sorted results');
-            allScoredResults = withField.map(data => ({ data, score: 0 }));
-          }
-        } else if (subjectUrlSet !== null) {
-          // Subject search returned no results — fall back to sorted results.
-          console.warn('[scolta:sort] Subject filter search returned no results, using sorted results');
-          allScoredResults = withField.map(data => ({ data, score: 0 }));
-        } else {
-          allScoredResults = withField.map(data => ({ data, score: 0 }));
-        }
+        allScoredResults = withField.map(data => ({ data, score: 0 }));
       }
 
     } else {
       // Relevance path: existing multi-term expand-and-merge behavior.
       const queries = [];
       let weightIndex = 0;
-      const expandBase = 1.0 - CONFIG.EXPAND_PRIMARY_WEIGHT;
+      const expandBase = CONFIG.EXPAND_PRIMARY_WEIGHT;
       for (const term of validTerms) {
         const weight = Math.max(expandBase - (weightIndex * 0.05), 0.1);
         queries.push({ term, weight });
         weightIndex++;
-
-        const words = extractSearchTerms(term);
-        if (words.length > 1) {
-          for (const word of words) {
-            if (word.length > 2 && !queries.some(q => q.term === word)) {
-              const wordWeight = Math.max(expandBase - (weightIndex * 0.05), 0.1);
-              queries.push({ term: word, weight: wordWeight });
-              weightIndex++;
-            }
-          }
-        }
       }
 
       const expandedResults = await searchAndLoadParallel(queries, activeFilters, searchQuery);
@@ -1453,8 +1562,8 @@
       allScoredResults = mergeResults(
         allScoredResults,
         expandedResults,
-        CONFIG.EXPAND_PRIMARY_WEIGHT,
-        1.0 - CONFIG.EXPAND_PRIMARY_WEIGHT
+        1.0,
+        1.0
       );
       allScoredResults.sort((a, b) => b.score - a.score);
       allScoredResults = deduplicateByTitle(allScoredResults);
@@ -1462,9 +1571,8 @@
 
     displayedCount = 0;
 
-    if (!preserveFilters) {
-      renderFilters();
-    }
+    filterCounts = computeFilterCounts(allScoredResults);
+    renderFilters();
 
     renderResults(true);
     console.log(`[scolta:expand] ${sortOverride ? 'Native sort' : 'Merged'}: ${allScoredResults.length} results`);
@@ -1546,6 +1654,7 @@
     const expandPromise = preserveFilters
       ? Promise.resolve(lastExpandedTerms)
       : expandQuery(query);
+    expansionInFlight = !preserveFilters && CONFIG.AI_EXPAND_QUERY;
 
     const primarySearch = await pagefindSearch(searchQuery, activeFilters);
     allScoredResults = await loadAndScoreSearch(primarySearch, scorerQuery, 1.0);
@@ -1589,9 +1698,7 @@
       }
     }
 
-    if (!preserveFilters) {
-      filterCounts = computeFilterCounts(allScoredResults);
-    }
+    filterCounts = computeFilterCounts(allScoredResults);
 
     renderFilters();
     renderResults();
@@ -1600,6 +1707,7 @@
     // Summarize is intentionally deferred until after expansion so the AI sees
     // the same ranking the user sees (expanded terms promote more relevant results).
     expandPromise.then(async expansion => {
+      expansionInFlight = false;
       // expansion is { terms, sort_hint, subject_terms, filter_hint } or null (or a plain array for legacy cache hits).
       const expandedTerms = Array.isArray(expansion) ? expansion : (expansion?.terms ?? null);
       const sortHint = Array.isArray(expansion) ? null : (expansion?.sort_hint ?? null);
@@ -1628,13 +1736,19 @@
 
       if (version !== searchVersion) return;
 
+      // If mergeExpandedSearchResults returned early (no valid terms, no sort override),
+      // it did not call renderResults(); show the final state now.
+      if (allScoredResults.length === 0) {
+        renderResults();
+      }
+
       renderSortIndicator(currentSortOverride);
       renderFilterBadges();
 
       const expandedLabel = expandedTerms
         ? expandedTerms.filter(t => t.toLowerCase() !== query.toLowerCase())
         : [];
-      summarizeResults(query, allScoredResults, expandedLabel, sortHint, filterHint);
+      summarizeResults(query, allScoredResults, expandedLabel, sortHint, filterHint, activeFilters);
     });
   }
 
@@ -1660,6 +1774,7 @@
     activeFilters = {};
     currentSortOverride = null;
     llmAppliedFilters = {};
+    expansionInFlight = false;
 
     // Remove search query and filter params from URL.
     try {
@@ -1682,10 +1797,16 @@
   function renderFilters() {
     const container = els.filters;
 
-    // Only show dimensions that have more than one unique value.
+    // Show dimensions that have more than one unique value, plus any
+    // dimension with an active filter (so the user can always uncheck it).
     const dims = Object.keys(filterCounts).filter(
       dim => Object.keys(filterCounts[dim]).length > 1
     );
+    for (const dim of Object.keys(activeFilters)) {
+      if (activeFilters[dim] instanceof Set && activeFilters[dim].size > 0 && !dims.includes(dim)) {
+        dims.push(dim);
+      }
+    }
 
     // Order: language first, site second, then remaining dimensions alphabetically.
     dims.sort((a, b) => {
@@ -1709,7 +1830,13 @@
         || (dim.charAt(0).toUpperCase() + dim.slice(1).replace(/_/g, ' '));
       html += `<div class="scolta-filter-group"><h3>${escapeHtml(label)}</h3>`;
       const dimFilters = activeFilters[dim] || new Set();
-      const entries = Object.entries(filterCounts[dim]).sort((a, b) => b[1] - a[1]);
+      const dimCounts = filterCounts[dim] || {};
+      const entries = Object.entries(dimCounts).sort((a, b) => b[1] - a[1]);
+      for (const val of dimFilters) {
+        if (!(val in dimCounts)) {
+          entries.push([val, 0]);
+        }
+      }
       for (const [val, count] of entries) {
         const isActive = dimFilters.has(val);
         const checked = isActive ? "checked" : "";
@@ -1773,6 +1900,9 @@
     if (filtered.length === 0) {
       container.innerHTML = "";
       header.innerHTML = "";
+      if (expansionInFlight) {
+        return;
+      }
       noResults.style.display = "block";
       loadMore.style.display = "none";
       return;
