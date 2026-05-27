@@ -162,16 +162,21 @@ class Scolta_Shortcode {
 
 		// Uploads directory — the canonical location for plugin-written index files.
 		// Use wp_upload_dir() so offloaded uploads (S3, CDN) get the right base URL.
-		$upload_info = wp_upload_dir();
-		$uploads_dir = rtrim( $upload_info['basedir'], '/' );
-		$uploads_url = rtrim( $upload_info['baseurl'], '/' );
+		// Apply set_url_scheme() because wp_upload_dir()['baseurl'] inherits the raw
+		// siteurl option, which may be http:// on reverse-proxy HTTPS setups.
+		$upload_info    = wp_upload_dir();
+		$real_uploads   = realpath( $upload_info['basedir'] );
+		$uploads_base   = ! empty( $real_uploads ) ? $real_uploads : $upload_info['basedir'];
+		$uploads_dir    = rtrim( $uploads_base, '/' );
+		$uploads_url    = rtrim( $upload_info['baseurl'], '/' );
 		if ( str_starts_with( $dir_resolved, $uploads_dir ) ) {
 			$relative = substr( $dir_resolved, strlen( $uploads_dir ) );
-			return $uploads_url . $relative;
+			return set_url_scheme( $uploads_url . $relative );
 		}
 
 		// wp-content directory (non-uploads plugin/theme files).
-		$content_dir = rtrim( WP_CONTENT_DIR, '/' );
+		$real_content = realpath( WP_CONTENT_DIR );
+		$content_dir  = rtrim( ! empty( $real_content ) ? $real_content : WP_CONTENT_DIR, '/' );
 		if ( str_starts_with( $dir_resolved, $content_dir ) ) {
 			$relative = substr( $dir_resolved, strlen( $content_dir ) );
 			return content_url( $relative );
