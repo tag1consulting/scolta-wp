@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Added
+- **Sync scolta.js from scolta-php: exact title match boost.** New `exact_title_match_boost` config key (default 5.0x) — when a result's title exactly matches the search query (case-insensitive), applies a large multiplicative boost so it always ranks #1 regardless of BM25 differentials. ([scolta-php#138](https://github.com/tag1consulting/scolta-php/pull/138))
+
 ### Fixed
 - **PHP Notice from `output_dir` ending in `/pagefind` visible to end users.** `render()` now silently strips a trailing `/pagefind` from `output_dir` before using it, preventing double-nested index paths. The `_doing_it_wrong()` warning is gated behind `WP_DEBUG` so end users never see configuration notices on the front-end. ([#90](https://github.com/tag1consulting/scolta-wp/issues/90))
 - **Pagefind bundle URL uses `http://` scheme on HTTPS sites behind reverse proxies.** `dir_to_url()` now applies `set_url_scheme()` to the uploads-derived URL, ensuring the Pagefind bundle and CSS URLs match the page's scheme. Also normalizes symlinked paths via `realpath()` on all comparison branches for consistent path resolution. ([#97](https://github.com/tag1consulting/scolta-wp/issues/97))
