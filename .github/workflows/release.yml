@@ -7,9 +7,32 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
+  check-wp-version:
+    name: Check WordPress version currency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Tested up to matches current WordPress
+        run: |
+          WP_CURRENT=$(curl -s "https://api.wordpress.org/core/version-check/1.7/" \
+            | python3 -c "import sys,json; v=json.load(sys.stdin)['offers'][0]['version']; print('.'.join(v.split('.')[:2]))")
+          echo "Current WordPress version: $WP_CURRENT"
+
+          TESTED=$(grep -i 'Tested up to:' readme.txt | head -1 | sed 's/.*: *//' | tr -d '[:space:]')
+          echo "Plugin Tested up to: $TESTED"
+
+          if [ "$TESTED" != "$WP_CURRENT" ]; then
+            echo "ERROR: readme.txt 'Tested up to: $TESTED' does not match current WordPress $WP_CURRENT"
+            echo "Update readme.txt before releasing. wordpress.org rejects plugins with outdated Tested up to values."
+            exit 1
+          fi
+          echo "OK: Tested up to matches current WordPress version."
+
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
+    needs: check-wp-version
     permissions:
       contents: write
     steps:
