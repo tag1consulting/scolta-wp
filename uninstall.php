@@ -8,7 +8,7 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
-// Remove plugin option.
+// Remove plugin options.
 delete_option( 'scolta_settings' );
 delete_option( 'scolta_resolved_prompts' );
 delete_option( 'scolta_prompt_cache_version' );
@@ -16,6 +16,7 @@ delete_option( 'scolta_generation' );
 delete_option( 'scolta_build_status' );
 delete_option( 'scolta_build_force' );
 delete_option( 'scolta_trust_proxy_headers' );
+delete_option( 'scolta_amazee_credentials' );
 
 // Drop the tracker table.
 global $wpdb;
@@ -32,6 +33,19 @@ $wpdb->query(
 		'_transient_timeout_scolta_%'
 	)
 );
+
+// Clean up user meta for all users.
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall cleanup: bulk delete user meta; no single-user API for wildcard deletion.
+$wpdb->query( "DELETE FROM {$wpdb->usermeta} WHERE meta_key IN ('scolta_dismissed_rebuild_notice', 'scolta_amazee_flow')" );
+
+// Clear Action Scheduler actions (if available).
+if ( function_exists( 'as_unschedule_all_actions' ) ) {
+	as_unschedule_all_actions( 'scolta_rebuild_start', array(), 'scolta' );
+	as_unschedule_all_actions( 'scolta_process_chunk', null, 'scolta' );
+	as_unschedule_all_actions( 'scolta_finalize_build', array(), 'scolta' );
+	as_unschedule_all_actions( 'scolta_debounced_rebuild', array(), 'scolta' );
+	as_unschedule_all_actions( 'scolta_amazee_provision', array(), 'scolta' );
+}
 
 // Remove index directories from uploads.
 if ( ! function_exists( 'WP_Filesystem' ) ) {

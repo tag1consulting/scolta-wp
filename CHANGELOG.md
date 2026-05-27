@@ -15,15 +15,21 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - **Pagefind bundle URL uses `http://` scheme on HTTPS sites behind reverse proxies.** `dir_to_url()` now applies `set_url_scheme()` to the uploads-derived URL, ensuring the Pagefind bundle and CSS URLs match the page's scheme. Also normalizes symlinked paths via `realpath()` on all comparison branches for consistent path resolution. ([#97](https://github.com/tag1consulting/scolta-wp/issues/97))
 - **AI Overview renders `*italic*` markdown as literal asterisks.** Updated `scolta.js` copy from scolta-php to include `*italic*` → `<em>` and `***bold italic***` → `<strong><em>` rendering. ([tag1consulting/scolta-php#125](https://github.com/tag1consulting/scolta-php/issues/125))
 - **Sync scolta.js from scolta-php: multi-value filter array counting.** `computeFilterCounts()` now iterates all values in multi-value filter arrays instead of only counting `val[0]`. Articles tagged with multiple topics now increment each topic in the facet display.
-
-### Fixed
 - **Sync scolta.js from scolta-php: expansion merge scoring fix.** Cross-list results now receive an additive bonus instead of max(score) deduplication. Multi-word expansion terms are no longer word-exploded into individual search queries. JS fallback `EXPAND_PRIMARY_WEIGHT` default aligned with PHP (0.5). New `cross_list_bonus` config key (default 0.15). ([scolta-php#137](https://github.com/tag1consulting/scolta-php/pull/137))
 - **Sync scolta.js from scolta-php: facet count refresh and multi-value OR fix.** Facet sidebar counts now refresh after filter selection. Multi-value facet filters (selecting two+ values in the same dimension) now produce OR (union) results instead of silently returning zero. ([scolta-php#131](https://github.com/tag1consulting/scolta-php/pull/131), [scolta-php#132](https://github.com/tag1consulting/scolta-php/pull/132))
 
 ### Changed
 - **Sync scolta.js from scolta-php: replace sort intersection with filter+sort discovery.** The sort path now discovers available Pagefind filters at init and matches subject_terms keywords against filter values, passing matched filters to Pagefind alongside the sort override. Replaces the fragile subject intersection heuristic. Sites with structured metadata get precise filter+sort; sites without get honest sort-only. ([scolta-php#130](https://github.com/tag1consulting/scolta-php/pull/130))
-- **`tag1/scolta-php` constraint changed from `@dev` to `^1.0@RC` for Packagist compatibility.** Downstream users no longer need `minimum-stability: dev`. The inline `@RC` flag allows RC resolution without affecting the consumer's root stability setting. Drop `@RC` when 1.0.0 stable ships.
-- **`minimum-stability` changed from `dev` to `RC`.** Matches the constraint; local dev still resolves from the path repo.
+- **`tag1/scolta-php` constraint changed from `^1.0@RC` to `^1.0` and `minimum-stability` changed to `stable`.** The `@RC` flag is no longer needed now that 1.0.0 stable is shipping.
+- **`scolta_cleanup_nested_indexes()` now uses `WP_Filesystem` instead of direct `rmdir()` calls.** Required by WordPress.org plugin review guidelines.
+- **Uninstall handler now cleans up `scolta_amazee_credentials` option, user meta (`scolta_dismissed_rebuild_notice`, `scolta_amazee_flow`), and all Action Scheduler hooks.**
+- **Deactivation hook now unschedules `scolta_amazee_provision` Action Scheduler actions.**
+- **`composer.lock` removed from version control.** Consumers generate their own on `composer install`.
+- **Added Amazee.ai to `readme.txt` External Services section** for WordPress.org compliance.
+- **Added WooCommerce FAQ entry to `readme.txt`.**
+- **Added `cleanup` subcommand to README WP-CLI reference.**
+- **Updated `readme.txt` Changelog with rc3 and rc4 entries; updated Upgrade Notice for 1.0.0.**
+- **Added link references to CHANGELOG.md.**
 
 ## [1.0.0-rc4] - 2026-05-18
 
@@ -358,3 +364,25 @@ Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 4
 - Plugin activation/deactivation hooks for tracker table setup and cleanup
 - Settings stored as a single serialized option (`scolta_settings`)
 - Asset enqueueing via `wp_enqueue_script` and `wp_enqueue_style` from scolta-php vendor path
+
+[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc4...HEAD
+[1.0.0-rc4]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc3...1.0.0-rc4
+[1.0.0-rc3]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc2...1.0.0-rc3
+[1.0.0-rc2]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc1...1.0.0-rc2
+[1.0.0-rc1]: https://github.com/tag1consulting/scolta-wp/compare/0.3.10...1.0.0-rc1
+[0.3.10]: https://github.com/tag1consulting/scolta-wp/compare/0.3.9...0.3.10
+[0.3.9]: https://github.com/tag1consulting/scolta-wp/compare/0.3.8...0.3.9
+[0.3.8]: https://github.com/tag1consulting/scolta-wp/compare/0.3.7...0.3.8
+[0.3.7]: https://github.com/tag1consulting/scolta-wp/compare/0.3.6...0.3.7
+[0.3.6]: https://github.com/tag1consulting/scolta-wp/compare/0.3.5...0.3.6
+[0.3.5]: https://github.com/tag1consulting/scolta-wp/compare/0.3.4...0.3.5
+[0.3.4]: https://github.com/tag1consulting/scolta-wp/compare/0.3.3...0.3.4
+[0.3.3]: https://github.com/tag1consulting/scolta-wp/compare/0.3.2...0.3.3
+[0.3.2]: https://github.com/tag1consulting/scolta-wp/compare/0.3.1...0.3.2
+[0.3.1]: https://github.com/tag1consulting/scolta-wp/compare/0.3.0...0.3.1
+[0.3.0]: https://github.com/tag1consulting/scolta-wp/compare/0.2.4...0.3.0
+[0.2.4]: https://github.com/tag1consulting/scolta-wp/compare/0.2.3...0.2.4
+[0.2.3]: https://github.com/tag1consulting/scolta-wp/compare/0.2.2...0.2.3
+[0.2.2]: https://github.com/tag1consulting/scolta-wp/compare/0.2.1...0.2.2
+[0.2.1]: https://github.com/tag1consulting/scolta-wp/compare/0.2.0...0.2.1
+[0.2.0]: https://github.com/tag1consulting/scolta-wp/releases/tag/0.2.0

@@ -42,7 +42,7 @@ zip -r "${ZIP_NAME}" . \
   --exclude "bin/*"
 ```
 
-This creates `scolta-wp-0.2.x.zip` in the current directory.
+This creates `scolta-wp-${VERSION}.zip` in the current directory.
 
 ### 3. Verify the ZIP
 

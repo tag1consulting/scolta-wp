@@ -58,6 +58,10 @@ No. The base search tier works without any API key. AI query expansion and resul
 
 Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). Amazee.ai trial credits are provisioned automatically on first activation when no API key is configured.
 
+= Does this work with WooCommerce? =
+
+Yes. WooCommerce product metadata (price, SKU, stock status, categories) is automatically extracted and indexed. Price is emitted as a sortable field so search results can be sorted by price. WooCommerce ships with Action Scheduler, so automatic background rebuilds work out of the box with no additional dependencies.
+
 = How do I keep the search index up to date? =
 
 Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebuild** in Settings > Scolta. The plugin will automatically queue a rebuild whenever content is saved. WooCommerce sites already have Action Scheduler installed.
@@ -70,6 +74,23 @@ Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebui
 
 == Changelog ==
 
+= 1.0.0-rc4 =
+* Health endpoint now includes index detail: fragment count, last-build timestamp, and integrity status.
+* Exclude vendor test directories and duplicate WASM from release ZIP.
+* Align readme.txt Stable Tag with SCOLTA_VERSION.
+* Add External Services section to readme.txt for WordPress.org compliance.
+* Replace inline script tags with wp_add_inline_script() for WordPress.org compliance.
+* Show Scolta attribution setting (default: off).
+* dir_to_url() now uses wp_upload_dir() baseurl for index paths under the uploads directory.
+* Text domain changed to scolta-ai-search for WordPress.org translation support.
+
+= 1.0.0-rc3 =
+* PCP distribution build: zero errors, zero warnings.
+* VCS repository for scolta-php in composer.json (replaces local path reference).
+* expand_primary_weight now correctly weights original vs. expansion results.
+* WordPress Plugin Check (PCP) compliance for wordpress.org submission.
+* Documentation now clearly attributes Scolta to Tag1 Consulting.
+
 = 1.0.0-rc2 =
 * First release candidate.
 * PHP indexer as the default (no binary required).
@@ -79,8 +100,8 @@ Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebui
 
 == Upgrade Notice ==
 
-= 1.0.0-rc2 =
-First release candidate. No stable upgrade path from pre-1.0 versions.
+= 1.0.0 =
+First stable release. Upgrades from rc2/rc3/rc4 are seamless. If upgrading from pre-1.0 (0.3.x or earlier), rebuild your search index after updating: wp scolta build --force.
 
 == External Services ==
 
@@ -122,6 +143,14 @@ This plugin connects to the following external services under specific condition
 * **WordPress AI Services (wp-ai-services plugin)** — delegates to whichever provider is configured in that plugin. Review the terms and privacy policy of that provider.
 
 No AI API calls are made unless the site administrator has explicitly enabled AI features and configured a valid API key.
+
+= Amazee.ai (amazee.ai) =
+
+**When:** An administrator starts a trial or signs in via Settings > Scolta > Amazee.ai. On activation, if no API key is configured, the plugin may auto-provision trial credentials via Action Scheduler.
+**What is sent:** The administrator's email address (for trial/sign-in), and AI search queries and result excerpts when the Amazee.ai gateway is the active AI provider.
+**Service:** Amazee.ai, a privacy-respecting AI gateway. Credentials are stored encrypted (AES-256-CBC) in the WordPress options table.
+**Terms of Service:** https://amazee.ai/terms
+**Privacy Policy:** https://amazee.ai/privacy
 
 == About Tag1 Consulting ==
 
