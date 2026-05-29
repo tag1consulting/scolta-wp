@@ -2,7 +2,7 @@
 
 Contributors: tag1consulting
 Tags: search, ai, pagefind, artificial intelligence, semantic search
-Requires at least: 6.0
+Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
 Stable Tag: 1.0.1-dev
