@@ -285,6 +285,101 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
+    // -------------------------------------------------------------------
+    // Release workflow excludes non-permitted file types (WP plugin review)
+    // -------------------------------------------------------------------
+
+    public function test_release_workflow_excludes_sha256(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '--exclude "*.sha256"',
+            $workflow,
+            'Release workflow must exclude .sha256 checksum files'
+        );
+    }
+
+    public function test_release_workflow_excludes_vendor_toml(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '--exclude "scolta/vendor/*.toml"',
+            $workflow,
+            'Release workflow must exclude vendor .toml dev config files'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_sha256(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '.sha256$',
+            $workflow,
+            'validate-zip job must check for .sha256 files'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_vendor_toml(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            "scolta/vendor/.*\\.toml",
+            $workflow,
+            'validate-zip job must check for vendor .toml files'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_vendor_php_cs_fixer(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'scolta/vendor/.*\.php-cs-fixer',
+            $workflow,
+            'validate-zip job must check for vendor .php-cs-fixer files'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_vendor_phpstan(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'scolta/vendor/.*phpstan\.neon',
+            $workflow,
+            'validate-zip job must check for vendor phpstan.neon files'
+        );
+    }
+
+    public function test_release_workflow_validate_zip_checks_vendor_phpunit(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            'scolta/vendor/.*phpunit\.xml',
+            $workflow,
+            'validate-zip job must check for vendor phpunit.xml files'
+        );
+    }
+
+    // -------------------------------------------------------------------
+    // .distignore covers non-permitted file types
+    // -------------------------------------------------------------------
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('distignorePatternProvider')]
+    public function test_distignore_contains_pattern(string $pattern): void {
+        $distignore = file_get_contents($this->root . '/.distignore');
+        $this->assertStringContainsString(
+            $pattern,
+            $distignore,
+            ".distignore must contain '$pattern'"
+        );
+    }
+
+    public static function distignorePatternProvider(): array {
+        return [
+            'sha256 checksums' => ['*.sha256'],
+            'vendor toml configs' => ['vendor/**/*.toml'],
+            'vendor php-cs-fixer' => ['vendor/**/.php-cs-fixer*'],
+            'vendor phpstan' => ['vendor/**/phpstan.neon*'],
+            'vendor phpunit' => ['vendor/**/phpunit.xml*'],
+            'vendor test dirs' => ['vendor/**/tests/'],
+            'vendor test singular dirs' => ['vendor/**/test/'],
+            'nested vendor dirs' => ['vendor/*/vendor/'],
+            'vendor scolta-php wasm' => ['vendor/tag1/scolta-php/assets/wasm/'],
+        ];
+    }
+
     public function test_release_workflow_validate_zip_checks_size(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(

@@ -93,7 +93,9 @@ jobs:
             --exclude "scolta/vendor/tag1/scolta-php/assets/wasm/*" \
             --exclude "scolta/vendor/*/phpunit.xml*" \
             --exclude "scolta/vendor/*/phpstan.neon*" \
-            --exclude "scolta/vendor/*/.php-cs-fixer*"
+            --exclude "scolta/vendor/*/.php-cs-fixer*" \
+            --exclude "*.sha256" \
+            --exclude "scolta/vendor/*.toml"
 
 
       - name: Extract CHANGELOG entry
@@ -169,6 +171,41 @@ jobs:
           if grep -qE 'scolta/vendor/.+/test/' zip-contents.txt; then
             echo "ERROR: Archive contains vendor test/ content (must be excluded):"
             grep -E 'scolta/vendor/.+/test/' zip-contents.txt
+            exit 1
+          fi
+
+          # No .sha256 checksum files (dev artifact, not permitted by WP plugin review)
+          if grep -q '\.sha256$' zip-contents.txt; then
+            echo "ERROR: Archive contains .sha256 files (must be excluded):"
+            grep '\.sha256$' zip-contents.txt
+            exit 1
+          fi
+
+          # No .toml files in vendor (dev config, not permitted by WP plugin review)
+          if grep -qE 'scolta/vendor/.*\.toml$' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor .toml files (must be excluded):"
+            grep -E 'scolta/vendor/.*\.toml$' zip-contents.txt
+            exit 1
+          fi
+
+          # No .php-cs-fixer files in vendor
+          if grep -qE 'scolta/vendor/.*\.php-cs-fixer' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor .php-cs-fixer files (must be excluded):"
+            grep -E 'scolta/vendor/.*\.php-cs-fixer' zip-contents.txt
+            exit 1
+          fi
+
+          # No phpstan.neon files in vendor
+          if grep -qE 'scolta/vendor/.*phpstan\.neon' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor phpstan.neon files (must be excluded):"
+            grep -E 'scolta/vendor/.*phpstan\.neon' zip-contents.txt
+            exit 1
+          fi
+
+          # No phpunit.xml files in vendor
+          if grep -qE 'scolta/vendor/.*phpunit\.xml' zip-contents.txt; then
+            echo "ERROR: Archive contains vendor phpunit.xml files (must be excluded):"
+            grep -E 'scolta/vendor/.*phpunit\.xml' zip-contents.txt
             exit 1
           fi
 

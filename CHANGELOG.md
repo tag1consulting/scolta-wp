@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Distribution ZIP no longer contains non-permitted files** (`.sha256` checksums, vendor `.toml` dev configs). Extended `zip --exclude` list and `validate-zip` CI guard to catch these and other vendor dev artifacts (`.php-cs-fixer*`, `phpstan.neon*`, `phpunit.xml*`). Updated `.distignore` as single source of truth. ([#113](https://github.com/tag1consulting/scolta-wp/issues/113))
 - **Recommitted `composer.lock`** (was gitignored in pre-1.0 cleanup). Required for CI release workflow's `composer update tag1/scolta-php` partial update step.
 - **Added nested `vendor/*/vendor/*` exclusion** to release ZIP command, preventing path-repo builds from shipping dev dependencies.
 - **Added ZIP size limit (5 MB) and nested vendor/ check** to `validate-zip` CI job.
