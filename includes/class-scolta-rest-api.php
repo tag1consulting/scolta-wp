@@ -375,7 +375,7 @@ class Scolta_Rest_Api {
 			config: $ai->get_config(),
 			indexOutputDir: $output_dir,
 			pagefindBinaryPath: $settings['pagefind_binary'] ?? null,
-			projectDir: ABSPATH,
+			projectDir: SCOLTA_PLUGIN_DIR,
 		);
 
 		$result = $checker->check();

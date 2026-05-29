@@ -2,11 +2,19 @@
 
 All notable changes to scolta-wp will be documented in this file.
 
-This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages.
+This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages; minor and patch versions are released independently per package.
 
 ## [Unreleased]
 
+### Changed
+- **Decoupled release build from lockstep scolta-php tagging.** `release.yml` no longer checks out scolta-php at the same tag or runs `composer update tag1/scolta-php`. The committed `composer.lock` pins scolta-php to a stable Packagist release (currently 1.0.0), and the release job uses `composer install --no-dev` against that lock. A new `lock-guard` CI job (in both `ci.yml` and `release.yml`) fails if the committed lock pins scolta-php to a path, dev, or pre-release source.
+- **Release archive uses fail-closed allowlist (WP.org review).** The ZIP build now copies enumerated root files, source dirs by PHP extension, and assets by CSS/JS/WASM extension — rather than using a denylist of `--exclude` patterns. This structurally prevents `.sha256`, `.toml`, dev config, and other non-permitted files from shipping. Dependency `LICENSE*` files are retained (required by their licenses). `validate-zip` adds disallowed-extension checks.
+- **Removed redundant VCS repository** for scolta-php from `composer.json` (path repo covers local dev; Packagist covers release).
+
 ### Fixed
+- **REST API health handler uses `SCOLTA_PLUGIN_DIR` not `ABSPATH` (WP.org review).** `class-scolta-rest-api.php` line 378 passed `projectDir: ABSPATH` to `HealthChecker`, which locates the pagefind binary relative to the site root instead of the plugin. Changed to `SCOLTA_PLUGIN_DIR`.
+- **Removed all `ini_set('display_errors')` calls (WP.org review).** 18 occurrences in `cli/class-scolta-cli.php` removed along with their paired `phpcs:ignore` comments and now-empty `finally` blocks. Regression test asserts no `ini_set('display_errors')` or `error_reporting()` calls remain.
+- **Version validation covers all four locations.** `validate-release.php` now checks `readme.txt` `Stable Tag` in addition to `composer.json`, plugin header, and `SCOLTA_VERSION` constant. CLAUDE.md updated accordingly.
 - **Recommitted `composer.lock`** (was gitignored in pre-1.0 cleanup). Required for CI release workflow's `composer update tag1/scolta-php` partial update step.
 - **Added nested `vendor/*/vendor/*` exclusion** to release ZIP command, preventing path-repo builds from shipping dev dependencies.
 - **Added ZIP size limit (5 MB) and nested vendor/ check** to `validate-zip` CI job.

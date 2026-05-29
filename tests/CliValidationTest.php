@@ -197,39 +197,21 @@ class CliValidationTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // display_errors suppression (managed hosting fix)
+    // No ini_set('display_errors') or error_reporting() (WP.org review)
     // -------------------------------------------------------------------
 
-    public function test_public_commands_suppress_display_errors(): void {
-        // Every public command method must open with ini_set('display_errors','0')
-        // and restore it in a finally block.
+    public function test_cli_contains_no_ini_set_display_errors(): void {
         $source = file_get_contents(dirname(__DIR__) . '/cli/class-scolta-cli.php');
-        $this->assertMatchesRegularExpression(
-            "/ini_set\s*\(\s*'display_errors'\s*,\s*'0'\s*\)/",
+        $this->assertDoesNotMatchRegularExpression(
+            "/ini_set\s*\(\s*'display_errors'/",
             $source,
-            'CLI handlers must suppress display_errors'
+            'CLI must not contain ini_set(\'display_errors\') — removed per WP.org plugin review'
         );
-        $this->assertStringContainsString(
-            'finally',
+        $this->assertDoesNotMatchRegularExpression(
+            '/\berror_reporting\s*\(/',
             $source,
-            'CLI handlers must use finally to restore display_errors'
+            'CLI must not contain error_reporting() calls'
         );
-    }
-
-    public function test_display_errors_is_restored_after_clear_cache(): void {
-        // clear_cache completes successfully with WP stubs, so we can
-        // verify that ini_set('display_errors','0') is in effect during the
-        // call and restored afterward via the finally block.
-        $prev = ini_get('display_errors');
-        ini_set('display_errors', '1');
-
-        $cli = new \Scolta_CLI();
-        $cli->clear_cache([], []);
-
-        $this->assertEquals('1', ini_get('display_errors'),
-            'display_errors must be restored to its prior value after command returns');
-
-        ini_set('display_errors', $prev);
     }
 
     // -------------------------------------------------------------------
