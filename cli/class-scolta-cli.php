@@ -278,8 +278,10 @@ class Scolta_CLI {
 	 */
 	private function find_wp_cli_bin(): ?string {
 		// argv[0] is the path to the current WP-CLI executable.
-		if ( ! empty( $_SERVER['argv'][0] ) && is_executable( $_SERVER['argv'][0] ) ) {
-			return $_SERVER['argv'][0];
+		$argv0 = ! empty( $_SERVER['argv'][0] )
+			? sanitize_text_field( wp_unslash( $_SERVER['argv'][0] ) ) : '';
+		if ( '' !== $argv0 && is_executable( $argv0 ) ) {
+			return $argv0;
 		}
 
 		// Fall back to PATH.

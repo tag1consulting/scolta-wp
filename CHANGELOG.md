@@ -6,6 +6,10 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **Raised minimum WordPress version to 6.1 (Plugin Check).** `wp_cache_flush_group()` requires WP 6.1; Plugin Check flags the call regardless of the `function_exists()` guard. Removed the dead `wp_cache_flush()` fallback. WP 6.0 is EOL.
+- **Sanitized `$_SERVER` reads (Plugin Check).** Wrapped `$_SERVER['argv'][0]` in CLI and `$_SERVER['SCOLTA_API_KEY']`/`$_ENV['SCOLTA_API_KEY']` in AI service with `sanitize_text_field( wp_unslash() )`.
+
 ### Changed
 - **Extracted distribution build into reusable scripts.** Inline build logic from `release.yml` moved to `scripts/build-dist.sh`; inline validation moved to `scripts/validate-dist.sh`. Both release and CI workflows call the scripts. New `dist-build` CI job runs build + validate on every PR/push, catching regressions before a tag is cut.
 - **Decoupled release build from lockstep scolta-php tagging.** `release.yml` no longer checks out scolta-php at the same tag or runs `composer update tag1/scolta-php`. The committed `composer.lock` pins scolta-php to a stable Packagist release (currently 1.0.0), and the release job uses `composer install --no-dev` against that lock. A new `lock-guard` CI job (in both `ci.yml` and `release.yml`) fails if the committed lock pins scolta-php to a path, dev, or pre-release source.
