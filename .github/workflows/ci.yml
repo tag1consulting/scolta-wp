@@ -185,6 +185,32 @@ jobs:
           print(f"Lock guard OK: tag1/scolta-php {ver} via {dist}")
           PY
 
+  dist-build:
+    name: Distribution archive build + validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl
+          coverage: none
+
+      - name: Install dependencies (no dev)
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Build distribution archive
+        run: |
+          VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
+          bash scripts/build-dist.sh "$VERSION"
+
+      - name: Validate distribution archive
+        run: |
+          VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
+          bash scripts/validate-dist.sh "scolta-${VERSION}.zip"
+
   antipatterns:
     runs-on: ubuntu-latest
     steps:
