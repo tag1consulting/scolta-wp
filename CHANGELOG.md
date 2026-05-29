@@ -6,17 +6,11 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-29
+
 ### Fixed
 - **Raised minimum WordPress version to 6.1 (Plugin Check).** `wp_cache_flush_group()` requires WP 6.1; Plugin Check flags the call regardless of the `function_exists()` guard. Removed the dead `wp_cache_flush()` fallback. WP 6.0 is EOL.
 - **Sanitized `$_SERVER` reads (Plugin Check).** Wrapped `$_SERVER['argv'][0]` in CLI and `$_SERVER['SCOLTA_API_KEY']`/`$_ENV['SCOLTA_API_KEY']` in AI service with `sanitize_text_field( wp_unslash() )`.
-
-### Changed
-- **Extracted distribution build into reusable scripts.** Inline build logic from `release.yml` moved to `scripts/build-dist.sh`; inline validation moved to `scripts/validate-dist.sh`. Both release and CI workflows call the scripts. New `dist-build` CI job runs build + validate on every PR/push, catching regressions before a tag is cut.
-- **Decoupled release build from lockstep scolta-php tagging.** `release.yml` no longer checks out scolta-php at the same tag or runs `composer update tag1/scolta-php`. The committed `composer.lock` pins scolta-php to a stable Packagist release (currently 1.0.0), and the release job uses `composer install --no-dev` against that lock. A new `lock-guard` CI job (in both `ci.yml` and `release.yml`) fails if the committed lock pins scolta-php to a path, dev, or pre-release source.
-- **Release archive uses fail-closed allowlist (WP.org review).** The ZIP build now copies enumerated root files, source dirs by PHP extension, and assets by CSS/JS/WASM extension — rather than using a denylist of `--exclude` patterns. This structurally prevents `.sha256`, `.toml`, dev config, and other non-permitted files from shipping. Dependency `LICENSE*` files are retained (required by their licenses). `validate-zip` adds disallowed-extension checks.
-- **Removed redundant VCS repository** for scolta-php from `composer.json` (path repo covers local dev; Packagist covers release).
-
-### Fixed
 - **REST API health handler uses `SCOLTA_PLUGIN_DIR` not `ABSPATH` (WP.org review).** `class-scolta-rest-api.php` line 378 passed `projectDir: ABSPATH` to `HealthChecker`, which locates the pagefind binary relative to the site root instead of the plugin. Changed to `SCOLTA_PLUGIN_DIR`.
 - **Removed all `ini_set('display_errors')` calls (WP.org review).** 18 occurrences in `cli/class-scolta-cli.php` removed along with their paired `phpcs:ignore` comments and now-empty `finally` blocks. Regression test asserts no `ini_set('display_errors')` or `error_reporting()` calls remain.
 - **Version validation covers all four locations.** `validate-release.php` now checks `readme.txt` `Stable Tag` in addition to `composer.json`, plugin header, and `SCOLTA_VERSION` constant. CLAUDE.md updated accordingly.
@@ -26,6 +20,12 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 - **Structural tests** to prevent `.gitignore` regression on `composer.lock` and ensure release workflow hardening persists.
 - **Updated `readme.txt` Tested up to WordPress 7.0** (was 6.9). wordpress.org rejects uploads where this value is below the current WordPress version.
 - **Added `check-wp-version` job to release workflow** that queries the WordPress API and fails the release if `Tested up to` is stale. Runs before the build job so stale versions are caught before creating the ZIP or GitHub release.
+
+### Changed
+- **Extracted distribution build into reusable scripts.** Inline build logic from `release.yml` moved to `scripts/build-dist.sh`; inline validation moved to `scripts/validate-dist.sh`. Both release and CI workflows call the scripts. New `dist-build` CI job runs build + validate on every PR/push, catching regressions before a tag is cut.
+- **Decoupled release build from lockstep scolta-php tagging.** `release.yml` no longer checks out scolta-php at the same tag or runs `composer update tag1/scolta-php`. The committed `composer.lock` pins scolta-php to a stable Packagist release (currently 1.0.0), and the release job uses `composer install --no-dev` against that lock. A new `lock-guard` CI job (in both `ci.yml` and `release.yml`) fails if the committed lock pins scolta-php to a path, dev, or pre-release source.
+- **Release archive uses fail-closed allowlist (WP.org review).** The ZIP build now copies enumerated root files, source dirs by PHP extension, and assets by CSS/JS/WASM extension — rather than using a denylist of `--exclude` patterns. This structurally prevents `.sha256`, `.toml`, dev config, and other non-permitted files from shipping. Dependency `LICENSE*` files are retained (required by their licenses). `validate-zip` adds disallowed-extension checks.
+- **Removed redundant VCS repository** for scolta-php from `composer.json` (path repo covers local dev; Packagist covers release).
 
 ## [1.0.0] - 2026-05-27
 
@@ -388,7 +388,8 @@ Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 4
 - Settings stored as a single serialized option (`scolta_settings`)
 - Asset enqueueing via `wp_enqueue_script` and `wp_enqueue_style` from scolta-php vendor path
 
-[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc4...v1.0.0
 [1.0.0-rc4]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc3...1.0.0-rc4
 [1.0.0-rc3]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc2...1.0.0-rc3

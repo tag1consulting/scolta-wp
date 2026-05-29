@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.1-dev
+Stable Tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -74,6 +74,19 @@ Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebui
 
 == Changelog ==
 
+= 1.0.1 =
+* WordPress.org review fixes: dist allowlist with CI guard, REST SCOLTA_PLUGIN_DIR, removed CLI display_errors.
+* Decoupled release build from lockstep scolta-php tagging (composer.lock pins scolta-php 1.0.0 from Packagist).
+* Plugin Check fixes: Requires-at-least 6.1, $_SERVER sanitization.
+* Extracted dist build/validate into reusable scripts.
+* Added check-wp-version job to release workflow.
+
+= 1.0.0 =
+* First stable release.
+* Exact title match boost, filter exact-match-first, expansion merge scoring fix.
+* Facet count refresh and multi-value OR fix, sort intersection replaced with filter+sort discovery.
+* Minimum stability changed to stable, WP_Filesystem for cleanup, uninstall handler improvements.
+
 = 1.0.0-rc4 =
 * Health endpoint now includes index detail: fragment count, last-build timestamp, and integrity status.
 * Exclude vendor test directories and duplicate WASM from release ZIP.
@@ -99,6 +112,9 @@ Install [Action Scheduler](https://actionscheduler.org/) and enable **auto_rebui
 * Configurable memory profiles: conservative (96 MB), balanced (384 MB), aggressive (1 GB).
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+WordPress.org resubmission: review fixes, Plugin Check compliance, decoupled release build. No data migration needed.
 
 = 1.0.0 =
 First stable release. Upgrades from rc2/rc3/rc4 are seamless. If upgrading from pre-1.0 (0.3.x or earlier), rebuild your search index after updating: wp scolta build --force.
