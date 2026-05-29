@@ -2,7 +2,7 @@
 
 ## Versioning (CRITICAL — read scolta-core/VERSIONING.md)
 
-Major versions are synchronized across all Scolta packages. This is a platform adapter — it depends on scolta-php, never on scolta-core directly.
+Major versions are synchronized across all Scolta packages; minor and patch versions are released independently per package. Adapters pin scolta-php via `composer.lock` within their `^1.x` constraint. This is a platform adapter — it depends on scolta-php, never on scolta-core directly.
 
 ### Rules
 
@@ -14,11 +14,15 @@ Major versions are synchronized across all Scolta packages. This is a platform a
 
 ### Version management and -dev workflow
 
-The version appears in THREE places for WordPress: `composer.json`, the plugin header comment in `scolta.php`, and the `SCOLTA_VERSION` constant. **All three must match.** See scolta-core/VERSIONING.md for the full workflow. In Composer, `-dev` prevents accidental production installs without an explicit `@dev` flag.
+The version appears in FOUR places for WordPress: `composer.json`, the plugin header comment in `scolta.php`, the `SCOLTA_VERSION` constant, and `readme.txt` `Stable Tag`. **All four must match.** See scolta-core/VERSIONING.md for the full workflow. In Composer, `-dev` prevents accidental production installs without an explicit `@dev` flag.
 
 - If current version has `-dev`, **do not change it** — multiple commits accumulate on one dev version.
 - If current version is a bare release and you're making the first change after it, bump to next target with `-dev` in all three locations.
 - **WARNING:** Never commit a bare version bump without tagging it as a release.
+
+### Local cross-package development
+
+To test against un-released scolta-php locally, run `composer config minimum-stability dev && composer require tag1/scolta-php:@dev` (the path repo then supplies the dev build). **Do not commit the result** — the release lock must stay Packagist-stable. The CI lock guard enforces this.
 
 ### WordPress conventions
 

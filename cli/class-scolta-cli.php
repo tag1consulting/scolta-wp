@@ -105,17 +105,10 @@ class Scolta_CLI {
 	 * @subcommand build
 	 */
 	public function build( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_build( $args, $assoc_args );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -450,17 +443,10 @@ class Scolta_CLI {
 	 * @subcommand diagnose
 	 */
 	public function diagnose( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_diagnose( $assoc_args );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -705,10 +691,6 @@ class Scolta_CLI {
 	 * @subcommand export
 	 */
 	public function export( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$incremental = \WP_CLI\Utils\get_flag_value( $assoc_args, 'incremental', false );
 			$settings    = get_option( 'scolta_settings', array() );
@@ -756,9 +738,6 @@ class Scolta_CLI {
 			\WP_CLI::success( 'Export complete.' );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -771,10 +750,6 @@ class Scolta_CLI {
 	 * @subcommand rebuild-index
 	 */
 	public function rebuild_index( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$settings        = get_option( 'scolta_settings', array() );
 			$indexer_setting = $settings['indexer'] ?? 'auto';
@@ -805,9 +780,6 @@ class Scolta_CLI {
 			$this->run_pagefind( $binary, $build_dir, $output_dir );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -820,17 +792,10 @@ class Scolta_CLI {
 	 * @subcommand status
 	 */
 	public function status( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_status();
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -950,10 +915,6 @@ class Scolta_CLI {
 	 * @subcommand clear-cache
 	 */
 	public function clear_cache( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$generation = (int) get_option( 'scolta_generation', 0 );
 			update_option( 'scolta_generation', $generation + 1 );
@@ -971,9 +932,6 @@ class Scolta_CLI {
 			\WP_CLI::success( "Scolta caches cleared (generation counter incremented, {$deleted} transients deleted)." );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -995,17 +953,10 @@ class Scolta_CLI {
 	 * @subcommand cleanup
 	 */
 	public function cleanup( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_cleanup();
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -1134,10 +1085,6 @@ class Scolta_CLI {
 	 * @subcommand check-setup
 	 */
 	public function check_setup( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$settings = get_option( 'scolta_settings', array() );
 			$ai       = \Scolta_Ai_Service::from_options();
@@ -1171,9 +1118,6 @@ class Scolta_CLI {
 			}
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 
@@ -1186,17 +1130,10 @@ class Scolta_CLI {
 	 * @subcommand download-pagefind
 	 */
 	public function download_pagefind( array $args, array $assoc_args ): void {
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		$prev = ini_get( 'display_errors' );
-		// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-		ini_set( 'display_errors', '0' );
 		try {
 			$this->do_download_pagefind();
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
-		} finally {
-			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- CLI requires suppressing display_errors to keep output clean.
-			ini_set( 'display_errors', $prev );
 		}
 	}
 

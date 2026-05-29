@@ -262,4 +262,17 @@ class RestApiValidationTest extends TestCase {
         }
         return end($messages)['role'] === 'user';
     }
+
+    // -------------------------------------------------------------------
+    // ABSPATH regression (WP.org review)
+    // -------------------------------------------------------------------
+
+    public function test_rest_api_health_uses_plugin_dir_not_abspath(): void {
+        $source = file_get_contents(dirname(__DIR__) . '/includes/class-scolta-rest-api.php');
+        $this->assertStringNotContainsString(
+            'projectDir: ABSPATH',
+            $source,
+            'REST API health handler must use SCOLTA_PLUGIN_DIR, not ABSPATH'
+        );
+    }
 }

@@ -16,7 +16,7 @@ use Yoast\PHPUnitPolyfills\TestCases\TestCase;
  * These tests exercise the full dispatch path by subclassing Scolta_CLI,
  * overriding the protected pipeline methods to record invocations, and
  * calling do_build() via reflection (it is private — the public entry point
- * build() adds try/catch + ini_set noise that is not relevant here).
+ * build() adds try/catch that is not relevant here).
  *
  * do_build_php() and do_build_binary() were changed from private to protected
  * to allow this subclassing. That is the minimal refactor required; no logic

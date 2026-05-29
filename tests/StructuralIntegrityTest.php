@@ -200,9 +200,9 @@ class StructuralIntegrityTest extends TestCase {
     public function test_release_workflow_creates_correct_zip_folder(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            'mv package scolta',
+            'PKG="scolta"',
             $workflow,
-            'Release workflow must rename package dir to scolta before zipping'
+            'Release workflow must set PKG to scolta for the zip folder name'
         );
         $this->assertStringNotContainsString(
             'zip -r ../scolta-${VERSION}.zip .',
@@ -211,21 +211,21 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
-    public function test_release_workflow_excludes_vendor_test_singular(): void {
+    public function test_release_workflow_prunes_vendor_test_dirs(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            '--exclude "scolta/vendor/*/test/*"',
+            '-name tests -o -name test',
             $workflow,
-            'Release workflow must exclude vendor test/ directories (singular — e.g. wamania/php-stemmer/test/files/)'
+            'Release workflow must prune vendor test/ and tests/ directories from the staged archive'
         );
     }
 
-    public function test_release_workflow_excludes_vendor_wasm(): void {
+    public function test_release_workflow_removes_vendor_wasm(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            '--exclude "scolta/vendor/tag1/scolta-php/assets/wasm/*"',
+            'vendor/tag1/scolta-php/assets/wasm',
             $workflow,
-            'Release workflow must exclude duplicate WASM from vendor/tag1/scolta-php/assets/wasm/'
+            'Release workflow must remove duplicate WASM from vendor/tag1/scolta-php/assets/wasm/'
         );
     }
 
@@ -267,12 +267,26 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
-    public function test_release_workflow_excludes_nested_vendor(): void {
+    public function test_release_workflow_has_lock_guard(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            '--exclude "scolta/vendor/*/vendor/*"',
+            'LOCK GUARD FAILED',
             $workflow,
-            'Release workflow must exclude nested vendor/ directories to prevent path-repo build leaks'
+            'Release workflow must include the scolta-php lock-source guard'
+        );
+    }
+
+    public function test_release_workflow_has_disallowed_extension_guard(): void {
+        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+        $this->assertStringContainsString(
+            '.sha256',
+            $workflow,
+            'validate-zip must check for disallowed .sha256 files'
+        );
+        $this->assertStringContainsString(
+            '.toml',
+            $workflow,
+            'validate-zip must check for disallowed .toml files'
         );
     }
 
