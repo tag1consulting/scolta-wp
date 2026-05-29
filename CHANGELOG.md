@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Changed
+- **Extracted distribution build into reusable scripts.** Inline build logic from `release.yml` moved to `scripts/build-dist.sh`; inline validation moved to `scripts/validate-dist.sh`. Both release and CI workflows call the scripts. New `dist-build` CI job runs build + validate on every PR/push, catching regressions before a tag is cut.
 - **Decoupled release build from lockstep scolta-php tagging.** `release.yml` no longer checks out scolta-php at the same tag or runs `composer update tag1/scolta-php`. The committed `composer.lock` pins scolta-php to a stable Packagist release (currently 1.0.0), and the release job uses `composer install --no-dev` against that lock. A new `lock-guard` CI job (in both `ci.yml` and `release.yml`) fails if the committed lock pins scolta-php to a path, dev, or pre-release source.
 - **Release archive uses fail-closed allowlist (WP.org review).** The ZIP build now copies enumerated root files, source dirs by PHP extension, and assets by CSS/JS/WASM extension — rather than using a denylist of `--exclude` patterns. This structurally prevents `.sha256`, `.toml`, dev config, and other non-permitted files from shipping. Dependency `LICENSE*` files are retained (required by their licenses). `validate-zip` adds disallowed-extension checks.
 - **Removed redundant VCS repository** for scolta-php from `composer.json` (path repo covers local dev; Packagist covers release).

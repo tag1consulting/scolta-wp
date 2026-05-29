@@ -194,56 +194,113 @@ class StructuralIntegrityTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // Release workflow produces correct ZIP folder structure
+    // Distribution scripts exist and are executable
     // -------------------------------------------------------------------
 
-    public function test_release_workflow_creates_correct_zip_folder(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_build_dist_script_exists(): void {
+        $this->assertFileExists($this->root . '/scripts/build-dist.sh');
+    }
+
+    public function test_validate_dist_script_exists(): void {
+        $this->assertFileExists($this->root . '/scripts/validate-dist.sh');
+    }
+
+    // -------------------------------------------------------------------
+    // Build script produces correct ZIP folder structure
+    // -------------------------------------------------------------------
+
+    public function test_build_script_creates_correct_zip_folder(): void {
+        $script = file_get_contents($this->root . '/scripts/build-dist.sh');
         $this->assertStringContainsString(
             'PKG="scolta"',
-            $workflow,
-            'Release workflow must set PKG to scolta for the zip folder name'
-        );
-        $this->assertStringNotContainsString(
-            'zip -r ../scolta-${VERSION}.zip .',
-            $workflow,
-            'Must not zip from current dir (creates flat archive without scolta/ folder)'
+            $script,
+            'Build script must set PKG to scolta for the zip folder name'
         );
     }
 
-    public function test_release_workflow_prunes_vendor_test_dirs(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_build_script_prunes_vendor_test_dirs(): void {
+        $script = file_get_contents($this->root . '/scripts/build-dist.sh');
         $this->assertStringContainsString(
             '-name tests -o -name test',
-            $workflow,
-            'Release workflow must prune vendor test/ and tests/ directories from the staged archive'
+            $script,
+            'Build script must prune vendor test/ and tests/ directories from the staged archive'
         );
     }
 
-    public function test_release_workflow_removes_vendor_wasm(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_build_script_removes_vendor_wasm(): void {
+        $script = file_get_contents($this->root . '/scripts/build-dist.sh');
         $this->assertStringContainsString(
             'vendor/tag1/scolta-php/assets/wasm',
-            $workflow,
-            'Release workflow must remove duplicate WASM from vendor/tag1/scolta-php/assets/wasm/'
+            $script,
+            'Build script must remove duplicate WASM from vendor/tag1/scolta-php/assets/wasm/'
         );
     }
 
-    public function test_release_workflow_validate_zip_checks_test_singular(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_build_script_excludes_disallowed_extensions(): void {
+        $script = file_get_contents($this->root . '/scripts/build-dist.sh');
+        $this->assertStringContainsString(
+            '*.sha256',
+            $script,
+            'Build script must delete .sha256 files from vendor'
+        );
+        $this->assertStringContainsString(
+            '*.toml',
+            $script,
+            'Build script must delete .toml files from vendor'
+        );
+    }
+
+    // -------------------------------------------------------------------
+    // Validate script checks archive integrity
+    // -------------------------------------------------------------------
+
+    public function test_validate_script_checks_test_singular(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
         $this->assertStringContainsString(
             "scolta/vendor/.+/test/",
-            $workflow,
-            'validate-zip job must check for vendor test/ directories (singular)'
+            $script,
+            'Validate script must check for vendor test/ directories (singular)'
         );
     }
 
-    public function test_release_workflow_validate_zip_checks_no_vendor_wasm(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_validate_script_checks_no_vendor_wasm(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
         $this->assertStringContainsString(
             'scolta/vendor/tag1/scolta-php/assets/wasm/',
-            $workflow,
-            'validate-zip job must check that vendor WASM is excluded'
+            $script,
+            'Validate script must check that vendor WASM is excluded'
+        );
+    }
+
+    public function test_validate_script_checks_nested_vendor(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        $this->assertStringContainsString(
+            "scolta/vendor/[^/]+/vendor/",
+            $script,
+            'Validate script must check for nested vendor/ directories'
+        );
+    }
+
+    public function test_validate_script_checks_size(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        $this->assertStringContainsString(
+            'ZIP_SIZE',
+            $script,
+            'Validate script must include a ZIP size check'
+        );
+    }
+
+    public function test_validate_script_checks_disallowed_extensions(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        $this->assertStringContainsString(
+            '.sha256',
+            $script,
+            'Validate script must check for disallowed .sha256 files'
+        );
+        $this->assertStringContainsString(
+            '.toml',
+            $script,
+            'Validate script must check for disallowed .toml files'
         );
     }
 
@@ -276,35 +333,30 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
-    public function test_release_workflow_has_disallowed_extension_guard(): void {
+    public function test_release_workflow_calls_build_script(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            '.sha256',
+            'scripts/build-dist.sh',
             $workflow,
-            'validate-zip must check for disallowed .sha256 files'
-        );
-        $this->assertStringContainsString(
-            '.toml',
-            $workflow,
-            'validate-zip must check for disallowed .toml files'
+            'Release workflow must call scripts/build-dist.sh'
         );
     }
 
-    public function test_release_workflow_validate_zip_checks_nested_vendor(): void {
+    public function test_release_workflow_calls_validate_script(): void {
         $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
         $this->assertStringContainsString(
-            "scolta/vendor/[^/]+/vendor/",
+            'scripts/validate-dist.sh',
             $workflow,
-            'validate-zip job must check for nested vendor/ directories'
+            'Release workflow must call scripts/validate-dist.sh'
         );
     }
 
-    public function test_release_workflow_validate_zip_checks_size(): void {
-        $workflow = file_get_contents($this->root . '/.github/workflows/release.yml');
+    public function test_ci_has_dist_build_job(): void {
+        $ci = file_get_contents($this->root . '/.github/workflows/ci.yml');
         $this->assertStringContainsString(
-            'ZIP_SIZE',
-            $workflow,
-            'validate-zip job must include a ZIP size check'
+            'dist-build',
+            $ci,
+            'CI workflow must include a dist-build job to catch build regressions on PRs'
         );
     }
 
