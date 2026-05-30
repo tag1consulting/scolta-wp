@@ -8,6 +8,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ### Changed
 - Opened 1.0.2-dev development cycle.
+- Export files now use nested directory layout mirroring canonical URLs instead of flat `{id}.html`, aligning binary indexer output with PHP indexer (scolta-php#157).
+- HTML file counting in status/health uses recursive directory walk instead of flat glob.
+- AI summary citation URLs now prefer canonical `meta.url` over Pagefind file path.
 
 ## [1.0.1] - 2026-05-29
 
