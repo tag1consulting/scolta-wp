@@ -1405,8 +1405,7 @@ class Scolta_Admin {
 		// The PHP pipeline writes the index format directly; no HTML staging files are produced.
 		if ( ! $uses_php_pipeline ) {
 			if ( is_dir( $build_dir ) ) {
-				$glob_result = glob( $build_dir . '/*.html' );
-				$html_count  = count( ! empty( $glob_result ) ? $glob_result : array() );
+				$html_count = \Tag1\Scolta\Export\ContentExporter::countHtmlFiles( $build_dir );
 				echo '<tr><td>' . esc_html__( 'Exported HTML files', 'scolta-ai-search' ) . '</td>';
 				echo '<td>' . esc_html( $html_count ) . '</td></tr>';
 			} else {

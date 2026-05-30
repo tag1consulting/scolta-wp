@@ -6,8 +6,13 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-30
+
 ### Changed
 - Opened 1.0.2-dev development cycle.
+- Export files now use nested directory layout mirroring canonical URLs instead of flat `{id}.html`, aligning binary indexer output with PHP indexer (scolta-php#157).
+- HTML file counting in status/health uses recursive directory walk instead of flat glob.
+- AI summary citation URLs now prefer canonical `meta.url` over Pagefind file path.
 
 ## [1.0.1] - 2026-05-29
 
@@ -391,7 +396,8 @@ Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 4
 - Settings stored as a single serialized option (`scolta_settings`)
 - Asset enqueueing via `wp_enqueue_script` and `wp_enqueue_style` from scolta-php vendor path
 
-[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc4...v1.0.0
 [1.0.0-rc4]: https://github.com/tag1consulting/scolta-wp/compare/1.0.0-rc3...1.0.0-rc4

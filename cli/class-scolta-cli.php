@@ -343,10 +343,7 @@ class Scolta_CLI {
 		// Handle deletions first.
 		$deleted_ids = $source->get_deleted_ids();
 		foreach ( $deleted_ids as $id ) {
-			$filepath = rtrim( $build_dir, '/' ) . '/' . $id . '.html';
-			if ( file_exists( $filepath ) ) {
-				wp_delete_file( $filepath );
-			}
+			$exporter->deleteById( $id );
 		}
 		if ( count( $deleted_ids ) > 0 ) {
 			\WP_CLI::log( '  Removed ' . count( $deleted_ids ) . ' deleted items.' );
@@ -380,6 +377,8 @@ class Scolta_CLI {
 		if ( $progress ) {
 			$progress->finish();
 		}
+
+		$exporter->writeManifest();
 
 		\WP_CLI::log( "  Exported: {$exported}, Skipped (insufficient content): {$skipped}" );
 
@@ -718,10 +717,7 @@ class Scolta_CLI {
 
 			$deleted_ids = $source->get_deleted_ids();
 			foreach ( $deleted_ids as $id ) {
-				$filepath = rtrim( $build_dir, '/' ) . '/' . $id . '.html';
-				if ( file_exists( $filepath ) ) {
-					wp_delete_file( $filepath );
-				}
+				$exporter->deleteById( $id );
 			}
 
 			$items = $incremental
@@ -733,6 +729,8 @@ class Scolta_CLI {
 			foreach ( $items as $item ) {
 				$exporter->export( $item ) ? $exported++ : $skipped++;
 			}
+
+			$exporter->writeManifest();
 
 			\WP_CLI::log( "  Exported: {$exported}, Skipped: {$skipped}" );
 			\WP_CLI::log( "  Output directory: {$build_dir}" );
@@ -828,8 +826,7 @@ class Scolta_CLI {
 		// Build directory.
 		\WP_CLI::log( '--- Build Directory ---' );
 		if ( is_dir( $build_dir ) ) {
-			$glob_result = glob( $build_dir . '/*.html' );
-			$html_count  = count( ! empty( $glob_result ) ? $glob_result : array() );
+			$html_count = ContentExporter::countHtmlFiles( $build_dir );
 			\WP_CLI::log( "  Path:       {$build_dir}" );
 			\WP_CLI::log( "  HTML files: {$html_count}" );
 		} else {
@@ -1235,8 +1232,7 @@ class Scolta_CLI {
 			return;
 		}
 
-		$glob_html  = glob( $build_dir . '/*.html' );
-		$html_count = count( ! empty( $glob_html ) ? $glob_html : array() );
+		$html_count = ContentExporter::countHtmlFiles( $build_dir );
 		if ( $html_count === 0 ) {
 			\WP_CLI::error( "No HTML files in {$build_dir}. Export content first." );
 			return;
