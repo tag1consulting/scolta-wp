@@ -9,8 +9,14 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ### Fixed
 - **AI Provider settings field now reflects the saved provider instead of always showing Amazee when Amazee credentials are present** (display-only bug; the persisted value and live API calls were already correct). The field renderer forced the selected option to `amazee` whenever `get_api_key_source()` detected Amazee credentials (e.g. an auto-provisioned trial), ignoring the saved `ai_provider`. The explicitly-saved provider now wins; source auto-detection is only a fallback for the empty state (no provider ever saved). Added `AdminProviderFieldTest` covering the render. (#123)
 
+### Added
+- **`expand_subword_max_frequency` scoring setting (default `0.05`).** New admin field (Scoring section) + sanitizer + activation default for the scolta-php sub-word frequency guard (scolta-php#156). Controls when a multi-word expansion term's constituent words are searched on their own — restoring broad-query recall while blocking high-frequency noise.
+
 ### Changed
 - Opened 1.0.3-dev development cycle.
+- **Scoring default tuning (matches scolta-php):** `cross_list_bonus` `0.15` → `0.05`, `recency_boost_max` `0.5` → `0.25`, `title_match_boost` `1.0` → `2.0` in activation defaults and admin field defaults.
+
+> Note: the corresponding `assets/js/scolta.js` (frequency-guarded sub-word expansion, scolta-php#156) is synced automatically via the `post-install`/`post-update` composer hook once the scolta-php dependency is updated to the release that contains it. This PR adds the adapter-side settings plumbing so the new control is wired and ready.
 
 ## [1.0.2] - 2026-05-30
 

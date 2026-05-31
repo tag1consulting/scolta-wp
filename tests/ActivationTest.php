@@ -40,14 +40,16 @@ class ActivationTest extends TestCase {
         scolta_activate();
 
         $settings = get_option('scolta_settings');
-        $this->assertEquals(1.0, $settings['title_match_boost']);
+        $this->assertEquals(2.0, $settings['title_match_boost']);
         $this->assertEquals(1.5, $settings['title_all_terms_multiplier']);
         $this->assertEquals(0.4, $settings['content_match_boost']);
-        $this->assertEquals(0.5, $settings['recency_boost_max']);
+        $this->assertEquals(0.25, $settings['recency_boost_max']);
         $this->assertEquals(365, $settings['recency_half_life_days']);
         $this->assertEquals(1825, $settings['recency_penalty_after_days']);
         $this->assertEquals(0.3, $settings['recency_max_penalty']);
         $this->assertEquals(0.5, $settings['expand_primary_weight']);
+        $this->assertEquals(0.05, $settings['cross_list_bonus']);
+        $this->assertEquals(0.05, $settings['expand_subword_max_frequency']);
     }
 
     public function test_activation_sets_display_defaults(): void {

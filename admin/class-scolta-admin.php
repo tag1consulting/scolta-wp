@@ -223,6 +223,7 @@ class Scolta_Admin {
 		add_settings_field( 'recency_penalty_after_days', __( 'Recency Penalty After (days)', 'scolta-ai-search' ), array( self::class, 'render_recency_penalty_days_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_max_penalty', __( 'Recency Max Penalty', 'scolta-ai-search' ), array( self::class, 'render_recency_max_penalty_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expand_primary_weight', __( 'Expand Primary Weight', 'scolta-ai-search' ), array( self::class, 'render_expand_weight_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'expand_subword_max_frequency', __( 'Sub-word Max Frequency', 'scolta-ai-search' ), array( self::class, 'render_subword_freq_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'language', __( 'Scoring Language', 'scolta-ai-search' ), array( self::class, 'render_language_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'custom_stop_words', __( 'Custom Stop Words', 'scolta-ai-search' ), array( self::class, 'render_custom_stop_words_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_strategy', __( 'Recency Strategy', 'scolta-ai-search' ), array( self::class, 'render_recency_strategy_field' ), 'scolta', 'scolta_scoring_section' );
@@ -732,10 +733,10 @@ class Scolta_Admin {
 	// -- Scoring fields --
 
 	public static function render_title_boost_field(): void {
-		$value = self::get_setting( 'title_match_boost', 1.0 );
+		$value = self::get_setting( 'title_match_boost', 2.0 );
 		?>
 		<input type="number" name="scolta_settings[title_match_boost]" value="<?php echo esc_attr( $value ); ?>" min="0" max="10" step="0.1" class="small-text" />
-		<p class="description"><?php esc_html_e( 'Bonus for search terms in the title. Default: 1.0', 'scolta-ai-search' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Bonus for search terms in the title. Default: 2.0', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -756,10 +757,10 @@ class Scolta_Admin {
 	}
 
 	public static function render_recency_boost_field(): void {
-		$value = self::get_setting( 'recency_boost_max', 0.5 );
+		$value = self::get_setting( 'recency_boost_max', 0.25 );
 		?>
 		<input type="number" name="scolta_settings[recency_boost_max]" value="<?php echo esc_attr( $value ); ?>" min="0" max="5" step="0.1" class="small-text" />
-		<p class="description"><?php esc_html_e( 'Maximum boost for recent content. Default: 0.5', 'scolta-ai-search' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Maximum boost for recent content. Default: 0.25', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -792,6 +793,14 @@ class Scolta_Admin {
 		?>
 		<input type="number" name="scolta_settings[expand_primary_weight]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.05" class="small-text" />
 		<p class="description"><?php esc_html_e( 'Weight for the primary expanded term (subsequent terms decay). Default: 0.5', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	public static function render_subword_freq_field(): void {
+		$value = self::get_setting( 'expand_subword_max_frequency', 0.05 );
+		?>
+		<input type="number" name="scolta_settings[expand_subword_max_frequency]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.01" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Max corpus frequency for a multi-word expansion term\'s constituent word to be searched on its own. Broadens recall while blocking high-frequency noise. 0 disables; 1 searches every sub-word. Default: 0.05', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1163,15 +1172,16 @@ class Scolta_Admin {
 		$clean['auto_rebuild']       = ! empty( $input['auto_rebuild'] );
 		$clean['auto_rebuild_delay'] = max( 60, min( 3600, (int) ( $input['auto_rebuild_delay'] ?? 300 ) ) );
 
-		// Scoring — all 12 fields.
-		$clean['title_match_boost']          = max( 0.0, min( 10.0, (float) ( $input['title_match_boost'] ?? 1.0 ) ) );
+		// Scoring fields.
+		$clean['title_match_boost']          = max( 0.0, min( 10.0, (float) ( $input['title_match_boost'] ?? 2.0 ) ) );
 		$clean['title_all_terms_multiplier'] = max( 0.0, min( 10.0, (float) ( $input['title_all_terms_multiplier'] ?? 1.5 ) ) );
 		$clean['content_match_boost']        = max( 0.0, min( 10.0, (float) ( $input['content_match_boost'] ?? 0.4 ) ) );
-		$clean['recency_boost_max']          = max( 0.0, min( 5.0, (float) ( $input['recency_boost_max'] ?? 0.5 ) ) );
+		$clean['recency_boost_max']          = max( 0.0, min( 5.0, (float) ( $input['recency_boost_max'] ?? 0.25 ) ) );
 		$clean['recency_half_life_days']     = max( 1, min( 3650, (int) ( $input['recency_half_life_days'] ?? 365 ) ) );
 		$clean['recency_penalty_after_days'] = max( 0, min( 7300, (int) ( $input['recency_penalty_after_days'] ?? 1825 ) ) );
 		$clean['recency_max_penalty']        = max( 0.0, min( 1.0, (float) ( $input['recency_max_penalty'] ?? 0.3 ) ) );
 		$clean['expand_primary_weight']      = max( 0.0, min( 1.0, (float) ( $input['expand_primary_weight'] ?? 0.5 ) ) );
+		$clean['expand_subword_max_frequency'] = max( 0.0, min( 1.0, (float) ( $input['expand_subword_max_frequency'] ?? 0.05 ) ) );
 
 		$valid_languages   = array( 'ar', 'ca', 'da', 'de', 'el', 'en', 'es', 'et', 'eu', 'fi', 'fr', 'ga', 'hi', 'hu', 'hy', 'id', 'it', 'lt', 'ne', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sr', 'sv', 'ta', 'tr', 'yi' );
 		$clean['language'] = in_array( $input['language'] ?? '', $valid_languages, true )
