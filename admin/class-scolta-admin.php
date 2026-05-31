@@ -356,9 +356,18 @@ class Scolta_Admin {
 	}
 
 	public static function render_ai_provider_field(): void {
-		// Auto-detect: if Amazee is active, reflect that in the dropdown.
-		$source = Scolta_Ai_Service::get_api_key_source();
-		$value  = ( $source === 'amazee' ) ? 'amazee' : self::get_setting( 'ai_provider', 'anthropic' );
+		// The explicitly-saved provider always wins for the displayed selection.
+		// API-key source auto-detection (e.g. an auto-provisioned Amazee trial)
+		// is only a fallback for the empty state — when no provider was ever
+		// saved. Activation seeds ai_provider='anthropic', so in practice the
+		// fallback only applies to uninitialized/legacy settings (#123).
+		$saved = self::get_setting( 'ai_provider', '' );
+		if ( '' !== $saved ) {
+			$value = $saved;
+		} else {
+			$source = Scolta_Ai_Service::get_api_key_source();
+			$value  = ( 'amazee' === $source ) ? 'amazee' : 'anthropic';
+		}
 		?>
 		<select name="scolta_settings[ai_provider]" id="scolta_ai_provider">
 			<option value="anthropic" <?php selected( $value, 'anthropic' ); ?>><?php esc_html_e( 'Anthropic (Claude)', 'scolta-ai-search' ); ?></option>
