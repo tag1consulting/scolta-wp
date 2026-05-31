@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Fixed
+- **AI Provider settings field now reflects the saved provider instead of always showing Amazee when Amazee credentials are present** (display-only bug; the persisted value and live API calls were already correct). The field renderer forced the selected option to `amazee` whenever `get_api_key_source()` detected Amazee credentials (e.g. an auto-provisioned trial), ignoring the saved `ai_provider`. The explicitly-saved provider now wins; source auto-detection is only a fallback for the empty state (no provider ever saved). Added `AdminProviderFieldTest` covering the render. (#123)
+
 ### Changed
 - Opened 1.0.3-dev development cycle.
 
