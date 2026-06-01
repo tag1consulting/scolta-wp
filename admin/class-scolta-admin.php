@@ -226,6 +226,7 @@ class Scolta_Admin {
 		add_settings_field( 'expand_subword_max_frequency', __( 'Sub-word Max Frequency', 'scolta-ai-search' ), array( self::class, 'render_subword_freq_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'language', __( 'Scoring Language', 'scolta-ai-search' ), array( self::class, 'render_language_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'custom_stop_words', __( 'Custom Stop Words', 'scolta-ai-search' ), array( self::class, 'render_custom_stop_words_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'expand_subword_deny_list', __( 'Sub-word Guard Denylist', 'scolta-ai-search' ), array( self::class, 'render_expand_subword_deny_list_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_strategy', __( 'Recency Strategy', 'scolta-ai-search' ), array( self::class, 'render_recency_strategy_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_curve', __( 'Custom Recency Curve', 'scolta-ai-search' ), array( self::class, 'render_recency_curve_field' ), 'scolta', 'scolta_scoring_section' );
 
@@ -858,6 +859,28 @@ class Scolta_Admin {
 		<?php
 	}
 
+	/**
+	 * Render the sub-word guard denylist field.
+	 *
+	 * Guard-only veto list: words here are never auto-exempted from the sub-word
+	 * frequency guard even when the user types them, so a typed-but-generic word
+	 * cannot re-flood results. Unlike custom stop words, listed words stay
+	 * searchable and scorable.
+	 *
+	 * @return void
+	 */
+	public static function render_expand_subword_deny_list_field(): void {
+		$value = self::get_setting( 'expand_subword_deny_list', array() );
+		if ( ! is_array( $value ) ) {
+			$value = array();
+		}
+		$display = implode( ', ', $value );
+		?>
+		<input type="text" name="scolta_settings[expand_subword_deny_list]" value="<?php echo esc_attr( $display ); ?>" class="regular-text" />
+		<p class="description"><?php esc_html_e( 'Comma-separated words that are never auto-exempted from the sub-word frequency guard, even when typed (e.g. a generic word like "hot" on a recipe site). Unlike custom stop words, these stay searchable and scorable. Leave empty unless a typed common word floods results.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
 	public static function render_recency_strategy_field(): void {
 		$value = self::get_setting( 'recency_strategy', 'exponential' );
 		?>
@@ -1194,6 +1217,16 @@ class Scolta_Admin {
 				array_map(
 					fn( $w ) => sanitize_text_field( trim( $w ) ),
 					explode( ',', $stop_words_raw )
+				)
+			)
+		);
+
+		$deny_list_raw                    = $input['expand_subword_deny_list'] ?? '';
+		$clean['expand_subword_deny_list'] = array_values(
+			array_filter(
+				array_map(
+					fn( $w ) => strtolower( sanitize_text_field( trim( $w ) ) ),
+					explode( ',', $deny_list_raw )
 				)
 			)
 		);
