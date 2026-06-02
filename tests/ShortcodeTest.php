@@ -13,6 +13,8 @@ class ShortcodeTest extends TestCase {
         $GLOBALS['wp_options'] = [];
         $GLOBALS['scolta_enqueued_scripts'] = [];
         $GLOBALS['scolta_enqueued_styles'] = [];
+        $GLOBALS['scolta_enqueued_script_versions'] = [];
+        $GLOBALS['scolta_enqueued_style_versions'] = [];
         $GLOBALS['scolta_localized_scripts'] = [];
 
         // Set up default settings so render() can create a ScoltaConfig.
@@ -36,6 +38,8 @@ class ShortcodeTest extends TestCase {
         unset(
             $GLOBALS['scolta_enqueued_scripts'],
             $GLOBALS['scolta_enqueued_styles'],
+            $GLOBALS['scolta_enqueued_script_versions'],
+            $GLOBALS['scolta_enqueued_style_versions'],
             $GLOBALS['scolta_localized_scripts']
         );
     }
@@ -106,6 +110,52 @@ class ShortcodeTest extends TestCase {
             'scolta-search',
             $GLOBALS['scolta_enqueued_styles'],
             'wp_enqueue_style should be called with handle "scolta-search"'
+        );
+    }
+
+    // -------------------------------------------------------------------
+    // Asset cache-busting — version must track the asset file, not the
+    // static SCOLTA_VERSION constant (which never changes between dev
+    // builds, so HTTP caches kept serving stale JS/CSS after a deploy).
+    // -------------------------------------------------------------------
+
+    public function test_scolta_js_version_is_not_static_plugin_version(): void {
+        Scolta_Shortcode::render();
+
+        $ver = $GLOBALS['scolta_enqueued_script_versions']['scolta-search'] ?? null;
+        $this->assertNotNull( $ver, 'scolta.js should be enqueued with a version token' );
+        $this->assertNotSame(
+            SCOLTA_VERSION,
+            $ver,
+            'scolta.js cache token must not be the static SCOLTA_VERSION constant — '
+                . 'it does not change between dev builds, so caches serve stale JS after a deploy.'
+        );
+    }
+
+    public function test_scolta_js_version_equals_asset_filemtime(): void {
+        Scolta_Shortcode::render();
+
+        $ver = $GLOBALS['scolta_enqueued_script_versions']['scolta-search'] ?? null;
+        $this->assertSame(
+            filemtime( SCOLTA_PLUGIN_DIR . 'assets/js/scolta.js' ),
+            $ver,
+            'scolta.js cache token must equal the asset file mtime so it changes whenever the file changes.'
+        );
+    }
+
+    public function test_scolta_css_version_equals_asset_filemtime(): void {
+        Scolta_Shortcode::render();
+
+        $ver = $GLOBALS['scolta_enqueued_style_versions']['scolta-search'] ?? null;
+        $this->assertNotSame(
+            SCOLTA_VERSION,
+            $ver,
+            'scolta.css cache token must not be the static SCOLTA_VERSION constant.'
+        );
+        $this->assertSame(
+            filemtime( SCOLTA_PLUGIN_DIR . 'assets/css/scolta.css' ),
+            $ver,
+            'scolta.css cache token must equal the asset file mtime.'
         );
     }
 

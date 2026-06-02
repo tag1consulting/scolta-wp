@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Fixed
+- **Browsers no longer serve a stale `scolta.js`/`scolta.css` after a deploy.** Root cause: the enqueue cache-busting token (`$ver`) was `SCOLTA_VERSION`, a static constant (`1.0.3-dev`) that does not change between dev builds, so the asset URL's `?ver=` stayed identical across deploys and HTTP caches kept serving the old file (requiring a forced hard reload — e.g. the #162 verification showed the pre-subword build until a manual hard refresh). The token is now `filemtime()` of the actual shipped asset, so it changes whenever the file changes and a normal reload picks up fresh JS/CSS. `SCOLTA_VERSION` is unchanged for the plugin header/version reporting and the prompt-cache option. Added `ShortcodeTest` coverage asserting the enqueued version is not the static constant and equals the asset's mtime.
 - **AI Provider settings field now reflects the saved provider instead of always showing Amazee when Amazee credentials are present** (display-only bug; the persisted value and live API calls were already correct). The field renderer forced the selected option to `amazee` whenever `get_api_key_source()` detected Amazee credentials (e.g. an auto-provisioned trial), ignoring the saved `ai_provider`. The explicitly-saved provider now wins; source auto-detection is only a fallback for the empty state (no provider ever saved). Added `AdminProviderFieldTest` covering the render. (#123)
 
 ### Added
