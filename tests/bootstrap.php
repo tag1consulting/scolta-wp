@@ -205,12 +205,18 @@ if (!function_exists('wp_enqueue_script')) {
         if (isset($GLOBALS['scolta_enqueued_scripts'])) {
             $GLOBALS['scolta_enqueued_scripts'][] = $handle;
         }
+        if (isset($GLOBALS['scolta_enqueued_script_versions'])) {
+            $GLOBALS['scolta_enqueued_script_versions'][$handle] = $ver;
+        }
     }
 }
 if (!function_exists('wp_enqueue_style')) {
     function wp_enqueue_style(string $handle, string $src = '', array $deps = [], $ver = false, string $media = 'all'): void {
         if (isset($GLOBALS['scolta_enqueued_styles'])) {
             $GLOBALS['scolta_enqueued_styles'][] = $handle;
+        }
+        if (isset($GLOBALS['scolta_enqueued_style_versions'])) {
+            $GLOBALS['scolta_enqueued_style_versions'][$handle] = $ver;
         }
     }
 }

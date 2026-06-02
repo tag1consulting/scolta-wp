@@ -86,13 +86,17 @@ class Scolta_Shortcode {
 		$pagefind_url = self::dir_to_url( $index_dir );
 
 		// Enqueue the bundled scolta.js and scolta.css (assets/ is committed to the repo).
+		// Cache-bust on the asset's own mtime, not SCOLTA_VERSION: the plugin version is a
+		// static constant that does not change between dev builds, so an unchanged ?ver= let
+		// HTTP caches keep serving stale JS/CSS after a deploy. filemtime changes whenever the
+		// shipped asset changes, forcing a refetch.
 		$scolta_js_path = SCOLTA_PLUGIN_DIR . 'assets/js/scolta.js';
 		if ( file_exists( $scolta_js_path ) ) {
 			wp_enqueue_script(
 				'scolta-search',
 				SCOLTA_PLUGIN_URL . 'assets/js/scolta.js',
 				array(),
-				SCOLTA_VERSION,
+				filemtime( $scolta_js_path ),
 				true // Load in footer.
 			);
 		}
@@ -103,7 +107,7 @@ class Scolta_Shortcode {
 				'scolta-search',
 				SCOLTA_PLUGIN_URL . 'assets/css/scolta.css',
 				array(),
-				SCOLTA_VERSION
+				filemtime( $scolta_css_path )
 			);
 		}
 
