@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Changed
+- **Resynced the bundled scolta-core WASM (`assets/wasm/`) with the updated default `summarize` prompt.** The rebuilt binary carries the explicit output-length budget (keep summaries under ~150 words, a single flat bulleted list, no section/sub-category headers) that prevents AI overviews from being truncated mid-sentence at the model's output-token ceiling (scolta-php#168). Byte-identical to scolta-php's `assets/wasm/` bundle, which the plugin copies via `copy-assets`; this committed copy serves non-Composer install paths. The runtime prompt resolves server-side in PHP, so this keeps the committed browser asset in parity with core. ([tag1consulting/scolta-core#37](https://github.com/tag1consulting/scolta-core/pull/37))
 - Opened 1.0.4-dev development cycle.
 
 ## [1.0.3] - 2026-06-02
