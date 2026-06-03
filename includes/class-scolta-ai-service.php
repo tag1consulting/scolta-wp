@@ -310,74 +310,18 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	/**
 	 * {@inheritdoc}
 	 *
-	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
+	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException, notifies
+	 * the budget handler, and re-throws. No-op if the exception message does not
+	 * contain the Amazee budget signal. Invoked by the base AI methods' catch block.
 	 *
-	 * @param string $systemPrompt System prompt.
-	 * @param string $userMessage  User message.
-	 * @param int    $maxTokens    Maximum tokens.
-	 * @return string AI response.
-	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	public function message( string $systemPrompt, string $userMessage, int $maxTokens = 512 ): string {
-		try {
-			return parent::message( $systemPrompt, $userMessage, $maxTokens );
-		} catch ( \RuntimeException $e ) {
-			$this->handle_possible_budget_exception( $e );
-			throw $e;
-		}
-	}
-
-	/**
-	 * {@inheritdoc}
-	 *
-	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
-	 *
-	 * @param string $systemPrompt System prompt.
-	 * @param array  $messages     Conversation messages.
-	 * @param int    $maxTokens    Maximum tokens.
-	 * @return string AI response.
-	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	public function conversation( string $systemPrompt, array $messages, int $maxTokens = 512 ): string {
-		try {
-			return parent::conversation( $systemPrompt, $messages, $maxTokens );
-		} catch ( \RuntimeException $e ) {
-			$this->handle_possible_budget_exception( $e );
-			throw $e;
-		}
-	}
-
-	/**
-	 * {@inheritdoc}
-	 *
-	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException.
-	 *
-	 * @param string $operation    Operation name.
-	 * @param string $systemPrompt System prompt.
-	 * @param string $userMessage  User message.
-	 * @param int    $maxTokens    Maximum tokens.
-	 * @return string AI response.
-	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	public function messageForOperation( string $operation, string $systemPrompt, string $userMessage, int $maxTokens = 512 ): string {
-		try {
-			// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-			return parent::messageForOperation( $operation, $systemPrompt, $userMessage, $maxTokens );
-		} catch ( \RuntimeException $e ) {
-			$this->handle_possible_budget_exception( $e );
-			throw $e;
-		}
-	}
-
-	/**
-	 * Convert a budget-exceeded RuntimeException to AmazeeBudgetExceededException.
-	 *
-	 * No-op if the exception message does not contain the Amazee budget signal.
+	 * Named in camelCase (not the WordPress snake_case convention) because it
+	 * overrides the protected hook on the vendor base class AiServiceAdapter.
 	 *
 	 * @param \RuntimeException $e The exception to inspect.
 	 * @throws AmazeeBudgetExceededException When the budget message is detected.
 	 */
-	private function handle_possible_budget_exception( \RuntimeException $e ): void {
+	// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- overrides a camelCase vendor base method.
+	protected function handlePossibleBudgetException( \RuntimeException $e ): void {
 		if ( ! str_contains( $e->getMessage(), 'Budget has been exceeded!' ) ) {
 			return;
 		}
