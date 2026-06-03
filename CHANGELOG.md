@@ -4,6 +4,11 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages; minor and patch versions are released independently per package.
 
+## [Unreleased]
+
+### Changed
+- Opened 1.0.4-dev development cycle.
+
 ## [1.0.3] - 2026-06-02
 
 ### Fixed
