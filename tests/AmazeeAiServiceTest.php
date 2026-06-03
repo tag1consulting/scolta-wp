@@ -72,17 +72,33 @@ class AmazeeAiServiceTest extends TestCase {
         putenv( 'SCOLTA_API_KEY' );
     }
 
-    public function test_has_message_override(): void {
+    public function test_ai_methods_available_via_inheritance(): void {
+        // message()/conversation()/messageForOperation() are no longer overridden
+        // here — the base AiServiceAdapter owns the budget try/catch — but they
+        // remain callable on the adapter through inheritance.
         $this->assertTrue( method_exists( 'Scolta_Ai_Service', 'message' ) );
-    }
-
-    public function test_has_conversation_override(): void {
         $this->assertTrue( method_exists( 'Scolta_Ai_Service', 'conversation' ) );
+        $this->assertTrue( method_exists( 'Scolta_Ai_Service', 'messageForOperation' ) );
     }
 
-    public function test_has_message_for_operation_override(): void {
+    public function test_overrides_budget_exception_hook(): void {
+        // The budget-conversion logic lives in a single protected hook that
+        // overrides AiServiceAdapter::handlePossibleBudgetException().
+        $ref    = new ReflectionClass( 'Scolta_Ai_Service' );
+        $method = $ref->getMethod( 'handlePossibleBudgetException' );
+        $this->assertSame( 'Scolta_Ai_Service', $method->getDeclaringClass()->getName() );
+        $this->assertTrue( $method->isProtected(), 'Hook must be protected to override the base method' );
+    }
+
+    public function test_no_redundant_ai_method_overrides_in_source(): void {
+        // The base now owns the budget try/catch; these overrides must not return.
         $content = file_get_contents( dirname( __DIR__ ) . '/includes/class-scolta-ai-service.php' );
-        $this->assertStringContainsString( 'public function messageForOperation(', $content );
+        $this->assertStringNotContainsString( 'public function messageForOperation(', $content );
+        $this->assertStringNotContainsString( 'public function message(', $content );
+        $this->assertStringNotContainsString( 'public function conversation(', $content );
+        // ...but the hook (and its budget signal) is still present.
+        $this->assertStringContainsString( 'function handlePossibleBudgetException(', $content );
+        $this->assertStringContainsString( 'Budget has been exceeded!', $content );
     }
 
     public function test_imports_amazee_budget_exception(): void {
