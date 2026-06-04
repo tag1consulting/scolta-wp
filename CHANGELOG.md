@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Changed
+- **Reworded the search-tuning admin help and docs to lead with the Site Type preset instead of the raw number.** The `expand_subword_max_frequency` field is relabeled "Search Breadth (advanced)" with an outcome-worded description ("how aggressively multi-word searches broaden… most sites should pick a Site Type preset instead") in place of the previous document-frequency jargon. Added a "Tuning search breadth" section to the README (symptom→fix, leads with the Recipe & Content Catalog preset, links to scolta-php's `docs/TUNING.md` for the evidence) and a matching readme.txt FAQ entry ("Why am I getting fewer search results than before?"). No scoring logic or default values change.
+
 ### Fixed
 - **Restored the sort/filter badge styles that had drifted out of the committed `assets/css/scolta.css`.** The committed CSS copy was ~60 lines behind scolta-php's canonical stylesheet — it was missing `.scolta-filter-group`, the sort-indicator block (`#scolta-sort-indicator`, `.scolta-sort-badge`, `.scolta-sort-dismiss`) and the filter-indicator block (`#scolta-filter-indicator`, `.scolta-filter-badge`, `.scolta-filter-dismiss`). The in-sync `scolta.js` renders those elements, so the sort/filter badges shipped unstyled on WordPress. Root cause: the install copy hook only ever copied `scolta.js`, never the CSS or WASM. The committed CSS is now byte-identical to scolta-php's canonical `assets/css/scolta.css`.
 

@@ -184,6 +184,26 @@ $settings['ai_languages'] = ['en', 'fr', 'de'];
 update_option('scolta_settings', $settings);
 ```
 
+### Tuning search breadth
+
+**Getting fewer results than you expect on a recipe, product, or catalog site?** Go to **Settings > Scolta > Site Type** and choose the **Recipe & Content Catalog** preset, then save and rebuild your index (`wp scolta build`).
+
+Scolta defaults to a conservative search breadth so generic words ("easy", "quick", "best") don't flood your results. On a recipe or catalog site, the useful domain words you actually want to match — ingredients, techniques, product attributes — are common enough that the default can hide them. The **Recipe & Content Catalog** preset widens the breadth (and tunes a handful of other ranking settings) so those searches return the fuller set of matches you'd expect.
+
+Pick the **Site Type** that matches your site and Scolta sets sensible defaults for you:
+
+| Your site | Preset |
+| --------- | ------ |
+| Recipes, product or content catalogs | Recipe & Content Catalog |
+| Docs, knowledge bases, encyclopedias, references | Documentation & Reference |
+| Online stores | E-commerce & Product Store |
+| Blogs and editorial sites | Blog & Editorial |
+| News sites | Start from Scratch, then tune recency |
+
+You rarely need to touch individual numbers — the preset is the recommended path, and any value you change by hand in the **Scoring** section still overrides the preset. The one advanced knob worth knowing is **Search Breadth** (`expand_subword_max_frequency`): higher returns more results but can pull in loosely-related matches; lower keeps results tight. The Recipe & Content Catalog preset already raises it from `0.05` to `0.10`.
+
+For the evidence behind each preset — the scoring sweeps and the per-parameter data — see [scolta-php's `docs/TUNING.md`](https://github.com/tag1consulting/scolta-php/blob/main/docs/TUNING.md).
+
 ### Search Scoring
 
 Configure at **Settings > Scolta > Scoring**.
