@@ -5,13 +5,15 @@ declare(strict_types=1);
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
- * Tests for the expansion round-robin admin fields
- * (render_expansion_combine_mode_field() / render_expansion_per_term_top_k_field()
- * + their sanitizers).
+ * Tests for the expansion combine-mode admin field
+ * (render_expansion_combine_mode_field() + its sanitizer).
  *
- * Release-gate coverage: the admin fields must render their saved values and
+ * Release-gate coverage: the combine-mode field must render its saved value and
  * sanitize input so a site can configure the scolta-php round-robin AI-summary
- * candidate selection across query-expansion sub-queries (scolta-php#170).
+ * candidate selection across query-expansion sub-queries (scolta-php#170). The
+ * per-sub-query top-K is locked at 3 inside scolta-php and is no longer a
+ * configurable WordPress setting (scolta-php#180), so its admin field and
+ * sanitizer key are gone.
  *
  * The admin class is only loaded when is_admin() returns true; load it
  * explicitly for testing.
@@ -31,12 +33,6 @@ class AdminExpansionFieldsTest extends TestCase {
 	private function renderCombineMode(): string {
 		ob_start();
 		Scolta_Admin::render_expansion_combine_mode_field();
-		return (string) ob_get_clean();
-	}
-
-	private function renderPerTermTopK(): string {
-		ob_start();
-		Scolta_Admin::render_expansion_per_term_top_k_field();
 		return (string) ob_get_clean();
 	}
 
@@ -65,19 +61,6 @@ class AdminExpansionFieldsTest extends TestCase {
 		);
 	}
 
-	public function test_per_term_top_k_renders_default(): void {
-		$html = $this->renderPerTermTopK();
-		$this->assertStringContainsString( 'name="scolta_settings[expansion_per_term_top_k]"', $html );
-		$this->assertStringContainsString( 'value="3"', $html );
-		$this->assertStringContainsString( 'min="1"', $html );
-	}
-
-	public function test_per_term_top_k_renders_saved_value(): void {
-		update_option( 'scolta_settings', array( 'expansion_per_term_top_k' => 5 ) );
-		$html = $this->renderPerTermTopK();
-		$this->assertStringContainsString( 'value="5"', $html );
-	}
-
 	public function test_sanitize_combine_mode_accepts_round_robin(): void {
 		$clean = Scolta_Admin::sanitize_settings( array( 'expansion_combine_mode' => 'round_robin' ) );
 		$this->assertSame( 'round_robin', $clean['expansion_combine_mode'] );
@@ -93,23 +76,20 @@ class AdminExpansionFieldsTest extends TestCase {
 		$this->assertSame( 'relevance_union', $clean['expansion_combine_mode'] );
 	}
 
-	public function test_sanitize_per_term_top_k_casts_to_int(): void {
+	/**
+	 * The per-term top-K knob is locked at 3 inside scolta-php and is no longer a
+	 * WordPress setting: there is no render method and the sanitizer must not emit
+	 * the key.
+	 */
+	public function test_per_term_top_k_field_is_removed(): void {
+		$this->assertFalse(
+			method_exists( 'Scolta_Admin', 'render_expansion_per_term_top_k_field' ),
+			'render_expansion_per_term_top_k_field() should be removed — K is locked at 3 in scolta-php.'
+		);
+	}
+
+	public function test_sanitize_does_not_emit_per_term_top_k(): void {
 		$clean = Scolta_Admin::sanitize_settings( array( 'expansion_per_term_top_k' => '7' ) );
-		$this->assertSame( 7, $clean['expansion_per_term_top_k'] );
-	}
-
-	public function test_sanitize_per_term_top_k_clamps_zero_to_one(): void {
-		$clean = Scolta_Admin::sanitize_settings( array( 'expansion_per_term_top_k' => 0 ) );
-		$this->assertSame( 1, $clean['expansion_per_term_top_k'] );
-	}
-
-	public function test_sanitize_per_term_top_k_clamps_negative_to_one(): void {
-		$clean = Scolta_Admin::sanitize_settings( array( 'expansion_per_term_top_k' => -4 ) );
-		$this->assertSame( 1, $clean['expansion_per_term_top_k'] );
-	}
-
-	public function test_sanitize_per_term_top_k_defaults_when_missing(): void {
-		$clean = Scolta_Admin::sanitize_settings( array() );
-		$this->assertSame( 3, $clean['expansion_per_term_top_k'] );
+		$this->assertArrayNotHasKey( 'expansion_per_term_top_k', $clean );
 	}
 }
