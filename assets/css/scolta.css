@@ -92,6 +92,8 @@
 .scolta-filters { font-size: 0.9rem; }
 .scolta-filters:empty { display: none; }
 .scolta-filters h3 { margin-bottom: 0.75rem; color: var(--scolta-primary); font-size: 1rem; }
+.scolta-filter-group { margin-bottom: 1rem; }
+.scolta-filter-group:last-child { margin-bottom: 0; }
 .scolta-filter-item {
   display: flex;
   align-items: center;
@@ -112,6 +114,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.scolta-results-header span:first-child {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 .scolta-result-card {
   background: var(--scolta-card-bg);
@@ -231,7 +241,7 @@
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
-.scolta-ai-summary-text p { margin: 0 0 0.4rem 0; color: var(--scolta-text); }
+.scolta-ai-summary-text p { margin: 0 0 0.4rem 0; }
 .scolta-ai-summary-text p:last-child { margin-bottom: 0; }
 .scolta-ai-summary-text strong { color: var(--scolta-primary); font-weight: 600; }
 .scolta-ai-summary-text a {
@@ -253,7 +263,6 @@
   margin-bottom: 0.25rem;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: var(--scolta-text);
 }
 .scolta-ai-summary-text li::before {
   content: "\203A";
@@ -391,3 +400,54 @@
   transition: background 0.15s;
 }
 .scolta-expanded-term:hover { background: #d0e2f7; }
+
+/* Sort indicator */
+#scolta-sort-indicator { margin-bottom: 0.5rem; }
+.scolta-sort-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--scolta-badge-bg);
+  color: var(--scolta-primary);
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  border: 1px solid var(--scolta-summary-border);
+}
+.scolta-sort-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: 0.1rem;
+}
+.scolta-sort-dismiss:hover { color: var(--scolta-primary); opacity: 0.7; }
+
+/* Filter indicator (LLM-applied filter badges) */
+#scolta-filter-indicator { margin-bottom: 0.5rem; }
+.scolta-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--scolta-badge-bg);
+  color: var(--scolta-primary);
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  border: 1px solid var(--scolta-summary-border);
+  margin-right: 0.25rem;
+}
+.scolta-filter-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: 0.1rem;
+}
+.scolta-filter-dismiss:hover { color: var(--scolta-primary); opacity: 0.7; }

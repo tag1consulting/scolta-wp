@@ -24,11 +24,17 @@
         "lint": "phpcs",
         "format": "phpcbf",
         "validate-release": "php scripts/validate-release.php",
+        "copy-assets": [
+            "[ -f vendor/tag1/scolta-php/assets/js/scolta.js ] && cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js || true",
+            "[ -f vendor/tag1/scolta-php/assets/css/scolta.css ] && cp vendor/tag1/scolta-php/assets/css/scolta.css assets/css/scolta.css || true",
+            "[ -f vendor/tag1/scolta-php/assets/wasm/scolta_core.js ] && cp vendor/tag1/scolta-php/assets/wasm/scolta_core.js assets/wasm/scolta_core.js || true",
+            "[ -f vendor/tag1/scolta-php/assets/wasm/scolta_core_bg.wasm ] && cp vendor/tag1/scolta-php/assets/wasm/scolta_core_bg.wasm assets/wasm/scolta_core_bg.wasm || true"
+        ],
         "post-install-cmd": [
-            "[ -f vendor/tag1/scolta-php/assets/js/scolta.js ] && cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js || true"
+            "@copy-assets"
         ],
         "post-update-cmd": [
-            "[ -f vendor/tag1/scolta-php/assets/js/scolta.js ] && cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js || true"
+            "@copy-assets"
         ]
     },
     "minimum-stability": "stable",
