@@ -228,7 +228,6 @@ class Scolta_Admin {
 		add_settings_field( 'custom_stop_words', __( 'Custom Stop Words', 'scolta-ai-search' ), array( self::class, 'render_custom_stop_words_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expand_subword_deny_list', __( 'Sub-word Guard Denylist', 'scolta-ai-search' ), array( self::class, 'render_expand_subword_deny_list_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expansion_combine_mode', __( 'Expansion Combine Mode', 'scolta-ai-search' ), array( self::class, 'render_expansion_combine_mode_field' ), 'scolta', 'scolta_scoring_section' );
-		add_settings_field( 'expansion_per_term_top_k', __( 'Expansion Per-Term Top K', 'scolta-ai-search' ), array( self::class, 'render_expansion_per_term_top_k_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_strategy', __( 'Recency Strategy', 'scolta-ai-search' ), array( self::class, 'render_recency_strategy_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_curve', __( 'Custom Recency Curve', 'scolta-ai-search' ), array( self::class, 'render_recency_curve_field' ), 'scolta', 'scolta_scoring_section' );
 
@@ -888,7 +887,7 @@ class Scolta_Admin {
 	 *
 	 * Controls how a multi-term query expansion's per-sub-query result sets are
 	 * combined into the AI-summary candidate set. "relevance_union" (default)
-	 * keeps the historical behavior; "round_robin" deals the top K from each
+	 * keeps the historical behavior; "round_robin" deals the top few from each
 	 * sub-query so the summarizer sees breadth across distinct sub-topics
 	 * (scolta-php#170). The visible result list stays relevance-sorted either way.
 	 *
@@ -902,23 +901,6 @@ class Scolta_Admin {
 			<option value="round_robin" <?php selected( $value, 'round_robin' ); ?>><?php esc_html_e( 'Round-robin (breadth across sub-queries)', 'scolta-ai-search' ); ?></option>
 		</select>
 		<p class="description"><?php esc_html_e( 'How a multi-term query expansion combines its per-sub-query results into the AI-summary candidate set. Relevance union keeps the historical behavior. Round-robin deals the top few from each sub-query so the summary sees breadth across distinct sub-topics. The visible result list stays relevance-sorted either way. Default: Relevance union.', 'scolta-ai-search' ); ?></p>
-		<?php
-	}
-
-	/**
-	 * Render the expansion per-term top-K field.
-	 *
-	 * Number of candidates taken from each expansion sub-query when the combine
-	 * mode is round-robin. Ignored under relevance union. Must be >= 1
-	 * (scolta-php#170).
-	 *
-	 * @return void
-	 */
-	public static function render_expansion_per_term_top_k_field(): void {
-		$value = self::get_setting( 'expansion_per_term_top_k', 3 );
-		?>
-		<input type="number" name="scolta_settings[expansion_per_term_top_k]" value="<?php echo esc_attr( $value ); ?>" min="1" step="1" class="small-text" />
-		<p class="description"><?php esc_html_e( 'When Expansion Combine Mode is Round-robin, how many candidates to take from each expansion sub-query. Ignored under Relevance union. Minimum 1. Default: 3.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1275,7 +1257,6 @@ class Scolta_Admin {
 		$clean['expansion_combine_mode'] = in_array( $input['expansion_combine_mode'] ?? '', array( 'relevance_union', 'round_robin' ), true )
 			? $input['expansion_combine_mode']
 			: 'relevance_union';
-		$clean['expansion_per_term_top_k'] = max( 1, (int) ( $input['expansion_per_term_top_k'] ?? 3 ) );
 
 		$clean['recency_strategy'] = in_array( $input['recency_strategy'] ?? '', array( 'exponential', 'linear', 'step', 'none', 'custom' ), true )
 			? $input['recency_strategy']

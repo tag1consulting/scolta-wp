@@ -51,7 +51,9 @@ class ActivationTest extends TestCase {
         $this->assertEquals(0.05, $settings['cross_list_bonus']);
         $this->assertEquals(0.05, $settings['expand_subword_max_frequency']);
         $this->assertEquals('relevance_union', $settings['expansion_combine_mode']);
-        $this->assertEquals(3, $settings['expansion_per_term_top_k']);
+        // expansion_per_term_top_k is locked at 3 inside scolta-php and is no
+        // longer an activation default.
+        $this->assertArrayNotHasKey('expansion_per_term_top_k', $settings);
     }
 
     public function test_activation_sets_display_defaults(): void {
