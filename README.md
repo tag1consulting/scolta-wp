@@ -221,6 +221,8 @@ Configure at **Settings > Scolta > Scoring**.
 | Recency max penalty | `recency_max_penalty` | Maximum negative penalty for very old content |
 | Language | `language` | ISO 639-1 code for stop word filtering |
 | Custom stop words | `custom_stop_words` | Extra stop words beyond the language's built-in list |
+| Expansion combine mode | `expansion_combine_mode` | How a multi-term query expansion combines its per-sub-query results into the AI-summary candidate set: `relevance_union` (default, historical behavior) or `round_robin` (deal the top few from each sub-query so the summary sees breadth across sub-topics). The visible result list stays relevance-sorted either way. |
+| Expansion per-term top K | `expansion_per_term_top_k` | When the combine mode is `round_robin`, how many candidates to take from each sub-query (ignored under `relevance_union`). Minimum 1. Default `3`. |
 
 Defaults and the full reference: [scolta-php `docs/CONFIG_REFERENCE.md`](https://github.com/tag1consulting/scolta-php/blob/main/docs/CONFIG_REFERENCE.md).
 
