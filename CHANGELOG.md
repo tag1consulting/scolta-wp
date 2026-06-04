@@ -7,6 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ## [Unreleased]
 
 ### Changed
+- **Stopped restating scoring/display defaults in the README; point to scolta-php's `CONFIG_REFERENCE.md` instead.** The `Default` column of the README's `Search Scoring` and `Display` tables duplicated scolta-php's canonical defaults and had drifted (`title_match_boost` showed `1.0` vs the current `2.0`; `recency_boost_max` showed `0.5` vs `0.25`). Those columns are removed and each table now links to [scolta-php `docs/CONFIG_REFERENCE.md`](https://github.com/tag1consulting/scolta-php/blob/main/docs/CONFIG_REFERENCE.md), the single source of truth for defaults (verified against `ScoltaConfig` in scolta-php CI). Setting keys, admin-UI locations, preset guidance, and the worked override examples are unchanged. No scoring logic or default values change.
 - **Reworded the search-tuning admin help and docs to lead with the Site Type preset instead of the raw number.** The `expand_subword_max_frequency` field is relabeled "Search Breadth (advanced)" with an outcome-worded description ("how aggressively multi-word searches broaden… most sites should pick a Site Type preset instead") in place of the previous document-frequency jargon. Added a "Tuning search breadth" section to the README (symptom→fix, leads with the Recipe & Content Catalog preset, links to scolta-php's `docs/TUNING.md` for the evidence) and a matching readme.txt FAQ entry ("Why am I getting fewer search results than before?"). No scoring logic or default values change.
 
 ### Fixed
