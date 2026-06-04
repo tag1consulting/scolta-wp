@@ -151,6 +151,8 @@ function scolta_activate(): void {
 		'expand_primary_weight'      => 0.5,
 		'cross_list_bonus'           => 0.05,
 		'expand_subword_max_frequency' => 0.05,
+		'expansion_combine_mode'     => 'relevance_union',
+		'expansion_per_term_top_k'   => 3,
 		// Display.
 		'excerpt_length'             => 300,
 		'results_per_page'           => 10,
