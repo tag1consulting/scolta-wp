@@ -4,7 +4,7 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages; minor and patch versions are released independently per package.
 
-## [Unreleased]
+## [1.0.4] - 2026-06-05
 
 ### Added
 - **`expansion_combine_mode` scoring setting (default `relevance_union`).** A new admin field (Scoring section) + sanitizer + activation default for the scolta-php round-robin AI-summary candidate selection across query-expansion sub-queries ([tag1consulting/scolta-php#170](https://github.com/tag1consulting/scolta-php/issues/170)). `expansion_combine_mode` is a select (`relevance_union` keeps the historical behavior; `round_robin` deals the top few from each sub-query so the AI summary sees breadth across distinct sub-topics); invalid values fall back to `relevance_union`. The mode is preset-defaulted (see Changed below) and any value set by hand overrides the preset. The visible result list stays relevance-sorted either way. Also re-synced the committed `assets/js/scolta.js` (and its `.sha256`) to the canonical scolta-php source, which adds the `selectSummaryCandidates` round-robin logic. Added `AdminExpansionFieldsTest` covering the render and sanitizer; extended `ActivationTest` to assert the default.
