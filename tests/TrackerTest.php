@@ -233,6 +233,43 @@ class TrackerTest extends TestCase {
         $this->assertIsInt($result);
     }
 
+    /**
+     * Regression: an empty post_types setting used to interpolate an
+     * invalid "IN ()" clause into the INSERT...SELECT. It must early-return
+     * 0 without running the insert at all.
+     */
+    public function test_mark_all_for_reindex_with_empty_post_types_returns_zero_without_insert(): void {
+        update_option('scolta_settings', ['post_types' => []]);
+
+        $original_wpdb   = $GLOBALS['wpdb'];
+        $recorder        = new class {
+            public string $prefix = 'wp_';
+            public string $options = 'wp_options';
+            public string $posts = 'wp_posts';
+            public array $queries = [];
+            public function prepare(string $query, ...$args): string {
+                return vsprintf(str_replace('%s', "'%s'", $query), $args);
+            }
+            public function query(string $query): int { $this->queries[] = $query; return 0; }
+            public function get_results(string $query, string $output = 'OBJECT'): array { return []; }
+            public function get_var(string $query) { return null; }
+            public function get_charset_collate(): string { return ''; }
+        };
+        $GLOBALS['wpdb'] = $recorder;
+
+        try {
+            $result = Scolta_Tracker::mark_all_for_reindex();
+        } finally {
+            $GLOBALS['wpdb'] = $original_wpdb;
+        }
+
+        $this->assertSame(0, $result);
+        foreach ($recorder->queries as $query) {
+            $this->assertStringNotContainsString('INSERT', $query,
+                'no INSERT may run with an empty post_types list (invalid IN () SQL)');
+        }
+    }
+
     public function test_table_exists_returns_boolean(): void {
         $result = Scolta_Tracker::table_exists();
         $this->assertIsBool($result);

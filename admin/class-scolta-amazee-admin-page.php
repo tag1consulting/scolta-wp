@@ -152,7 +152,7 @@ class Scolta_Amazee_Admin_Page {
 				$default_model   = 'claude-sonnet-4-5-20250929';
 				$scolta_settings = get_option( 'scolta_settings', array() );
 
-				if ( $scolta_settings['ai_model'] ?? $default_model === $default_model ) {
+				if ( ( $scolta_settings['ai_model'] ?? $default_model ) === $default_model ) {
 					$scolta_settings['ai_model'] = $result->aiModel;
 				}
 				if ( ( $scolta_settings['ai_expansion_model'] ?? '' ) === '' && $result->aiExpansionModel !== null ) {

@@ -143,6 +143,11 @@ class Scolta_Tracker {
 		$settings   = get_option( 'scolta_settings', array() );
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
 
+		// An empty post_types list would render an invalid "IN ()" clause.
+		if ( empty( $post_types ) ) {
+			return 0;
+		}
+
 		$placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
 		// $table is always $wpdb->prefix + known constant — safe to interpolate.
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching

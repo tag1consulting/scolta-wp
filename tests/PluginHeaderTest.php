@@ -23,6 +23,57 @@ class PluginHeaderTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------------
+	// WordPress minimum version consistency
+	//
+	// The minimum lives in four places: the plugin header, the readme.txt
+	// header, the readme.txt body Requirements line, and phpcs.xml.dist.
+	// They drifted (6.1 / 6.1 / 6.0 / 6.0) while the code required 6.1
+	// (wp_cache_flush_group()). All must match the plugin header.
+	// -------------------------------------------------------------------------
+
+	private function header_requires_at_least(): string {
+		$this->assertSame(
+			1,
+			preg_match( '/^\s*\*\s*Requires at least:\s*([\d.]+)/m', $this->plugin_source, $m ),
+			'plugin header must declare Requires at least'
+		);
+		return $m[1];
+	}
+
+	public function test_readme_header_requires_matches_plugin_header(): void {
+		$readme = file_get_contents( dirname( __DIR__ ) . '/readme.txt' );
+		$this->assertSame( 1, preg_match( '/^Requires at least:\s*([\d.]+)/m', $readme, $m ) );
+		$this->assertSame( $this->header_requires_at_least(), $m[1] );
+	}
+
+	public function test_readme_body_requirements_matches_plugin_header(): void {
+		$readme = file_get_contents( dirname( __DIR__ ) . '/readme.txt' );
+		$this->assertSame(
+			1,
+			preg_match( '/\*\*Requirements:\*\*\s*WordPress\s*([\d.]+)\+/', $readme, $m ),
+			'readme.txt body must state the WordPress requirement'
+		);
+		$this->assertSame(
+			$this->header_requires_at_least(),
+			$m[1],
+			'readme.txt body Requirements line must match the plugin header Requires at least'
+		);
+	}
+
+	public function test_phpcs_minimum_wp_version_matches_plugin_header(): void {
+		$phpcs = file_get_contents( dirname( __DIR__ ) . '/phpcs.xml.dist' );
+		$this->assertSame(
+			1,
+			preg_match( '/minimum_supported_wp_version"\s+value="([\d.]+)"/', $phpcs, $m )
+		);
+		$this->assertSame(
+			$this->header_requires_at_least(),
+			$m[1],
+			'phpcs minimum_supported_wp_version must match the plugin header Requires at least'
+		);
+	}
+
+	// -------------------------------------------------------------------------
 	// Description header format
 	// -------------------------------------------------------------------------
 

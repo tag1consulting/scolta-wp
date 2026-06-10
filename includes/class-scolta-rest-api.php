@@ -368,7 +368,13 @@ class Scolta_Rest_Api {
 	 */
 	public static function handle_health( \WP_REST_Request $request ): \WP_REST_Response {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+		// Normalize exactly like the builder does (strips a trailing
+		// /pagefind) so health inspects the directory the builder wrote to —
+		// an already-suffixed output_dir otherwise reports a healthy index
+		// as degraded with zero fragments.
+		$output_dir = scolta_normalize_output_dir(
+			$settings['output_dir'] ?? scolta_default_output_dir()
+		);
 		$ai         = \Scolta_Ai_Service::from_options();
 
 		$checker = new \Tag1\Scolta\Health\HealthChecker(

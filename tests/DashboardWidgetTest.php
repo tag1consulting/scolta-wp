@@ -63,6 +63,40 @@ class DashboardWidgetTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
+    // add_dashboard_widget() is gated on manage_options
+    // -------------------------------------------------------------------
+
+    public function test_widget_not_registered_for_low_privilege_users(): void {
+        $GLOBALS['wp_meta_boxes']        = [];
+        $GLOBALS['scolta_test_user_can'] = false;
+
+        try {
+            Scolta_Admin::add_dashboard_widget();
+        } finally {
+            unset($GLOBALS['scolta_test_user_can']);
+        }
+
+        $this->assertArrayNotHasKey(
+            'scolta_dashboard_widget',
+            $GLOBALS['wp_meta_boxes']['dashboard']['normal']['core'] ?? [],
+            'subscribers must not get the index-status widget (info disclosure + broken rebuild button)'
+        );
+        unset($GLOBALS['wp_meta_boxes']);
+    }
+
+    public function test_widget_registered_for_admins(): void {
+        $GLOBALS['wp_meta_boxes'] = [];
+
+        Scolta_Admin::add_dashboard_widget();
+
+        $this->assertArrayHasKey(
+            'scolta_dashboard_widget',
+            $GLOBALS['wp_meta_boxes']['dashboard']['normal']['core'] ?? []
+        );
+        unset($GLOBALS['wp_meta_boxes']);
+    }
+
+    // -------------------------------------------------------------------
     // render_dashboard_widget() output
     // -------------------------------------------------------------------
 

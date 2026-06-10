@@ -39,21 +39,20 @@ class Scolta_Shortcode {
 		$settings   = get_option( 'scolta_settings', array() );
 		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
 
-		// Silently strip a trailing /pagefind — the PHP indexer appends it
-		// automatically, so including it in the setting causes double-nesting.
-		$normalized = wp_normalize_path( rtrim( $output_dir, '/' ) );
-		if ( str_ends_with( $normalized, '/pagefind' ) ) {
-			$output_dir = substr( $normalized, 0, -strlen( '/pagefind' ) );
-
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				_doing_it_wrong(
-					__CLASS__ . '::render',
-					'output_dir should not end in /pagefind. The PHP indexer appends /pagefind ' .
-					'automatically. Remove the suffix to avoid double-nested index directories.',
-					'1.0.0'
-				);
-			}
+		// Strip a trailing /pagefind via the shared builder normalization —
+		// the PHP indexer appends it automatically, so including it in the
+		// setting causes double-nesting.
+		$normalized    = scolta_normalize_output_dir( $output_dir );
+		$had_suffix    = $normalized !== wp_normalize_path( rtrim( $output_dir, '/' ) );
+		if ( $had_suffix && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			_doing_it_wrong(
+				__CLASS__ . '::render',
+				'output_dir should not end in /pagefind. The PHP indexer appends /pagefind ' .
+				'automatically. Remove the suffix to avoid double-nested index directories.',
+				'1.0.0'
+			);
 		}
+		$output_dir = $normalized;
 
 		// The PHP indexer writes to {output_dir}/pagefind/ (atomic swap subdirectory).
 		// The binary pipeline writes directly to {output_dir}/ (flat structure).
@@ -72,12 +71,23 @@ class Scolta_Shortcode {
 		if ( ! $index_exists ) {
 			if ( current_user_can( 'manage_options' ) ) {
 				$settings_url = esc_url( admin_url( 'options-general.php?page=scolta' ) );
+				$not_built = esc_html__(
+					'Search index has not been built yet.',
+					'scolta-ai-search'
+				);
+				$build_now = esc_html__( 'Build now', 'scolta-ai-search' );
+				$or_run    = sprintf(
+					/* translators: %s: shell command */
+					esc_html__( 'or run %s', 'scolta-ai-search' ),
+					'<code>wp scolta build</code>'
+				);
 				return '<div class="scolta-no-index"'
 					. ' style="padding:20px;background:#fff3cd;border:1px solid #ffc107;'
 					. 'border-radius:4px;margin:20px 0;">'
-					. '<p><strong>Scolta:</strong> Search index has not been built yet.</p>'
-					. '<p><a href="' . $settings_url . '">Build now &rarr;</a>'
-					. ' or run <code>wp scolta build</code></p></div>';
+					. '<p><strong>Scolta:</strong> ' . $not_built . '</p>'
+					. '<p><a href="' . $settings_url . '">' . $build_now . ' &rarr;</a> '
+					. $or_run
+					. '</p></div>';
 			}
 			return ''; // Hide search box for non-admins when index doesn't exist.
 		}
