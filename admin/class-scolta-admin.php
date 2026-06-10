@@ -1296,16 +1296,6 @@ class Scolta_Admin {
 	}
 
 	/**
-	 * Sanitize a prompt field value.
-	 *
-	 * If the submitted text matches the built-in default, store empty
-	 * string so the prompt automatically picks up future default changes.
-	 *
-	 * @param string $value     The submitted prompt text.
-	 * @param string $key       The settings key (e.g., 'prompt_expand_query').
-	 * @return string Sanitized value, or empty if it matches the default.
-	 */
-	/**
 	 * Check whether a memory budget string is a valid profile name or byte value.
 	 *
 	 * Accepts named profiles (conservative, balanced, aggressive) and raw byte
@@ -1325,13 +1315,30 @@ class Scolta_Admin {
 		return (bool) preg_match( '/^\d+[KkMmGg]?$/', $value );
 	}
 
+	/**
+	 * Sanitize a prompt field value.
+	 *
+	 * If the submitted text matches the built-in default, store empty
+	 * string so the prompt automatically picks up future default changes.
+	 *
+	 * The default comparison MUST happen before length truncation: the
+	 * defaults live in scolta-php and may exceed the storage cap, and a
+	 * truncated submission would otherwise never match its own default
+	 * and get stored as a stale "custom" prompt. The default is passed
+	 * through the same sanitizer so the comparison survives anything
+	 * sanitize_textarea_field() strips from the round-tripped form value.
+	 *
+	 * @param string $value     The submitted prompt text.
+	 * @param string $key       The settings key (e.g., 'prompt_expand_query').
+	 * @return string Sanitized value, or empty if it matches the default.
+	 */
 	private static function sanitize_prompt( string $value, string $key ): string {
-		$sanitized = mb_substr( sanitize_textarea_field( $value ), 0, 5000 );
+		$sanitized = sanitize_textarea_field( $value );
 		$default   = self::get_default_prompt_template( $key );
-		if ( $default !== '' && trim( $sanitized ) === trim( $default ) ) {
+		if ( $default !== '' && trim( $sanitized ) === trim( sanitize_textarea_field( $default ) ) ) {
 			return '';
 		}
-		return $sanitized;
+		return mb_substr( $sanitized, 0, 5000 );
 	}
 
 	/**

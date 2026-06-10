@@ -231,15 +231,41 @@ class AdminSanitizeTest extends TestCase {
     // Prompt sanitization
     // -------------------------------------------------------------------
 
+    /**
+     * Submitting the unmodified built-in default must always round-trip
+     * to '' (meaning "use the default"), for every prompt and whatever
+     * text the installed scolta-php currently ships — including defaults
+     * longer than the 5000-char custom-prompt storage cap. This is the
+     * regression guard for the truncate-before-compare bug that stored
+     * a truncated copy of any over-cap default as a stale custom prompt.
+     */
     public function test_prompt_clears_when_matches_default(): void {
-        $default = \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate(
-            \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY
-        );
+        $prompts = [
+            'prompt_expand_query' => \Tag1\Scolta\Prompt\DefaultPrompts::EXPAND_QUERY,
+            'prompt_summarize'    => \Tag1\Scolta\Prompt\DefaultPrompts::SUMMARIZE,
+            'prompt_follow_up'    => \Tag1\Scolta\Prompt\DefaultPrompts::FOLLOW_UP,
+        ];
 
+        foreach ($prompts as $setting_key => $template_name) {
+            $default = \Tag1\Scolta\Prompt\DefaultPrompts::getTemplate($template_name);
+
+            $input = $this->defaultInput();
+            $input[$setting_key] = $default;
+            $result = Scolta_Admin::sanitize_settings($input);
+            $this->assertEquals(
+                '',
+                $result[$setting_key],
+                "Unmodified default for '{$setting_key}' (" . mb_strlen($default)
+                    . ' chars) must be stored as empty, not as a custom prompt'
+            );
+        }
+    }
+
+    public function test_prompt_custom_value_truncated_to_storage_cap(): void {
         $input = $this->defaultInput();
-        $input['prompt_expand_query'] = $default;
+        $input['prompt_expand_query'] = str_repeat('x', 6000);
         $result = Scolta_Admin::sanitize_settings($input);
-        $this->assertEquals('', $result['prompt_expand_query']);
+        $this->assertSame(5000, mb_strlen($result['prompt_expand_query']));
     }
 
     public function test_prompt_preserves_custom_value(): void {
