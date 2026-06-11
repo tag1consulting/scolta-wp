@@ -320,14 +320,45 @@ jobs:
       # Run WP.org's own Plugin Check against the exact artifact reviewers
       # would receive — not the repo checkout. Errors fail the job; warnings
       # are reported but non-fatal.
+      #
+      # The official wordpress/plugin-check-action is currently broken on the
+      # ubuntu-24.04 runner image: it puts the plugin-check zip in
+      # .wp-env.json as a URL plugin, and wp-env's URL download path silently
+      # exits 0 without starting on Node 24.16
+      # (https://github.com/WordPress/plugin-check-action/issues/579). Its
+      # steps are inlined here with the maintainer-recommended workaround:
+      # no URL plugins in .wp-env.json, install plugin-check via wp-cli after
+      # boot, and verify the environment actually came up.
+      - name: Setup wp-env
+        run: |
+          cat > .wp-env.json <<'EOF'
+          {
+            "core": null,
+            "plugins": [],
+            "mappings": { "wp-content/plugins/scolta": "./plugin-check-build/scolta" }
+          }
+          EOF
+          npm -g --no-fund i @wordpress/env
+
+      - name: Start wp-env (verified)
+        run: |
+          wp-env start
+          # wp-env can exit 0 without starting Docker; convert that silent
+          # failure into a loud one before trusting the environment.
+          wp-env run cli wp cli info
+
       - name: Run Plugin Check
-        uses: wordpress/plugin-check-action@v1
-        with:
-          build-dir: ./plugin-check-build/scolta
-          # The wp.org slug (matches the Text Domain); without it the check
-          # infers the slug from the directory name and flags every i18n call.
-          slug: scolta-ai-search
-          ignore-warnings: true
+        run: |
+          wp-env run cli wp plugin install plugin-check --activate
+          wp-env run cli wp plugin activate scolta
+          # --slug: the wp.org slug (matches the Text Domain); without it the
+          # check infers the slug from the directory name and flags every
+          # i18n call. Exit code is non-zero when errors are found;
+          # --ignore-warnings keeps warnings reported but non-fatal.
+          wp-env run cli wp plugin check scolta \
+            --slug=scolta-ai-search \
+            --ignore-warnings \
+            --require=./wp-content/plugins/plugin-check/cli.php
 
   antipatterns:
     runs-on: ubuntu-latest
