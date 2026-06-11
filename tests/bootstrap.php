@@ -116,7 +116,10 @@ if (!function_exists('wp_is_post_autosave')) {
     function wp_is_post_autosave($post): bool { return false; }
 }
 if (!function_exists('get_permalink')) {
-    function get_permalink($post = 0): string { return 'https://example.com/post/' . $post; }
+    function get_permalink($post = 0): string {
+        $id = $post instanceof WP_Post ? $post->ID : $post;
+        return 'https://example.com/post/' . $id;
+    }
 }
 if (!function_exists('get_bloginfo')) {
     function get_bloginfo(string $show = ''): string {
@@ -376,8 +379,19 @@ if (!function_exists('plugin_dir_url')) {
     function plugin_dir_url(string $file): string { return '/wp-content/plugins/' . basename(dirname($file)) . '/'; }
 }
 if (!function_exists('wp_count_posts')) {
+    // Tests can seed counts via $GLOBALS['scolta_test_post_counts'][$type].
     function wp_count_posts(string $type = 'post'): object {
-        return (object) ['publish' => 0, 'draft' => 0, 'trash' => 0];
+        $publish = (int) ($GLOBALS['scolta_test_post_counts'][$type] ?? 0);
+        return (object) ['publish' => $publish, 'draft' => 0, 'trash' => 0];
+    }
+}
+if (!function_exists('wp_strip_all_tags')) {
+    function wp_strip_all_tags(string $text, bool $remove_breaks = false): string {
+        $text = strip_tags($text);
+        if ($remove_breaks) {
+            $text = preg_replace('/[\r\n\t ]+/', ' ', $text);
+        }
+        return trim($text);
     }
 }
 
@@ -516,8 +530,16 @@ if (!function_exists('wp_upload_dir')) {
     }
 }
 if (!function_exists('wp_salt')) {
+    // Real WP salts are 64 chars; AuthenticatedCipher requires >= 32 bytes
+    // of key material, so the stub must be realistically long.
     function wp_salt(string $scheme = 'auth'): string {
-        return 'test-salt-' . $scheme;
+        return str_pad('test-salt-' . $scheme . '-', 64, 'x');
+    }
+}
+if (!function_exists('wp_set_script_translations')) {
+    function wp_set_script_translations(string $handle, string $domain = 'default', string $path = ''): bool {
+        $GLOBALS['scolta_script_translations'][$handle] = $domain;
+        return true;
     }
 }
 if (!function_exists('wp_cache_flush_group')) {

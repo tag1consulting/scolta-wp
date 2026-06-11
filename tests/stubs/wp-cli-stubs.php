@@ -9,6 +9,7 @@
 class WP_CLI {
     public static function add_command(string $name, $callable, array $args = []): void {}
     public static function log(string $msg): void {}
+    public static function debug(string $msg, $group = false): void {}
     public static function success(string $msg): void {}
     public static function warning(string $msg): void {}
     public static function error(string $msg, bool $exit = true): void {

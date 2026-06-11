@@ -22,6 +22,8 @@
  *
  *     # Rebuild Pagefind index only (skip content export)
  *     wp scolta rebuild-index
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -33,6 +35,9 @@ use Tag1\Scolta\Export\ContentExporter;
 use Tag1\Scolta\Index\BuildIntentFactory;
 use Tag1\Scolta\Index\IndexBuildOrchestrator;
 
+/**
+ * WP-CLI command handlers for the `wp scolta` namespace.
+ */
 class Scolta_CLI {
 
 	/**
@@ -102,6 +107,9 @@ class Scolta_CLI {
 	 *     wp scolta build --indexer=php --resume
 	 *     wp scolta build --incremental
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments.
+	 *
 	 * @subcommand build
 	 */
 	public function build( array $args, array $assoc_args ): void {
@@ -112,6 +120,12 @@ class Scolta_CLI {
 		}
 	}
 
+	/**
+	 * Route a build to the PHP or binary indexer pipeline.
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments.
+	 */
 	private function do_build( array $args, array $assoc_args ): void {
 		$settings = get_option( 'scolta_settings', array() );
 		$config   = ScoltaConfig::fromArray( $settings );
@@ -150,8 +164,8 @@ class Scolta_CLI {
 		$resume        = \WP_CLI\Utils\get_flag_value( $assoc_args, 'resume', false );
 		$restart       = \WP_CLI\Utils\get_flag_value( $assoc_args, 'restart', false );
 		$strict_errors = \WP_CLI\Utils\get_flag_value( $assoc_args, 'strict-errors', false );
-		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
-		$state_dir  = $this->get_state_dir();
+		$output_dir    = $settings['output_dir'] ?? scolta_default_output_dir();
+		$state_dir     = $this->get_state_dir();
 
 		$budget_opt = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
 		$chunk_opt  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null );
@@ -260,7 +274,7 @@ class Scolta_CLI {
 		}
 
 		$log_file = sys_get_temp_dir() . '/scolta-resume.log';
-		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- exec() required to spawn background WP-CLI subprocess for memory-constrained resume.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec -- exec() spawns the background WP-CLI subprocess that resumes a memory-constrained build.
 		exec( $cmd . ' >> ' . escapeshellarg( $log_file ) . ' 2>&1 &' );
 		\WP_CLI::log( 'Resume log: ' . $log_file );
 	}
@@ -282,7 +296,7 @@ class Scolta_CLI {
 		}
 
 		// Fall back to PATH.
-		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- shell_exec() required to locate wp-cli binary via PATH.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_shell_exec -- shell_exec() locates the wp-cli binary via PATH for the background resume.
 		$which = trim( (string) shell_exec( 'which wp 2>/dev/null' ) );
 		if ( '' !== $which && is_executable( $which ) ) {
 			return $which;
@@ -438,6 +452,9 @@ class Scolta_CLI {
 	 *     # Test a custom budget before committing it to settings
 	 *     wp scolta diagnose --count=1000 --memory-budget=256M --chunk-size=100
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments.
+	 *
 	 * @subcommand diagnose
 	 */
 	public function diagnose( array $args, array $assoc_args ): void {
@@ -454,11 +471,11 @@ class Scolta_CLI {
 	 * @param array $assoc_args CLI associative arguments.
 	 */
 	private function do_diagnose( array $assoc_args ): void {
-		$limit        = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
-		$settings     = get_option( 'scolta_settings', array() );
-		$budget_opt   = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
-		$chunk_opt    = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null );
-		$budget       = MemoryBudgetConfig::fromCliAndConfig(
+		$limit      = max( 1, (int) \WP_CLI\Utils\get_flag_value( $assoc_args, 'count', 500 ) );
+		$settings   = get_option( 'scolta_settings', array() );
+		$budget_opt = \WP_CLI\Utils\get_flag_value( $assoc_args, 'memory-budget', null );
+		$chunk_opt  = \WP_CLI\Utils\get_flag_value( $assoc_args, 'chunk-size', null );
+		$budget     = MemoryBudgetConfig::fromCliAndConfig(
 			null !== $budget_opt ? (string) $budget_opt : null,
 			null !== $chunk_opt ? (string) $chunk_opt : null,
 			fn() => array(
@@ -551,7 +568,7 @@ class Scolta_CLI {
 		$orchestrator = new IndexBuildOrchestrator( $state_dir, $output_dir );
 		$intent       = BuildIntentFactory::fromFlags( false, false, $passed, $budget );
 
-		$t0         = microtime( true );
+		$t0 = microtime( true );
 		$orchestrator->build( $intent, $filtered );
 		$index_time = microtime( true ) - $t0;
 		$index_ms   = $index_time / $passed * 1000;
@@ -686,6 +703,9 @@ class Scolta_CLI {
 	 * [--incremental]
 	 * : Only process content that changed since the last build.
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments.
+	 *
 	 * @subcommand export
 	 */
 	public function export( array $args, array $assoc_args ): void {
@@ -744,6 +764,9 @@ class Scolta_CLI {
 	 * Skips the content export step — useful when you've edited the
 	 * HTML files directly or want to rebuild after a Pagefind update.
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
+	 *
 	 * @subcommand rebuild-index
 	 */
 	public function rebuild_index( array $args, array $assoc_args ): void {
@@ -786,6 +809,9 @@ class Scolta_CLI {
 	 * Displays tracker state, index stats, binary availability, and
 	 * configuration summary.
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
+	 *
 	 * @subcommand status
 	 */
 	public function status( array $args, array $assoc_args ): void {
@@ -796,6 +822,9 @@ class Scolta_CLI {
 		}
 	}
 
+	/**
+	 * Print tracker, index, configuration, and AI provider status.
+	 */
 	private function do_status(): void {
 		$settings   = get_option( 'scolta_settings', array() );
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
@@ -913,6 +942,9 @@ class Scolta_CLI {
 	 *
 	 *     wp scolta clear-cache
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
+	 *
 	 * @subcommand clear-cache
 	 */
 	public function clear_cache( array $args, array $assoc_args ): void {
@@ -954,6 +986,9 @@ class Scolta_CLI {
 	 * ## EXAMPLES
 	 *
 	 *     wp scolta cleanup
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
 	 *
 	 * @subcommand cleanup
 	 */
@@ -1004,7 +1039,7 @@ class Scolta_CLI {
 					// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- CLI cleanup of stale artifact.
 					rmdir( $path );
 					++$removed;
-					$dir_iter->next(); // skip now-removed subtree
+					$dir_iter->next(); // Skip the now-removed subtree.
 				}
 			}
 		}
@@ -1049,6 +1084,7 @@ class Scolta_CLI {
 
 		$entry_file = $index_dir . '/pagefind-entry.json';
 		try {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reads a local index metadata file, not a remote URL.
 			$entry      = json_decode( (string) file_get_contents( $entry_file ), true, 512, JSON_THROW_ON_ERROR );
 			$version    = $entry['version'] ?? 'unknown';
 			$page_count = count( $entry['pages'] ?? array() );
@@ -1086,6 +1122,9 @@ class Scolta_CLI {
 	 * Verify Scolta dependencies and configuration.
 	 *
 	 * Checks PHP version, Pagefind binary, AI key, and browser WASM assets.
+	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
 	 *
 	 * @subcommand check-setup
 	 */
@@ -1132,6 +1171,9 @@ class Scolta_CLI {
 	 * For hosts without npm/Node.js — downloads the pre-built binary
 	 * directly from GitHub releases.
 	 *
+	 * @param array $args       Positional arguments (unused).
+	 * @param array $assoc_args Associative flag arguments (unused).
+	 *
 	 * @subcommand download-pagefind
 	 */
 	public function download_pagefind( array $args, array $assoc_args ): void {
@@ -1142,6 +1184,9 @@ class Scolta_CLI {
 		}
 	}
 
+	/**
+	 * Download and install the Pagefind binary from GitHub releases.
+	 */
 	private function do_download_pagefind(): void {
 		$settings = get_option( 'scolta_settings', array() );
 		// Use PagefindBinary::downloadTargetDir() so the install location
@@ -1150,7 +1195,7 @@ class Scolta_CLI {
 			configuredPath: $settings['pagefind_binary'] ?? null,
 			projectDir: SCOLTA_PLUGIN_DIR,
 		);
-		$target_dir = $resolver->downloadTargetDir(); // creates dir if needed
+		$target_dir = $resolver->downloadTargetDir(); // Creates the dir if needed.
 
 		// Detect platform.
 		$os   = PHP_OS_FAMILY;
@@ -1205,7 +1250,7 @@ class Scolta_CLI {
 		// Extract the binary.
 		$target_binary = $target_dir . '/pagefind';
 
-		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- shell_exec required to run tar for binary extraction in CLI context.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_shell_exec -- shell_exec() runs tar to extract the downloaded Pagefind binary in CLI context.
 		$result = shell_exec( 'tar -xzf ' . escapeshellarg( $tmp_file ) . ' -C ' . escapeshellarg( $target_dir ) . ' pagefind 2>&1' );
 		wp_delete_file( $tmp_file );
 
@@ -1231,6 +1276,10 @@ class Scolta_CLI {
 
 	/**
 	 * Run the Pagefind CLI and report results.
+	 *
+	 * @param string $binary     Path to the Pagefind binary.
+	 * @param string $build_dir  Directory containing the exported HTML files.
+	 * @param string $output_dir Directory to write the built index to.
 	 */
 	private function run_pagefind( string $binary, string $build_dir, string $output_dir ): void {
 		if ( ! is_dir( $build_dir ) ) {
@@ -1260,7 +1309,7 @@ class Scolta_CLI {
 			1 => array( 'pipe', 'w' ),
 			2 => array( 'pipe', 'w' ),
 		);
-		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- Pagefind binary must be invoked as a subprocess to build the search index. No WP alternative exists.
+		// phpcs:ignore Generic.PHP.ForbiddenFunctions.Found, WordPress.PHP.DiscouragedPHPFunctions.system_calls_proc_open -- Pagefind binary must be invoked as a subprocess to build the search index. No WP alternative exists.
 		$process = proc_open( $cmd, $descriptors, $pipes );
 		if ( ! is_resource( $process ) ) {
 			\WP_CLI::error( 'Failed to start Pagefind process.' );
@@ -1331,6 +1380,8 @@ class Scolta_CLI {
 
 	/**
 	 * Join post type names for display.
+	 *
+	 * @param array $types Post type names.
 	 */
 	private function join_types( array $types ): string {
 		return implode( ', ', $types );

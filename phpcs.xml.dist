@@ -4,15 +4,22 @@
   <arg name="extensions" value="php"/>
   <arg name="colors"/>
   <arg value="sp"/>
-  <!-- Warnings are informational only; only errors block CI. -->
-  <arg value="n"/>
 
   <file>includes</file>
   <file>cli</file>
   <file>admin</file>
   <file>scolta.php</file>
+  <file>uninstall.php</file>
 
   <rule ref="WordPress-Extra"/>
+
+  <!-- Docblock standards on the class directories. scolta.php and
+       uninstall.php are procedural bootstrap files with hook closures;
+       WordPress-Docs is class/method-oriented, so they stay out. -->
+  <rule ref="WordPress-Docs">
+    <exclude-pattern>scolta\.php</exclude-pattern>
+    <exclude-pattern>uninstall\.php</exclude-pattern>
+  </rule>
 
   <!-- Must match the plugin header / readme.txt "Requires at least" — the
        code requires 6.1 (wp_cache_flush_group()). -->
@@ -23,10 +30,22 @@
   <rule ref="Generic.Files.LineLength">
     <exclude-pattern>tests/*</exclude-pattern>
   </rule>
+  <!-- The soft line-length warning is churn-only: the hard MaxExceeded
+       limit stays enforced (below), and rewrapping ~400 legacy lines
+       would bury real diffs. -->
+  <rule ref="Generic.Files.LineLength.TooLong">
+    <exclude-pattern>*</exclude-pattern>
+  </rule>
   <!-- Admin and CLI have HTML-heavy rendering code; relax hard line limit -->
   <rule ref="Generic.Files.LineLength.MaxExceeded">
     <exclude-pattern>admin/*</exclude-pattern>
     <exclude-pattern>cli/*</exclude-pattern>
+  </rule>
+
+  <!-- WordPress hook and WP-CLI command signatures are fixed by core;
+       callbacks legitimately ignore trailing parameters. -->
+  <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
+    <exclude-pattern>*</exclude-pattern>
   </rule>
 
   <!--

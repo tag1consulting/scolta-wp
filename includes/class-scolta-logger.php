@@ -5,6 +5,8 @@
  * Routes warning/error/critical to error_log() so build issues are
  * captured in the server error log when WP-CLI is not running. Info
  * and debug are dropped to keep logs clean.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;

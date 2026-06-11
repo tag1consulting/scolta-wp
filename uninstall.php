@@ -36,7 +36,10 @@ $wpdb->query(
 
 // Clean up user meta for all users.
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Uninstall cleanup: bulk delete user meta; no single-user API for wildcard deletion.
-$wpdb->query( "DELETE FROM {$wpdb->usermeta} WHERE meta_key IN ('scolta_dismissed_rebuild_notice', 'scolta_amazee_flow')" );
+$wpdb->query(
+	"DELETE FROM {$wpdb->usermeta} WHERE meta_key IN"
+	. " ('scolta_dismissed_rebuild_notice', 'scolta_amazee_flow')"
+);
 
 // Clear Action Scheduler actions (if available).
 if ( function_exists( 'as_unschedule_all_actions' ) ) {

@@ -5,6 +5,8 @@
  * Routes IndexBuildOrchestrator progress callbacks to WP-CLI's native
  * progress bar so operators see live chunk-by-chunk feedback instead of
  * a silent 50-minute build with only a final success line.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -18,7 +20,11 @@ use Tag1\Scolta\Index\ProgressReporterInterface;
  */
 class Scolta_WP_CLI_Progress_Reporter implements ProgressReporterInterface {
 
-	/** @var object|null WP-CLI progress bar returned by make_progress_bar(). */
+	/**
+	 * WP-CLI progress bar returned by make_progress_bar().
+	 *
+	 * @var object|null
+	 */
 	private $bar = null;
 
 	/**

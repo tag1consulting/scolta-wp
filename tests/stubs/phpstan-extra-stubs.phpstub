@@ -1,0 +1,42 @@
+<?php
+/**
+ * PHPStan-only symbol declarations for optional integrations the plugin
+ * feature-detects at runtime (Action Scheduler, WP AI Client SDK).
+ *
+ * Never loaded at runtime or by PHPUnit — referenced via scanFiles in
+ * phpstan.neon.dist so the analyzer knows the signatures.
+ */
+
+namespace {
+	/**
+	 * Action Scheduler: schedule a one-off action.
+	 *
+	 * @param int                      $timestamp When to run.
+	 * @param string                   $hook      Action hook name.
+	 * @param array<int|string, mixed> $args      Hook arguments.
+	 * @param string                   $group     Action group.
+	 * @return int Scheduled action ID.
+	 */
+	function as_schedule_single_action( int $timestamp, string $hook, array $args = array(), string $group = '' ): int {
+		return 0;
+	}
+}
+
+namespace WordPress\AI {
+	/**
+	 * WP AI Client SDK (feature-detected; only the surface the plugin calls).
+	 */
+	class Client {
+		public static function instance(): self {
+			return new self();
+		}
+
+		/**
+		 * @param mixed ...$args Prompt arguments.
+		 * @return mixed
+		 */
+		public function prompt( ...$args ) {
+			return null;
+		}
+	}
+}

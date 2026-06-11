@@ -5,6 +5,8 @@
  * Routes IndexBuildOrchestrator log calls (memory telemetry, phase markers,
  * warnings) to WP-CLI output so operators see per-chunk memory stats and
  * phase boundaries during a long build.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,6 +36,8 @@ class Scolta_WP_CLI_Logger extends AbstractLogger {
 	private bool $strict_errors;
 
 	/**
+	 * Constructor.
+	 *
 	 * @param bool $strict_errors When true, PSR-3 error and above call WP_CLI::error() (exits).
 	 */
 	public function __construct( bool $strict_errors = false ) {
@@ -48,7 +52,7 @@ class Scolta_WP_CLI_Logger extends AbstractLogger {
 	 * @param mixed[] $context Values to interpolate into the message.
 	 */
 	public function log( $level, $message, array $context = array() ): void {
-		$formatted = $this->interpolate( (string) $message, $context );
+		$formatted    = $this->interpolate( (string) $message, $context );
 		$error_levels = array( 'error', 'critical', 'alert', 'emergency' );
 		$is_error     = in_array( (string) $level, $error_levels, true );
 		if ( $is_error ) {

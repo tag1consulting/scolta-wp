@@ -11,6 +11,8 @@
  *   POST /wp-json/scolta/v1/expand-query
  *   POST /wp-json/scolta/v1/summarize
  *   POST /wp-json/scolta/v1/followup
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -18,6 +20,9 @@ defined( 'ABSPATH' ) || exit;
 use Tag1\Scolta\Cache\NullCacheDriver;
 use Tag1\Scolta\Http\AiEndpointHandler;
 
+/**
+ * Registers and handles the Scolta REST API routes.
+ */
 class Scolta_Rest_Api {
 
 	/**
@@ -243,6 +248,8 @@ class Scolta_Rest_Api {
 
 	/**
 	 * Build an AiEndpointHandler from current WordPress config.
+	 *
+	 * @param \Scolta_Ai_Service $ai The configured AI service instance.
 	 */
 	private static function make_handler( \Scolta_Ai_Service $ai ): AiEndpointHandler {
 		$config     = $ai->get_config();
@@ -264,6 +271,7 @@ class Scolta_Rest_Api {
 			sortableFieldDescriptions: $config->sortableFieldDescriptions,
 			filterFields: $config->filterFields,
 			filterFieldDescriptions: $config->filterFieldDescriptions,
+			logger: new \Scolta_Logger(),
 		);
 	}
 
@@ -271,6 +279,8 @@ class Scolta_Rest_Api {
 	 * POST /wp-json/scolta/v1/expand-query
 	 *
 	 * Expands a search query into 2-4 related terms using AI.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_expand( \WP_REST_Request $request ): \WP_REST_Response {
 		$rate_limit_response = self::check_rate_limit();
@@ -287,18 +297,13 @@ class Scolta_Rest_Api {
 			return new \WP_REST_Response( $result['data'], 200 );
 		}
 
-		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			$msg   = $result['exception']->getMessage();
-			$trace = $result['exception']->getTraceAsString();
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
-			error_log( '[scolta] Expand failed: ' . $msg . "\n" . $trace );
-		}
-
 		return new \WP_REST_Response( array( 'error' => $result['error'] ), $result['status'] );
 	}
 
 	/**
 	 * POST /wp-json/scolta/v1/summarize
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_summarize( \WP_REST_Request $request ): \WP_REST_Response {
 		$rate_limit_response = self::check_rate_limit();
@@ -318,18 +323,13 @@ class Scolta_Rest_Api {
 			return new \WP_REST_Response( $result['data'], 200 );
 		}
 
-		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			$msg   = $result['exception']->getMessage();
-			$trace = $result['exception']->getTraceAsString();
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
-			error_log( '[scolta] Summarize failed: ' . $msg . "\n" . $trace );
-		}
-
 		return new \WP_REST_Response( array( 'error' => $result['error'] ), $result['status'] );
 	}
 
 	/**
 	 * POST /wp-json/scolta/v1/followup
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_followup( \WP_REST_Request $request ): \WP_REST_Response {
 		$rate_limit_response = self::check_rate_limit();
@@ -346,13 +346,6 @@ class Scolta_Rest_Api {
 			return new \WP_REST_Response( $result['data'], 200 );
 		}
 
-		if ( isset( $result['exception'] ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			$msg   = $result['exception']->getMessage();
-			$trace = $result['exception']->getTraceAsString();
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging guarded by WP_DEBUG.
-			error_log( '[scolta] Follow-up failed: ' . $msg . "\n" . $trace );
-		}
-
 		$response = array( 'error' => $result['error'] );
 		if ( isset( $result['limit'] ) ) {
 			$response['limit'] = $result['limit'];
@@ -365,9 +358,11 @@ class Scolta_Rest_Api {
 	 * GET /wp-json/scolta/v1/health
 	 *
 	 * Returns service status for monitoring tools.
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_health( \WP_REST_Request $request ): \WP_REST_Response {
-		$settings   = get_option( 'scolta_settings', array() );
+		$settings = get_option( 'scolta_settings', array() );
 		// Normalize exactly like the builder does (strips a trailing
 		// /pagefind) so health inspects the directory the builder wrote to —
 		// an already-suffixed output_dir otherwise reports a healthy index
@@ -388,8 +383,8 @@ class Scolta_Rest_Api {
 
 		// Index detail enrichment: fragment count and last-build timestamp.
 		if ( $result['index_exists'] ) {
-			$index_file = $output_dir . '/pagefind/pagefind.js';
-			$mtime      = file_exists( $index_file ) ? filemtime( $index_file ) : false;
+			$index_file  = $output_dir . '/pagefind/pagefind.js';
+			$mtime       = file_exists( $index_file ) ? filemtime( $index_file ) : false;
 			$glob_result = glob( $output_dir . '/pagefind/fragment/*' );
 			$fragments   = false !== $glob_result ? $glob_result : array();
 
@@ -440,6 +435,8 @@ class Scolta_Rest_Api {
 	 * Includes stale lock detection to recover from crashed builds.
 	 *
 	 * @since 0.2.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_build_progress( \WP_REST_Request $request ): \WP_REST_Response {
 		$status = get_option( 'scolta_build_status', array( 'status' => 'idle' ) );
@@ -464,6 +461,8 @@ class Scolta_Rest_Api {
 	 * Triggers an immediate rebuild via Action Scheduler.
 	 *
 	 * @since 0.2.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_rebuild_now( \WP_REST_Request $request ): \WP_REST_Response {
 		if ( get_transient( Scolta_Rebuild_Scheduler::LOCK_KEY ) ) {

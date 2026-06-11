@@ -8,6 +8,8 @@
  *
  * In-flight flow state (email, session token) is stored in user meta and
  * cleared on completion or back navigation.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -78,10 +80,11 @@ class Scolta_Amazee_Admin_Page {
 		wp_enqueue_script(
 			'scolta-amazee-admin',
 			SCOLTA_PLUGIN_URL . 'assets/js/amazee-admin.js',
-			array( 'jquery' ),
+			array( 'jquery', 'wp-i18n' ),
 			SCOLTA_VERSION,
 			true,
 		);
+		wp_set_script_translations( 'scolta-amazee-admin', 'scolta-ai-search' );
 		wp_localize_script(
 			'scolta-amazee-admin',
 			'scoltaAmazee',
@@ -146,7 +149,7 @@ class Scolta_Amazee_Admin_Page {
 				null,
 				new AmazeeModelResolver( $amazeeClient ),
 			);
-			$result = $provisioner->provision( $email );
+			$result       = $provisioner->provision( $email );
 
 			if ( $result->aiModel !== null ) {
 				$default_model   = 'claude-sonnet-4-5-20250929';
@@ -200,13 +203,13 @@ class Scolta_Amazee_Admin_Page {
 			$upgrader->requestVerificationCode( $email );
 			self::save_flow_state(
 				array(
-					'step' => 'verification',
+					'step'  => 'verification',
 					'email' => $email,
 				)
 			);
 			wp_send_json_success(
 				array(
-					'step' => 'verification',
+					'step'  => 'verification',
 					'email' => $email,
 				)
 			);
@@ -235,7 +238,7 @@ class Scolta_Amazee_Admin_Page {
 				array_merge(
 					$flow,
 					array(
-						'step' => 'region',
+						'step'          => 'region',
 						'session_token' => $sessionToken,
 					)
 				)
