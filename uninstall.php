@@ -17,6 +17,8 @@ delete_option( 'scolta_build_status' );
 delete_option( 'scolta_build_force' );
 delete_option( 'scolta_trust_proxy_headers' );
 delete_option( 'scolta_amazee_credentials' );
+delete_option( 'scolta_ai_optin_pending' );
+delete_option( 'scolta_ai_optin_notice_dismissed' );
 
 // Drop the tracker table.
 global $wpdb;

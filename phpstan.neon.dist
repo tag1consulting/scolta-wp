@@ -4,6 +4,10 @@ includes:
 
 parameters:
 	level: 5
+	# Build-time constant: scripts/build-dist.sh flips it to false for the
+	# WordPress.org zip, so neither branch is dead code.
+	dynamicConstantNames:
+		- SCOLTA_AUTO_PROVISION_DEFAULT
 	paths:
 		- scolta.php
 		- uninstall.php

@@ -620,6 +620,9 @@ if (!class_exists('WP_Error')) {
     }
 }
 
+if (!defined('MINUTE_IN_SECONDS')) {
+    define('MINUTE_IN_SECONDS', 60);
+}
 if (!defined('DAY_IN_SECONDS')) {
     define('DAY_IN_SECONDS', 86400);
 }
@@ -677,6 +680,14 @@ if (!function_exists('wp_unslash')) {
 }
 if (!function_exists('check_ajax_referer')) {
     function check_ajax_referer(string $action = '', $query_arg = false, bool $die = true): bool { return true; }
+}
+if (!function_exists('check_admin_referer')) {
+    function check_admin_referer($action = -1, string $query_arg = '_wpnonce'): bool { return true; }
+}
+if (!function_exists('wp_die')) {
+    function wp_die($message = '', $title = '', $args = []): void {
+        throw new RuntimeException('wp_die: ' . (is_string($message) ? $message : ''));
+    }
 }
 if (!function_exists('wp_send_json_success')) {
     function wp_send_json_success($data = null, int $status_code = 200, int $flags = 0): void {

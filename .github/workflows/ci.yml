@@ -294,6 +294,41 @@ jobs:
           VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
           bash scripts/validate-dist.sh "scolta-${VERSION}.zip"
 
+  plugin-check:
+    name: WordPress.org Plugin Check (built zip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl
+          coverage: none
+
+      - name: Install dependencies (no dev)
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Build and unpack distribution archive
+        run: |
+          VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
+          bash scripts/build-dist.sh "$VERSION"
+          mkdir -p plugin-check-build
+          unzip -q "scolta-${VERSION}.zip" -d plugin-check-build
+
+      # Run WP.org's own Plugin Check against the exact artifact reviewers
+      # would receive — not the repo checkout. Errors fail the job; warnings
+      # are reported but non-fatal.
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./plugin-check-build/scolta
+          # The wp.org slug (matches the Text Domain); without it the check
+          # infers the slug from the directory name and flags every i18n call.
+          slug: scolta-ai-search
+          ignore-warnings: true
+
   antipatterns:
     runs-on: ubuntu-latest
     steps:

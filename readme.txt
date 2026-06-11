@@ -52,11 +52,15 @@ Yes. The PHP indexer works without `exec()` or Node.js, making it compatible wit
 
 = Is the AI tier required? =
 
-No. The base search tier works without any API key. AI query expansion and result summarization are optional features.
+No. The base search tier works without any API key. In the WordPress.org distribution, all AI features are opt-in and OFF by default: the plugin makes no remote requests of any kind until an administrator explicitly enables AI features in Settings > Scolta or configures an API key.
 
 = What AI providers are supported? =
 
-Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). Amazee.ai trial credits are provisioned automatically on first activation when no API key is configured.
+Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). If no API key is configured, an administrator can enable AI features in Settings > Scolta, which provisions free Amazee.ai trial credits — this is an explicit opt-in step and never happens automatically.
+
+= What happens when I enable AI features? =
+
+Enabling AI features in Settings > Scolta provisions a free Amazee.ai trial: your site admin email address is sent to amazee.ai (api.amazee.ai) to create the trial account, and AI search queries plus result excerpts are then processed by the Amazee.ai gateway. The settings page states this before you confirm, with links to Amazee.ai's terms and privacy policy. If you configure your own API key instead, nothing is ever sent to amazee.ai.
 
 = Does this work with WooCommerce? =
 
@@ -144,7 +148,7 @@ First stable release. Upgrades from rc2/rc3/rc4 are seamless. If upgrading from 
 
 == External Services ==
 
-This plugin connects to the following external services under specific conditions. No data is sent automatically — all connections are triggered by admin action or explicit site configuration.
+This plugin connects to the following external services under specific conditions. No data is sent automatically — all connections are triggered by explicit admin action or explicit site configuration. In the WordPress.org distribution, all AI features are opt-in and OFF by default: the plugin makes no remote requests of any kind until an administrator enables AI features in Settings > Scolta or configures an API key.
 
 = GitHub API (api.github.com) =
 
@@ -185,11 +189,19 @@ No AI API calls are made unless the site administrator has explicitly enabled AI
 
 = Amazee.ai (amazee.ai) =
 
-**When:** An administrator starts a trial or signs in via Settings > Scolta > Amazee.ai. On activation, if no API key is configured, the plugin may auto-provision trial credentials via Action Scheduler.
-**What is sent:** The administrator's email address (for trial/sign-in), and AI search queries and result excerpts when the Amazee.ai gateway is the active AI provider.
-**Service:** Amazee.ai, a privacy-respecting AI gateway. Credentials are stored encrypted (AES-256-CBC) in the WordPress options table.
+**When:** Only after an explicit admin action: an administrator clicks "Enable AI features" in Settings > Scolta, or starts a trial / signs in via Settings > Scolta > Amazee.ai. The plugin never contacts amazee.ai on activation or without one of these explicit steps, and the consequences (including exactly what is sent) are stated in the admin UI before confirmation.
+**What is sent:** The site admin email address (to create the trial account, sent to api.amazee.ai), or the email address entered during sign-in; and AI search queries and result excerpts when the Amazee.ai gateway is the active AI provider.
+**Service:** Amazee.ai, a privacy-respecting AI gateway. Credentials are stored encrypted in the WordPress options table.
 **Terms of Service:** https://amazee.ai/terms
 **Privacy Policy:** https://amazee.ai/privacy
+
+== Source code and compiled assets ==
+
+The distribution archive contains a small number of compiled or binary files. All of them are required at runtime and built from public, open-source projects:
+
+* `assets/wasm/scolta_core_bg.wasm` — the browser-side search engine, compiled from the public source at https://github.com/tag1consulting/scolta-core with `wasm-pack build --target web --release` (output `pkg/scolta_core_bg.wasm`). No modifications are made to the build output.
+* `vendor/tag1/scolta-php/assets/pagefind/wasm.en.pagefind`, `wasm.unknown.pagefind`, `pagefind.js`, and `pagefind-worker.js` — the unmodified runtime of the open-source Pagefind project (https://github.com/Pagefind/pagefind, MIT license). The indexer copies these files into every generated search index; removing them would break client-side search.
+* Dependency `LICENSE*` files under `vendor/` are retained as required by those packages' license terms (for example, `voku/portable-utf8` is dual-licensed and Apache-2.0 section 4 requires the license text to accompany redistribution).
 
 == About Tag1 Consulting ==
 
