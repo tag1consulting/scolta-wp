@@ -29,6 +29,24 @@ jobs:
           fi
           echo "OK: Tested up to matches current WordPress version."
 
+  check-readme-changelog:
+    name: Check readme.txt changelog entry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify readme.txt changelog has an entry for this release
+        run: |
+          VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
+          echo "Releasing version: $VERSION"
+
+          if ! grep -qF "= ${VERSION} =" readme.txt; then
+            echo "ERROR: readme.txt has no '= ${VERSION} =' changelog section."
+            echo "wordpress.org users only see the readme.txt changelog — backfill it from CHANGELOG.md before releasing."
+            exit 1
+          fi
+          echo "OK: readme.txt changelog covers ${VERSION}."
+
   lock-guard:
     name: Verify scolta-php lock source
     runs-on: ubuntu-latest
@@ -55,7 +73,7 @@ jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
-    needs: [check-wp-version, lock-guard]
+    needs: [check-wp-version, check-readme-changelog, lock-guard]
     permissions:
       contents: write
     steps:

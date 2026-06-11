@@ -153,14 +153,23 @@ class ContentGathererGeneratorTest extends TestCase {
 		$this->assertSame( 'int', $return->getName(), 'gather_count() must return int' );
 	}
 
-	public function test_gather_count_uses_ids_field(): void {
+	public function test_gather_count_loads_no_posts(): void {
 		preg_match( '/public static function gather_count\(\)[^{]*\{(.+?)(?=\n\t\/\*\*|\n\tpublic static function|\n\tprivate|\n\})/s', $this->gatherer_source, $m );
 		$method_body = $m[1] ?? '';
 
+		// gather_count() previously used an unbounded ids-only WP_Query; it
+		// now counts via wp_count_posts() (cached COUNT(*)) so no posts —
+		// not even IDs — are fetched, and the CI unbounded-query guard
+		// stays clean.
 		$this->assertStringContainsString(
-			"'fields'",
+			'wp_count_posts',
 			$method_body,
-			"gather_count() must use 'fields' => 'ids' to avoid loading full post objects"
+			'gather_count() must count via wp_count_posts(), not a WP_Query'
+		);
+		$this->assertStringNotContainsString(
+			'WP_Query',
+			$method_body,
+			'gather_count() must not instantiate WP_Query at all'
 		);
 	}
 

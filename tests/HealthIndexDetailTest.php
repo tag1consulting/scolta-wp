@@ -167,6 +167,50 @@ class HealthIndexDetailTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------
+	// output_dir ending in /pagefind resolves the same index the builder
+	// wrote (builder-identical normalization — 2026-06-09 regression, P2)
+	// -------------------------------------------------------------------
+
+	public function test_suffixed_output_dir_reports_same_fragment_count(): void {
+		$this->create_valid_index( fragment_count: 7 );
+
+		update_option( 'scolta_settings', array( 'output_dir' => $this->tmp_dir ) );
+		$request = new WP_REST_Request( 'GET', '/wp-json/scolta/v1/health' );
+		$plain   = Scolta_Rest_Api::handle_health( $request )->get_data();
+
+		update_option( 'scolta_settings', array( 'output_dir' => $this->tmp_dir . '/pagefind' ) );
+		$suffixed = Scolta_Rest_Api::handle_health( $request )->get_data();
+
+		$this->assertSame( 7, $plain['index']['fragments'] );
+		$this->assertSame(
+			7,
+			$suffixed['index']['fragments'],
+			'an output_dir already ending in /pagefind must be normalized like the builder normalizes it — not doubled into /pagefind/pagefind'
+		);
+	}
+
+	public function test_suffixed_output_dir_reports_same_status_and_integrity(): void {
+		$this->create_valid_index();
+		$request = new WP_REST_Request( 'GET', '/wp-json/scolta/v1/health' );
+
+		update_option( 'scolta_settings', array( 'output_dir' => $this->tmp_dir ) );
+		$plain = Scolta_Rest_Api::handle_health( $request )->get_data();
+
+		update_option( 'scolta_settings', array( 'output_dir' => $this->tmp_dir . '/pagefind' ) );
+		$suffixed = Scolta_Rest_Api::handle_health( $request )->get_data();
+
+		$this->assertTrue(
+			$suffixed['index']['integrity']['valid'],
+			'a healthy index must not fail the integrity check just because output_dir carries the /pagefind suffix'
+		);
+		$this->assertSame(
+			$plain['status'],
+			$suffixed['status'],
+			'the /pagefind suffix must not change the overall health status'
+		);
+	}
+
+	// -------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------
 

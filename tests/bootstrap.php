@@ -147,8 +147,26 @@ if (!function_exists('esc_html')) {
 if (!function_exists('esc_attr')) {
     function esc_attr(string $text): string { return htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); }
 }
+if (!function_exists('esc_textarea')) {
+    function esc_textarea(string $text): string { return htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); }
+}
 if (!function_exists('esc_url')) {
     function esc_url(string $url): string { return filter_var($url, FILTER_SANITIZE_URL) ?: ''; }
+}
+if (!function_exists('esc_url_raw')) {
+    // Mirrors WP behavior closely enough for tests: empty input stays empty,
+    // scheme-less input gets http://, disallowed schemes return ''.
+    function esc_url_raw(string $url, ?array $protocols = null): string {
+        if ($url === '') { return ''; }
+        $protocols = $protocols ?? ['http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'feed', 'telnet'];
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        if ($scheme === null) {
+            $url = 'http://' . ltrim($url, '/');
+            $scheme = 'http';
+        }
+        if (!in_array(strtolower((string) $scheme), $protocols, true)) { return ''; }
+        return $url;
+    }
 }
 
 // i18n stubs.
@@ -242,8 +260,12 @@ if (!function_exists('add_shortcode')) {
 }
 
 // User capability stubs.
+// Tests can simulate a low-privilege user by setting
+// $GLOBALS['scolta_test_user_can'] = false (reset it in tear_down).
 if (!function_exists('current_user_can')) {
-    function current_user_can(string $capability): bool { return true; }
+    function current_user_can(string $capability): bool {
+        return $GLOBALS['scolta_test_user_can'] ?? true;
+    }
 }
 if (!function_exists('wp_kses_post')) {
     function wp_kses_post(string $data): string { return $data; }

@@ -41,6 +41,12 @@ class Scolta_Admin {
 
 		// Show auto-configured Amazee.ai model notice.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_amazee_models_notice' ) );
+
+		// Show a pending Amazee.ai budget-exceeded notice. The budget error
+		// fires during front-end/REST search requests where admin_notices
+		// never runs, so the handler persists a transient and this hook
+		// renders it on the next admin page load.
+		add_action( 'admin_notices', array( Scolta_Amazee_Budget_Handler::class, 'maybe_render_pending_notice' ) );
 	}
 
 	/**
@@ -69,7 +75,30 @@ class Scolta_Admin {
 				'connected'          => __( 'Connected', 'scolta-ai-search' ),
 				'failed'             => __( 'Failed', 'scolta-ai-search' ),
 				'networkError'       => __( 'Network error', 'scolta-ai-search' ),
+				'defaultBadge'       => __( '(default)', 'scolta-ai-search' ),
 			)
+		);
+
+		// Reset-to-default buttons for the custom prompt textareas. The
+		// script handle loads in the footer, after the settings fields exist.
+		wp_add_inline_script(
+			'scolta-admin',
+			'(function(){
+	document.querySelectorAll(".scolta-prompt-reset").forEach(function(btn){
+		btn.addEventListener("click", function(){
+			var ta = document.getElementById(btn.dataset.textareaId);
+			if (!ta) return;
+			ta.value = ta.dataset.defaultPrompt;
+			var wrap = btn.closest("div");
+			var badge = wrap ? wrap.querySelector(".scolta-badge") : null;
+			if (badge) {
+				badge.textContent = (window.scoltaAdminL10n || {}).defaultBadge || "(default)";
+				badge.style.cssText = "color:#888;font-style:italic;margin-left:0.5em;";
+			}
+			btn.remove();
+		});
+	});
+}());'
 		);
 
 		wp_add_inline_script(
@@ -115,11 +144,19 @@ class Scolta_Admin {
 			'(function(){
 	var btn = document.getElementById("scolta-test-connection-btn");
 	if (!btn) return;
+	function setResult(result, color, label, detail) {
+		result.textContent = "";
+		var span = document.createElement("span");
+		span.style.color = color;
+		span.textContent = label;
+		result.appendChild(span);
+		if (detail) result.appendChild(document.createTextNode(detail));
+	}
 	btn.addEventListener("click", function() {
 		var l10n = window.scoltaAdminL10n || {};
 		var result = document.getElementById("scolta-test-result");
 		btn.disabled = true;
-		result.innerHTML = "<span style=\"color:#666\">" + (l10n.testing || "Testing…") + "</span>";
+		setResult(result, "#666", l10n.testing || "Testing…");
 		result.style.display = "inline";
 		var data = new FormData();
 		data.append("action", "scolta_test_connection");
@@ -128,13 +165,14 @@ class Scolta_Admin {
 			.then(function(r) { return r.json(); })
 			.then(function(d) {
 				if (d.success) {
-					result.innerHTML = "<span style=\"color:#28a745\">✓ " + (l10n.connected || "Connected") + "</span> (" + d.data.provider + " / " + d.data.model + ", " + d.data.response_time + "ms)";
+					setResult(result, "#28a745", "✓ " + (l10n.connected || "Connected"),
+						" (" + d.data.provider + " / " + d.data.model + ", " + d.data.response_time + "ms)");
 				} else {
-					result.innerHTML = "<span style=\"color:#dc3545\">✗ " + (l10n.failed || "Failed") + ":</span> " + d.data.error;
+					setResult(result, "#dc3545", "✗ " + (l10n.failed || "Failed") + ":", " " + d.data.error);
 				}
 			})
 			.catch(function() {
-				result.innerHTML = "<span style=\"color:#dc3545\">✗ " + (l10n.networkError || "Network error") + "</span>";
+				setResult(result, "#dc3545", "✗ " + (l10n.networkError || "Network error"));
 			})
 			.finally(function() { btn.disabled = false; });
 	});
@@ -475,8 +513,8 @@ class Scolta_Admin {
 	public static function render_ai_base_url_field(): void {
 		$value = self::get_setting( 'ai_base_url', '' );
 		?>
-		<input type="text" name="scolta_settings[ai_base_url]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
-		<p class="description"><?php esc_html_e( 'Override the default API endpoint. Leave empty for the provider default.', 'scolta-ai-search' ); ?></p>
+		<input type="url" name="scolta_settings[ai_base_url]" value="<?php echo esc_attr( $value ); ?>" class="regular-text" placeholder="https://" />
+		<p class="description"><?php esc_html_e( 'Override the default API endpoint. Must be an http(s) URL; leave empty for the provider default.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1039,23 +1077,18 @@ class Scolta_Admin {
 	 */
 	private static function render_prompt_field( string $key, string $value, bool $is_default, string $description ): void {
 		$default_text = self::get_default_prompt_template( $key );
+		$textarea_id  = 'scolta-prompt-' . $key;
 		$badge        = $is_default
-			? '<span style="color:#888;font-style:italic;margin-left:0.5em;">' . esc_html__( '(default)', 'scolta-ai-search' ) . '</span>'
-			: '<span style="color:#0073aa;font-weight:600;margin-left:0.5em;">' . esc_html__( '(customized)', 'scolta-ai-search' ) . '</span>';
+			? '<span class="scolta-badge" style="color:#888;font-style:italic;margin-left:0.5em;">' . esc_html__( '(default)', 'scolta-ai-search' ) . '</span>'
+			: '<span class="scolta-badge" style="color:#0073aa;font-weight:600;margin-left:0.5em;">' . esc_html__( '(customized)', 'scolta-ai-search' ) . '</span>';
 		?>
 		<div>
 			<?php echo wp_kses_post( $badge ); ?>
 			<?php if ( ! $is_default ) : ?>
-				<button type="button" class="button-link" style="margin-left:0.5em;color:#b32d2e;" onclick="
-					var ta = this.closest('div').querySelector('textarea');
-					ta.value = ta.dataset.defaultPrompt;
-					ta.dataset.cleared = '1';
-					this.closest('div').querySelector('.scolta-badge').innerHTML = '<?php echo esc_js( '<span style=&quot;color:#888;font-style:italic;&quot;>' . esc_html__( '(default)', 'scolta-ai-search' ) . '</span>' ); ?>';
-					this.remove();
-				"><?php esc_html_e( 'Reset to default', 'scolta-ai-search' ); ?></button>
+				<button type="button" class="button-link scolta-prompt-reset" style="margin-left:0.5em;color:#b32d2e;" data-textarea-id="<?php echo esc_attr( $textarea_id ); ?>"><?php esc_html_e( 'Reset to default', 'scolta-ai-search' ); ?></button>
 			<?php endif; ?>
 		</div>
-		<textarea name="scolta_settings[<?php echo esc_attr( $key ); ?>]" rows="8" class="large-text" data-default-prompt="<?php echo esc_attr( $default_text ); ?>"><?php echo esc_textarea( $value ); ?></textarea>
+		<textarea id="<?php echo esc_attr( $textarea_id ); ?>" name="scolta_settings[<?php echo esc_attr( $key ); ?>]" rows="8" class="large-text" data-default-prompt="<?php echo esc_attr( $default_text ); ?>"><?php echo esc_textarea( $value ); ?></textarea>
 		<p class="description"><?php echo esc_html( $description ); ?> <?php esc_html_e( 'Supports {SITE_NAME} and {SITE_DESCRIPTION} placeholders.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
@@ -1134,7 +1167,11 @@ class Scolta_Admin {
 		// Model.
 		$clean['ai_model']          = sanitize_text_field( $input['ai_model'] ?? 'claude-sonnet-4-5-20250929' );
 		$clean['ai_expansion_model'] = sanitize_text_field( $input['ai_expansion_model'] ?? '' );
-		$clean['ai_base_url']       = sanitize_text_field( $input['ai_base_url'] ?? '' );
+
+		// Base URL must be an http(s) URL — it is the endpoint AI requests
+		// are sent to, so a non-URL or non-http scheme is dropped entirely.
+		$raw_base_url          = esc_url_raw( trim( (string) ( $input['ai_base_url'] ?? '' ) ), array( 'http', 'https' ) );
+		$clean['ai_base_url'] = $raw_base_url;
 
 		// AI feature toggles.
 		$clean['ai_expand_query'] = ! empty( $input['ai_expand_query'] );
@@ -1263,8 +1300,7 @@ class Scolta_Admin {
 			: 'exponential';
 
 		$curve_raw              = $input['recency_curve'] ?? '';
-		$curve_decoded          = json_decode( $curve_raw, true );
-		$clean['recency_curve'] = is_array( $curve_decoded ) ? $curve_decoded : array();
+		$clean['recency_curve'] = self::sanitize_recency_curve( is_string( $curve_raw ) ? $curve_raw : '' );
 
 		// Display — all 6 fields.
 		$clean['excerpt_length']       = max( 50, min( 1000, (int) ( $input['excerpt_length'] ?? 300 ) ) );
@@ -1293,6 +1329,33 @@ class Scolta_Admin {
 		}
 
 		return $clean;
+	}
+
+	/**
+	 * Decode and validate a custom recency curve JSON string.
+	 *
+	 * The expected shape is [[days, boost], ...] — a list of two-element
+	 * numeric pairs. Anything else (objects, ragged rows, non-numeric
+	 * entries) is rejected wholesale so a malformed value cannot reach
+	 * the scoring config.
+	 *
+	 * @param string $raw Raw JSON from the settings form.
+	 * @return array<int, array{0: int, 1: float}> Validated curve, or empty array.
+	 */
+	private static function sanitize_recency_curve( string $raw ): array {
+		$decoded = json_decode( $raw, true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+		$curve = array();
+		foreach ( $decoded as $pair ) {
+			if ( ! is_array( $pair ) || array_keys( $pair ) !== array( 0, 1 )
+				|| ! is_numeric( $pair[0] ) || ! is_numeric( $pair[1] ) ) {
+				return array();
+			}
+			$curve[] = array( (int) $pair[0], (float) $pair[1] );
+		}
+		return $curve;
 	}
 
 	/**
@@ -1375,14 +1438,14 @@ class Scolta_Admin {
 		check_ajax_referer( 'scolta_remove_db_key' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( 'Insufficient permissions' );
+			wp_send_json_error( __( 'Insufficient permissions', 'scolta-ai-search' ) );
 		}
 
 		$settings = get_option( 'scolta_settings', array() );
 		unset( $settings['ai_api_key'] );
 		update_option( 'scolta_settings', $settings );
 
-		wp_send_json_success( 'API key removed from database' );
+		wp_send_json_success( __( 'API key removed from database', 'scolta-ai-search' ) );
 	}
 
 	/**
@@ -1629,6 +1692,11 @@ class Scolta_Admin {
 			echo esc_html__( 'Scolta rebuild: no items passed the content filter. Your posts may be too short.', 'scolta-ai-search' );
 			echo wp_kses_post( $dismiss_link );
 			echo '</p></div>';
+		} elseif ( $result === 'locked' ) {
+			echo '<div class="notice notice-warning is-dismissible"><p>';
+			echo esc_html__( 'Scolta rebuild: a rebuild is already in progress. Wait for it to finish and try again.', 'scolta-ai-search' );
+			echo wp_kses_post( $dismiss_link );
+			echo '</p></div>';
 		} else {
 			echo '<div class="notice notice-error is-dismissible"><p>';
 			echo esc_html__( 'Scolta rebuild failed. Try running wp scolta build from the command line for more details.', 'scolta-ai-search' );
@@ -1755,6 +1823,12 @@ class Scolta_Admin {
 	 * @since 0.2.0
 	 */
 	public static function add_dashboard_widget(): void {
+		// The rebuild POST handler is gated on manage_options; without this
+		// guard the widget still renders index status and a broken rebuild
+		// button for every role that can reach the dashboard.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
 		wp_add_dashboard_widget(
 			'scolta_dashboard_widget',
 			__( 'Scolta Search', 'scolta-ai-search' ),
@@ -1833,7 +1907,8 @@ class Scolta_Admin {
 	 */
 	public static function get_health_status(): array {
 		$settings   = get_option( 'scolta_settings', array() );
-		$output_dir = $settings['output_dir'] ?? scolta_default_output_dir();
+		// Builder-identical normalization — see scolta_normalize_output_dir().
+		$output_dir = scolta_normalize_output_dir( $settings['output_dir'] ?? scolta_default_output_dir() );
 		$index_file = $output_dir . '/pagefind/pagefind.js';
 
 		if ( ! file_exists( $index_file ) ) {
@@ -1888,6 +1963,23 @@ class Scolta_Admin {
 		// Clear any previous notice (and its dismissal state — new notice_id handles that).
 		delete_transient( 'scolta_rebuild_notice' );
 
+		// Honor the shared build lock. The REST rebuild endpoint responds 409
+		// while it is held; running a second build concurrently would race the
+		// scheduler on the same state/output directories.
+		if ( get_transient( Scolta_Rebuild_Scheduler::LOCK_KEY ) ) {
+			set_transient(
+				'scolta_rebuild_notice',
+				array(
+					'result' => 'locked',
+					'notice_id' => $notice_id,
+				),
+				DAY_IN_SECONDS * 7
+			);
+			wp_safe_redirect( $redirect );
+			exit;
+		}
+		set_transient( Scolta_Rebuild_Scheduler::LOCK_KEY, time(), Scolta_Rebuild_Scheduler::LOCK_TTL );
+
 		try {
 			$raw_items = \Scolta_Content_Gatherer::gather();
 
@@ -1900,59 +1992,60 @@ class Scolta_Admin {
 					),
 					DAY_IN_SECONDS * 7
 				);
-				wp_safe_redirect( $redirect );
-				exit;
-			}
-
-			$exporter = new \Tag1\Scolta\Export\ContentExporter( $output_dir );
-			$items    = $exporter->exportToItems( $raw_items );
-
-			if ( empty( $items ) ) {
-				set_transient(
-					'scolta_rebuild_notice',
-					array(
-						'result' => 'no_items',
-						'notice_id' => $notice_id,
-					),
-					DAY_IN_SECONDS * 7
-				);
-				wp_safe_redirect( $redirect );
-				exit;
-			}
-
-			$upload_dir = wp_upload_dir();
-			$state_dir  = $upload_dir['basedir'] . '/scolta/state';
-			$indexer    = new \Tag1\Scolta\Index\PhpIndexer( $state_dir, $output_dir, wp_salt( 'auth' ) );
-
-			$chunks = array_chunk( $items, 100 );
-			foreach ( $chunks as $i => $chunk ) {
-				$indexer->processChunk( $chunk, $i, count( $items ) );
-			}
-
-			$result = $indexer->finalize();
-
-			if ( $result->success ) {
-				$generation = (int) get_option( 'scolta_generation', 0 );
-				update_option( 'scolta_generation', $generation + 1 );
-				$notice = array(
-					'result'    => 'ok',
-					'pages'     => $result->pageCount,
-					'notice_id' => $notice_id,
-				);
-				set_transient( 'scolta_rebuild_notice', $notice, DAY_IN_SECONDS * 7 );
-				wp_safe_redirect( $redirect );
 			} else {
-				set_transient(
-					'scolta_rebuild_notice',
-					array(
-						'result' => 'error',
-						'notice_id' => $notice_id,
-					),
-					DAY_IN_SECONDS * 7
-				);
-				wp_safe_redirect( $redirect );
+				$exporter = new \Tag1\Scolta\Export\ContentExporter( $output_dir );
+				$items    = $exporter->exportToItems( $raw_items );
+
+				if ( empty( $items ) ) {
+					set_transient(
+						'scolta_rebuild_notice',
+						array(
+							'result' => 'no_items',
+							'notice_id' => $notice_id,
+						),
+						DAY_IN_SECONDS * 7
+					);
+				} else {
+					$upload_dir = wp_upload_dir();
+					$state_dir  = $upload_dir['basedir'] . '/scolta/state';
+					$indexer    = new \Tag1\Scolta\Index\PhpIndexer( $state_dir, $output_dir, wp_salt( 'auth' ) );
+
+					$chunks = array_chunk( $items, 100 );
+					foreach ( $chunks as $i => $chunk ) {
+						$indexer->processChunk( $chunk, $i, count( $items ) );
+					}
+
+					$result = $indexer->finalize();
+
+					if ( $result->success ) {
+						$generation = (int) get_option( 'scolta_generation', 0 );
+						update_option( 'scolta_generation', $generation + 1 );
+						$notice = array(
+							'result'    => 'ok',
+							'pages'     => $result->pageCount,
+							'notice_id' => $notice_id,
+						);
+						set_transient( 'scolta_rebuild_notice', $notice, DAY_IN_SECONDS * 7 );
+					} else {
+						set_transient(
+							'scolta_rebuild_notice',
+							array(
+								'result' => 'error',
+								'notice_id' => $notice_id,
+							),
+							DAY_IN_SECONDS * 7
+						);
+					}
+				}
 			}
 		} catch ( \Throwable $e ) {
+			( new Scolta_Logger() )->error(
+				'Admin rebuild failed: {message}',
+				array(
+					'message'   => $e->getMessage(),
+					'exception' => $e,
+				)
+			);
 			set_transient(
 				'scolta_rebuild_notice',
 				array(
@@ -1961,9 +2054,14 @@ class Scolta_Admin {
 				),
 				DAY_IN_SECONDS * 7
 			);
-			wp_safe_redirect( $redirect );
+		} finally {
+			// The lock must clear on every path — wp_safe_redirect() + exit
+			// happens after this block, so a thrown build error cannot leave
+			// a stale lock blocking the next rebuild for LOCK_TTL seconds.
+			delete_transient( Scolta_Rebuild_Scheduler::LOCK_KEY );
 		}
 
+		wp_safe_redirect( $redirect );
 		exit;
 	}
 }

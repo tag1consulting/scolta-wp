@@ -14,7 +14,9 @@
 
   <rule ref="WordPress-Extra"/>
 
-  <config name="minimum_supported_wp_version" value="6.0"/>
+  <!-- Must match the plugin header / readme.txt "Requires at least" — the
+       code requires 6.1 (wp_cache_flush_group()). -->
+  <config name="minimum_supported_wp_version" value="6.1"/>
   <config name="text_domain" value="scolta-ai-search"/>
 
   <!-- Allow long lines in tests and admin HTML templates -->

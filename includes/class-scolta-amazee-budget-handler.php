@@ -23,9 +23,23 @@ class Scolta_Amazee_Budget_Handler {
 	private const THROTTLE_TRANSIENT = 'scolta_amazee_budget_notice_sent';
 
 	/**
+	 * Transient key marking a notice as pending display in the admin.
+	 *
+	 * Budget errors surface during front-end/REST search requests where
+	 * admin_notices never fires, so the event is persisted here and
+	 * rendered on the next admin page load instead.
+	 *
+	 * @var string
+	 */
+	public const PENDING_TRANSIENT = 'scolta_amazee_budget_notice_pending';
+
+	/**
 	 * Handle a budget-exceeded exception.
 	 *
-	 * Schedules an admin_notices hook (once per 24 hours).
+	 * Persists a pending-notice transient (throttled to once per 24 hours);
+	 * {@see maybe_render_pending_notice()} renders it on the next admin
+	 * page load. Hooking admin_notices directly here would be a no-op:
+	 * budget errors fire during REST search requests, not admin requests.
 	 *
 	 * @param AmazeeBudgetExceededException $e The exception to handle.
 	 */
@@ -34,7 +48,25 @@ class Scolta_Amazee_Budget_Handler {
 			return;
 		}
 		set_transient( self::THROTTLE_TRANSIENT, '1', DAY_IN_SECONDS );
-		add_action( 'admin_notices', array( self::class, 'render_budget_notice' ) );
+		set_transient( self::PENDING_TRANSIENT, '1', DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Render and clear a pending budget notice, if one is queued.
+	 *
+	 * Hooked to admin_notices unconditionally by Scolta_Admin::init().
+	 * The pending transient is only cleared once an administrator has
+	 * actually seen the notice.
+	 */
+	public static function maybe_render_pending_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! get_transient( self::PENDING_TRANSIENT ) ) {
+			return;
+		}
+		delete_transient( self::PENDING_TRANSIENT );
+		self::render_budget_notice();
 	}
 
 	/**

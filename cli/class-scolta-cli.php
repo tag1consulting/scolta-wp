@@ -258,9 +258,6 @@ class Scolta_CLI {
 		if ( ! empty( $assoc_args['chunk-size'] ) ) {
 			$cmd .= ' --chunk-size=' . escapeshellarg( (string) $assoc_args['chunk-size'] );
 		}
-		if ( ! empty( $assoc_args['bundle'] ) ) {
-			$cmd .= ' --bundle=' . escapeshellarg( (string) $assoc_args['bundle'] );
-		}
 
 		$log_file = sys_get_temp_dir() . '/scolta-resume.log';
 		// phpcs:ignore WordPress.PHP.DiscouragedFunctions.Found -- exec() required to spawn background WP-CLI subprocess for memory-constrained resume.
@@ -908,8 +905,13 @@ class Scolta_CLI {
 	 * Clear all Scolta caches.
 	 *
 	 * Increments the generation counter to invalidate all cached AI
-	 * responses (expansion, summarization) and deletes any stale
-	 * transients with the old prefix.
+	 * responses (expansion, summarization) and deletes all scolta_*
+	 * transients — both the value rows (_transient_scolta_*) and their
+	 * expiry rows (_transient_timeout_scolta_*).
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp scolta clear-cache
 	 *
 	 * @subcommand clear-cache
 	 */
@@ -918,17 +920,21 @@ class Scolta_CLI {
 			$generation = (int) get_option( 'scolta_generation', 0 );
 			update_option( 'scolta_generation', $generation + 1 );
 
-			// Also clean up any stale transients from old generations.
+			// Delete value + timeout rows, same pattern pair as deactivation
+			// and uninstall. A LIKE on '%_transient_scolta_%' alone misses
+			// every _transient_timeout_scolta_* row ('_' matches exactly one
+			// character), leaving live 30-day transients behind.
 			global $wpdb;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk transient cleanup in CLI; cannot use delete_transient() for wildcard patterns.
 			$deleted = $wpdb->query(
 				$wpdb->prepare(
-					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-					'%_transient_scolta_%'
+					"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+					'_transient_scolta_%',
+					'_transient_timeout_scolta_%'
 				)
 			);
 
-			\WP_CLI::success( "Scolta caches cleared (generation counter incremented, {$deleted} transients deleted)." );
+			\WP_CLI::success( "Scolta caches cleared (generation counter incremented, {$deleted} transient rows deleted)." );
 		} catch ( \Throwable $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		}

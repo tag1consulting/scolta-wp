@@ -24,25 +24,21 @@ class Scolta_Content_Gatherer {
 	/**
 	 * Count published content items without loading their body content.
 	 *
-	 * Uses WP_Query with fields='ids' so WordPress returns only post IDs,
-	 * not full post objects. For 44k posts this transfers ~350 KB of integers
-	 * instead of hundreds of megabytes of post_content.
+	 * Uses wp_count_posts() (cached COUNT(*) per post type) — no posts are
+	 * fetched at all, matching Scolta_Content_Source::get_total_count().
 	 *
 	 * @return int Total count of published posts across configured post types.
 	 */
 	public static function gather_count(): int {
 		$settings   = get_option( 'scolta_settings', array() );
 		$post_types = $settings['post_types'] ?? array( 'post', 'page' );
-		$query      = new \WP_Query(
-			array(
-				'post_type'      => $post_types,
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'no_found_rows'  => true,
-				'fields'         => 'ids',
-			)
-		);
-		return count( $query->posts );
+
+		$count = 0;
+		foreach ( (array) $post_types as $type ) {
+			$counts = wp_count_posts( $type );
+			$count += (int) ( $counts->publish ?? 0 );
+		}
+		return $count;
 	}
 
 	/**

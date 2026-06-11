@@ -71,6 +71,28 @@ function scolta_default_output_dir(): string {
 }
 
 /**
+ * Normalize a configured output_dir the same way the index builder does.
+ *
+ * The PHP indexer's IndexBuildOrchestrator strips a trailing /pagefind
+ * before building (the suffix is appended automatically during
+ * atomicSwap()), so every consumer that derives index paths from the
+ * configured output_dir — health checks, the dashboard widget, the
+ * shortcode — must apply the identical normalization or it resolves a
+ * different directory than the one the builder wrote to.
+ *
+ * @param string $output_dir The configured output_dir setting value.
+ * @return string Normalized path: forward slashes, no trailing slash,
+ *                no trailing /pagefind suffix.
+ */
+function scolta_normalize_output_dir( string $output_dir ): string {
+	$normalized = rtrim( wp_normalize_path( $output_dir ), '/' );
+	if ( str_ends_with( $normalized, '/pagefind' ) ) {
+		$normalized = substr( $normalized, 0, -strlen( '/pagefind' ) );
+	}
+	return $normalized;
+}
+
+/**
  * Remove any double-nested pagefind/pagefind directory under output_dir.
  *
  * Called after every successful index build to clean up artifacts left by
@@ -286,19 +308,37 @@ add_action(
 		$settings          = get_option( 'scolta_settings', array() );
 		$using_php_indexer = ( $settings['indexer'] ?? 'auto' ) === 'php';
 		echo '<div class="notice notice-info"><p>';
-		echo 'Scolta activated!';
+		echo esc_html__( 'Scolta activated!', 'scolta-ai-search' );
 		if ( function_exists( 'as_schedule_single_action' ) ) {
-			echo ' Your search index will be built automatically in the background.';
+			echo ' ' . esc_html__(
+				'Your search index will be built automatically in the background.',
+				'scolta-ai-search'
+			);
 		} else {
-			echo ' Run <code>wp scolta build</code> to build your search index.';
-			echo ' Install <a href="https://actionscheduler.org/">Action Scheduler</a>'
-				. ' for automatic background indexing.';
+			echo ' ' . wp_kses_post(
+				sprintf(
+					/* translators: %s: shell command */
+					__( 'Run %s to build your search index.', 'scolta-ai-search' ),
+					'<code>wp scolta build</code>'
+				)
+			);
+			echo ' ' . wp_kses_post(
+				sprintf(
+					/* translators: %s: link to the Action Scheduler site */
+					__( 'Install %s for automatic background indexing.', 'scolta-ai-search' ),
+					'<a href="https://actionscheduler.org/">Action Scheduler</a>'
+				)
+			);
 		}
 		if ( $using_php_indexer ) {
-			echo ' Using the PHP indexer (Pagefind binary not found).';
+			echo ' ' . esc_html__(
+				'Using the PHP indexer (Pagefind binary not found).',
+				'scolta-ai-search'
+			);
 		}
-		$settings_url = esc_url( admin_url( 'options-general.php?page=scolta' ) );
-		echo wp_kses_post( ' <a href="' . $settings_url . '">View settings &rarr;</a>' );
+		$settings_url  = esc_url( admin_url( 'options-general.php?page=scolta' ) );
+		$settings_text = __( 'View settings &rarr;', 'scolta-ai-search' );
+		echo wp_kses_post( ' <a href="' . $settings_url . '">' . $settings_text . '</a>' );
 		echo '</p></div>';
 	}
 );
@@ -433,7 +473,7 @@ add_action(
 				$site_desc,
 			);
 		}
-		update_option( 'scolta_resolved_prompts', $all );
+		update_option( 'scolta_resolved_prompts', $all, false );
 	},
 	10,
 	2

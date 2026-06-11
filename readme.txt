@@ -30,7 +30,7 @@ Scolta AI Search is a scoring, ranking, and AI layer built on [Pagefind](https:/
 
 **Privacy:** The base search tier runs entirely in the visitor's browser — no server-side involvement beyond serving static files. The AI tier is optional and only sends the search query text and selected result excerpts to your configured AI provider.
 
-**Requirements:** WordPress 6.0+, PHP 8.1+. The Pagefind binary is optional — the PHP indexer works without it.
+**Requirements:** WordPress 6.1+, PHP 8.1+. The Pagefind binary is optional — the PHP indexer works without it.
 
 == Installation ==
 
@@ -77,6 +77,25 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 3. WP-CLI status output showing tracker and index state
 
 == Changelog ==
+
+= 1.0.4 =
+* New expansion_combine_mode scoring setting (default relevance_union; preset-defaulted to round_robin for catalog-style Site Types) for round-robin AI-summary candidate selection across query-expansion sub-queries. The Expansion Per-Term Top K setting is removed (locked at 3 upstream).
+* Facet panel is now index-driven and static: dimensions/values come from the index taxonomy in fixed alphabetical order with exact typed-query counts — nothing appears, disappears, or reorders across a search or AI expansion.
+* Saving the settings form no longer stores a silently-truncated copy of an over-length default prompt as a stale custom prompt.
+* Search-tuning help relabeled "Search Breadth (advanced)" and reworded to lead with the Site Type preset; new FAQ on getting fewer results than expected.
+* Restored sort/filter badge styles that had drifted out of the bundled stylesheet; the Composer install hook and CI drift check now cover all duplicated front-end assets.
+* Synced bundled browser script: zero-result blank-panel fix, correct singular/plural result count, quoted-query rendering fix, AI-summary citation de-duplication, facet-collapse fix (filtered dimensions stay switchable), and facet counts on long conversational queries.
+
+= 1.0.3 =
+* Browsers no longer serve a stale bundled script/stylesheet after a deploy (cache-busting now keyed to the shipped asset, not the static plugin version).
+* AI Provider settings field now reflects the saved provider instead of always showing Amazee when Amazee credentials are present (display-only bug).
+* New expand_subword_max_frequency (default 0.05) and expand_subword_deny_list scoring settings for the sub-word frequency guard: broad-query recall without high-frequency noise, with a per-site veto list for typed-but-generic words.
+* Scoring default tuning to match scolta-php: cross_list_bonus 0.05, recency_boost_max 0.25, title_match_boost 2.0.
+
+= 1.0.2 =
+* Export files now use a nested directory layout mirroring canonical URLs, aligning binary indexer output with the PHP indexer.
+* HTML file counting in status/health uses a recursive directory walk instead of a flat glob.
+* AI summary citation URLs now prefer the canonical URL over the Pagefind file path.
 
 = 1.0.1 =
 * WordPress.org review fixes: dist allowlist with CI guard, REST SCOLTA_PLUGIN_DIR, removed CLI display_errors.

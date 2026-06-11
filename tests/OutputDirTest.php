@@ -60,6 +60,35 @@ class OutputDirTest extends TestCase {
         $this->assertStringStartsWith( $uploads, $default );
     }
 
+    // -------------------------------------------------------------------
+    // scolta_normalize_output_dir() — the shared builder-identical
+    // normalization every output_dir consumer must apply
+    // -------------------------------------------------------------------
+
+    public function test_normalize_strips_trailing_pagefind_suffix(): void {
+        $this->assertSame( '/var/www/uploads/scolta', scolta_normalize_output_dir( '/var/www/uploads/scolta/pagefind' ) );
+    }
+
+    public function test_normalize_strips_trailing_slash(): void {
+        $this->assertSame( '/var/www/uploads/scolta', scolta_normalize_output_dir( '/var/www/uploads/scolta/' ) );
+    }
+
+    public function test_normalize_strips_suffix_with_trailing_slash(): void {
+        $this->assertSame( '/var/www/uploads/scolta', scolta_normalize_output_dir( '/var/www/uploads/scolta/pagefind/' ) );
+    }
+
+    public function test_normalize_leaves_clean_path_alone(): void {
+        $this->assertSame( '/var/www/uploads/scolta', scolta_normalize_output_dir( '/var/www/uploads/scolta' ) );
+    }
+
+    public function test_normalize_does_not_touch_pagefind_substring(): void {
+        $this->assertSame(
+            '/var/www/my-pagefind-site/scolta',
+            scolta_normalize_output_dir( '/var/www/my-pagefind-site/scolta' ),
+            'only a trailing /pagefind path segment may be stripped'
+        );
+    }
+
     public function test_activation_output_dir_does_not_end_with_pagefind(): void {
         $settings = get_option( 'scolta_settings' );
         $this->assertStringNotContainsString(
