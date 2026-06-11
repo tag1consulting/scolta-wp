@@ -54,6 +54,11 @@ if (!function_exists('add_option')) {
 if (!function_exists('update_option')) {
     function update_option(string $name, $value, $autoload = null): bool {
         $GLOBALS['wp_options'][$name] = $value;
+        // Record the autoload flag so tests can assert on it
+        // (initialize $GLOBALS['wp_options_autoload'] = [] in set_up).
+        if (isset($GLOBALS['wp_options_autoload'])) {
+            $GLOBALS['wp_options_autoload'][$name] = $autoload;
+        }
         return true;
     }
 }
@@ -347,12 +352,30 @@ if (!function_exists('get_current_screen')) {
     function get_current_screen(): ?object { return null; }
 }
 
-// Action Scheduler stubs.
+// Action Scheduler stubs (with optional tracking for tests — initialize
+// $GLOBALS['scolta_as_scheduled'] / $GLOBALS['scolta_as_unscheduled'] in setUp).
 if (!function_exists('as_schedule_single_action')) {
-    function as_schedule_single_action($timestamp, $hook, $args = [], $group = '') { return 1; }
+    function as_schedule_single_action($timestamp, $hook, $args = [], $group = '') {
+        if (isset($GLOBALS['scolta_as_scheduled'])) {
+            $GLOBALS['scolta_as_scheduled'][] = [
+                'timestamp' => $timestamp,
+                'hook'      => $hook,
+                'args'      => $args,
+                'group'     => $group,
+            ];
+        }
+        return 1;
+    }
 }
 if (!function_exists('as_unschedule_all_actions')) {
-    function as_unschedule_all_actions($hook, $args = null, $group = '') {}
+    function as_unschedule_all_actions($hook, $args = null, $group = '') {
+        if (isset($GLOBALS['scolta_as_unscheduled'])) {
+            $GLOBALS['scolta_as_unscheduled'][] = [
+                'hook'  => $hook,
+                'group' => $group,
+            ];
+        }
+    }
 }
 
 // SSL / scheme stubs.

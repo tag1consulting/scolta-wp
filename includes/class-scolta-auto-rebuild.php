@@ -21,18 +21,18 @@ class Scolta_Auto_Rebuild {
 	const DEBOUNCE_ACTION = 'scolta_debounced_rebuild';
 
 	/**
-	 * Initialize auto-rebuild hooks if enabled in settings.
+	 * Register content-change hooks.
 	 *
-	 * Only hooks into content change events when the auto_rebuild setting
-	 * is enabled. Requires Action Scheduler to be available.
+	 * Hooks are registered unconditionally so init() never reads options:
+	 * `scolta_settings` is not autoloaded (it is a growing serialized array
+	 * that can hold a legacy API key), and reading it here cost one DB
+	 * query on every page view of hosts without a persistent object cache.
+	 * The auto_rebuild flag is checked inside the callbacks instead, where
+	 * a content change has actually happened.
 	 *
 	 * @since 0.2.0
 	 */
 	public static function init(): void {
-		$settings = get_option( 'scolta_settings', array() );
-		if ( empty( $settings['auto_rebuild'] ) ) {
-			return;
-		}
 		add_action( 'save_post', array( __CLASS__, 'on_content_change' ), 20, 2 );
 		add_action( 'before_delete_post', array( __CLASS__, 'on_content_change' ), 20 );
 		add_action( self::DEBOUNCE_ACTION, array( __CLASS__, 'trigger_rebuild' ) );
@@ -41,8 +41,10 @@ class Scolta_Auto_Rebuild {
 	/**
 	 * Handle a content change event.
 	 *
-	 * Cancels any pending debounced rebuild and schedules a new one after
-	 * the configured delay. Only triggers for indexed post types.
+	 * Bails immediately unless the auto_rebuild setting is enabled (the
+	 * hooks themselves are always registered — see init()). Cancels any
+	 * pending debounced rebuild and schedules a new one after the
+	 * configured delay. Only triggers for indexed post types.
 	 *
 	 * @since 0.2.0
 	 *
@@ -50,6 +52,11 @@ class Scolta_Auto_Rebuild {
 	 * @param \WP_Post|null $post    Post object (null on before_delete_post).
 	 */
 	public static function on_content_change( $post_id, $post = null ): void {
+		$settings = get_option( 'scolta_settings', array() );
+		if ( empty( $settings['auto_rebuild'] ) ) {
+			return;
+		}
+
 		if ( ! $post ) {
 			$post = get_post( $post_id );
 		}
@@ -57,7 +64,6 @@ class Scolta_Auto_Rebuild {
 			return;
 		}
 
-		$settings      = get_option( 'scolta_settings', array() );
 		$indexed_types = $settings['post_types'] ?? array( 'post', 'page' );
 		if ( ! in_array( $post->post_type, $indexed_types, true ) ) {
 			return;
@@ -76,10 +82,19 @@ class Scolta_Auto_Rebuild {
 	 * Trigger a rebuild via the scheduler.
 	 *
 	 * Called by Action Scheduler after the debounce delay has elapsed.
+	 * Re-checks the auto_rebuild flag: a debounce event queued while the
+	 * feature was enabled can fire after an administrator turns it off,
+	 * and disabling auto-rebuild must stop queued rebuilds too. (Before
+	 * hooks were registered unconditionally, the same outcome fell out of
+	 * the DEBOUNCE_ACTION callback never being attached while disabled.)
 	 *
 	 * @since 0.2.0
 	 */
 	public static function trigger_rebuild(): void {
+		$settings = get_option( 'scolta_settings', array() );
+		if ( empty( $settings['auto_rebuild'] ) ) {
+			return;
+		}
 		Scolta_Rebuild_Scheduler::start_rebuild();
 	}
 }

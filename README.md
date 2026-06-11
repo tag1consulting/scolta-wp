@@ -111,7 +111,7 @@ This verifies PHP version, index directories, indexer selection, AI provider con
 wp scolta status
 ```
 
-The REST health endpoint also reports current state: `GET /wp-json/scolta/v1/health`
+The REST health endpoint also reports current state: `GET /wp-json/scolta/v1/health`. Anonymous requests return only the overall `status` value (enough for uptime monitoring); the full diagnostic payload — AI provider, index detail, integrity breakdown — requires an authenticated request from a user with `manage_options`.
 
 ## What Scolta Is Built For
 
@@ -470,7 +470,7 @@ wp scolta check-setup                    # Verify PHP, indexer, and configuratio
 | POST | `/wp-json/scolta/v1/expand-query` | Expand a search query into related terms |
 | POST | `/wp-json/scolta/v1/summarize` | Summarize search results |
 | POST | `/wp-json/scolta/v1/followup` | Continue a search conversation |
-| GET | `/wp-json/scolta/v1/health` | Health check (indexer status, AI availability) |
+| GET | `/wp-json/scolta/v1/health` | Health check — anonymous: overall `status` only; full detail requires `manage_options` |
 | GET | `/wp-json/scolta/v1/build-progress` | Current build status (admin only) |
 | POST | `/wp-json/scolta/v1/rebuild-now` | Trigger immediate background rebuild (admin only) |
 

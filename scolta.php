@@ -504,7 +504,14 @@ function scolta_refresh_prompt_cache_if_stale(): void {
 		);
 	}
 	update_option( 'scolta_resolved_prompts', $all, false );
-	update_option( 'scolta_prompt_cache_version', SCOLTA_VERSION, false );
+	// The version scalar is read on every request by the staleness check
+	// above, so it must autoload — otherwise it costs a DB query per page
+	// view on hosts without a persistent object cache. Existing installs
+	// converge without a migration: the value changes on every plugin
+	// update (exactly when this write fires), and update_option() applies
+	// a new autoload flag whenever the value changes. The resolved-prompts
+	// blob stays autoload=false — it is only read by AI endpoint requests.
+	update_option( 'scolta_prompt_cache_version', SCOLTA_VERSION, true );
 }
 add_action( 'plugins_loaded', 'scolta_refresh_prompt_cache_if_stale' );
 

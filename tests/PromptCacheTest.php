@@ -17,6 +17,11 @@ class PromptCacheTest extends TestCase {
 
     protected function set_up(): void {
         $GLOBALS['wp_options'] = [];
+        $GLOBALS['wp_options_autoload'] = [];
+    }
+
+    protected function tear_down(): void {
+        unset( $GLOBALS['wp_options_autoload'] );
     }
 
     // -------------------------------------------------------------------
@@ -38,6 +43,29 @@ class PromptCacheTest extends TestCase {
         scolta_refresh_prompt_cache_if_stale();
 
         $this->assertEquals( SCOLTA_VERSION, get_option( 'scolta_prompt_cache_version' ) );
+    }
+
+    // -------------------------------------------------------------------
+    // Autoload flags: the version scalar is read on every request and must
+    // autoload; the prompt blob is read only by AI endpoints and must not.
+    // -------------------------------------------------------------------
+
+    public function test_version_option_is_written_with_autoload_true(): void {
+        scolta_refresh_prompt_cache_if_stale();
+
+        $this->assertTrue(
+            $GLOBALS['wp_options_autoload']['scolta_prompt_cache_version'],
+            'scolta_prompt_cache_version is checked on every request (plugins_loaded) and must be autoloaded'
+        );
+    }
+
+    public function test_resolved_prompts_option_stays_non_autoloaded(): void {
+        scolta_refresh_prompt_cache_if_stale();
+
+        $this->assertFalse(
+            $GLOBALS['wp_options_autoload']['scolta_resolved_prompts'],
+            'scolta_resolved_prompts is only read by AI endpoint requests and must not autoload'
+        );
     }
 
     public function test_refresh_skips_rebuild_when_version_matches(): void {
