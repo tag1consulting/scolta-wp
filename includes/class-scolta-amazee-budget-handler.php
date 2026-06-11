@@ -1,6 +1,8 @@
 <?php
 /**
  * WordPress handler for Amazee.ai budget-exceeded events.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;

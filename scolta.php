@@ -38,6 +38,7 @@ require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-content-gatherer.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-logger.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-rest-api.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-shortcode.php';
+require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-build-status-progress-reporter.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-rebuild-scheduler.php';
 require_once SCOLTA_PLUGIN_DIR . 'includes/class-scolta-auto-rebuild.php';
 
@@ -142,48 +143,48 @@ function scolta_activate(): void {
 	$upload_dir = wp_upload_dir();
 
 	$defaults = array(
-		'ai_provider'                => 'anthropic',
-		'ai_model'                   => 'claude-sonnet-4-5-20250929',
-		'ai_expansion_model'         => '',
-		'ai_base_url'                => '',
-		'site_name'                  => get_bloginfo( 'name' ),
-		'site_description'           => 'website',
-		'search_page_path'           => '/scolta-search',
-		'pagefind_index_path'        => wp_upload_dir()['baseurl'] . '/scolta/pagefind',
-		'pagefind_binary'            => 'pagefind',
-		'build_dir'                  => wp_upload_dir()['basedir'] . '/scolta/build',
-		'output_dir'                 => scolta_default_output_dir(),
-		'indexer'                    => 'auto',
-		'memory_budget_profile'      => 'conservative',
-		'auto_rebuild'               => true,
-		'post_types'                 => array( 'post', 'page' ),
-		'cache_ttl'                  => 2592000,
-		'max_follow_ups'             => 3,
-		'ai_expand_query'            => true,
-		'ai_summarize'               => true,
-		'ai_languages'               => array( 'en' ),
+		'ai_provider'                  => 'anthropic',
+		'ai_model'                     => 'claude-sonnet-4-5-20250929',
+		'ai_expansion_model'           => '',
+		'ai_base_url'                  => '',
+		'site_name'                    => get_bloginfo( 'name' ),
+		'site_description'             => 'website',
+		'search_page_path'             => '/scolta-search',
+		'pagefind_index_path'          => wp_upload_dir()['baseurl'] . '/scolta/pagefind',
+		'pagefind_binary'              => 'pagefind',
+		'build_dir'                    => wp_upload_dir()['basedir'] . '/scolta/build',
+		'output_dir'                   => scolta_default_output_dir(),
+		'indexer'                      => 'auto',
+		'memory_budget_profile'        => 'conservative',
+		'auto_rebuild'                 => true,
+		'post_types'                   => array( 'post', 'page' ),
+		'cache_ttl'                    => 2592000,
+		'max_follow_ups'               => 3,
+		'ai_expand_query'              => true,
+		'ai_summarize'                 => true,
+		'ai_languages'                 => array( 'en' ),
 		// Scoring.
-		'title_match_boost'          => 2.0,
-		'title_all_terms_multiplier' => 1.5,
-		'content_match_boost'        => 0.4,
-		'recency_boost_max'          => 0.25,
-		'recency_half_life_days'     => 365,
-		'recency_penalty_after_days' => 1825,
-		'recency_max_penalty'        => 0.3,
-		'expand_primary_weight'      => 0.5,
-		'cross_list_bonus'           => 0.05,
+		'title_match_boost'            => 2.0,
+		'title_all_terms_multiplier'   => 1.5,
+		'content_match_boost'          => 0.4,
+		'recency_boost_max'            => 0.25,
+		'recency_half_life_days'       => 365,
+		'recency_penalty_after_days'   => 1825,
+		'recency_max_penalty'          => 0.3,
+		'expand_primary_weight'        => 0.5,
+		'cross_list_bonus'             => 0.05,
 		'expand_subword_max_frequency' => 0.05,
-		'expansion_combine_mode'     => 'relevance_union',
+		'expansion_combine_mode'       => 'relevance_union',
 		// Display.
-		'excerpt_length'             => 300,
-		'results_per_page'           => 10,
-		'max_pagefind_results'       => 50,
-		'ai_summary_top_n'           => 10,
-		'ai_summary_max_chars'       => 4000,
+		'excerpt_length'               => 300,
+		'results_per_page'             => 10,
+		'max_pagefind_results'         => 50,
+		'ai_summary_top_n'             => 10,
+		'ai_summary_max_chars'         => 4000,
 		// Prompt overrides.
-		'prompt_expand_query'        => '',
-		'prompt_summarize'           => '',
-		'prompt_follow_up'           => '',
+		'prompt_expand_query'          => '',
+		'prompt_summarize'             => '',
+		'prompt_follow_up'             => '',
 	);
 
 	// Ensure index directories exist in uploads (writable on all managed hosts).
@@ -461,9 +462,9 @@ add_action(
  */
 add_action(
 	'update_option_scolta_settings',
-	function ( $old, $new ): void {
-		$site_name = $new['site_name'] ?? get_bloginfo( 'name' );
-		$site_desc = $new['site_description'] ?? 'website';
+	function ( $old, $new_value ): void {
+		$site_name = $new_value['site_name'] ?? get_bloginfo( 'name' );
+		$site_desc = $new_value['site_description'] ?? 'website';
 
 		$all = array();
 		foreach ( array( 'expand_query', 'summarize', 'follow_up' ) as $name ) {

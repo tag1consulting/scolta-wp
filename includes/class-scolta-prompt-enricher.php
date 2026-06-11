@@ -14,12 +14,17 @@
  *   }, 10, 3);
  *
  * @since 0.2.0
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Prompt\PromptEnricherInterface;
 
+/**
+ * Routes resolved AI prompts through the scolta_prompt WordPress filter.
+ */
 class Scolta_Prompt_Enricher implements PromptEnricherInterface {
 
 	/**
@@ -30,8 +35,11 @@ class Scolta_Prompt_Enricher implements PromptEnricherInterface {
 	 * @param array  $context        Additional context (query, search results, messages).
 	 * @return string The filtered prompt text.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	public function enrich( string $resolvedPrompt, string $promptName, array $context = array() ): string {
+	public function enrich(
+		string $resolvedPrompt,
+		string $promptName,
+		array $context = array()
+	): string {
 		/**
 		 * Filter the AI prompt before it is sent to the LLM provider.
 		 *

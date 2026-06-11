@@ -9,6 +9,8 @@
  *
  * Uses WP_Query for enumeration, apply_filters('the_content') for rendering,
  * and generator functions (yield) to keep memory flat.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,10 +19,23 @@ use Tag1\Scolta\Content\ContentSourceInterface;
 use Tag1\Scolta\Export\ContentItem;
 use Tag1\Scolta\Config\ScoltaConfig;
 
+/**
+ * Exposes published WordPress posts to the scolta-php indexing pipeline.
+ */
 class Scolta_Content_Source implements ContentSourceInterface {
 
+	/**
+	 * Active Scolta configuration.
+	 *
+	 * @var ScoltaConfig
+	 */
 	private ScoltaConfig $config;
 
+	/**
+	 * Constructor.
+	 *
+	 * @param ScoltaConfig $config Active Scolta configuration.
+	 */
 	public function __construct( ScoltaConfig $config ) {
 		$this->config = $config;
 	}
@@ -29,34 +44,62 @@ class Scolta_Content_Source implements ContentSourceInterface {
 	// ContentSourceInterface (camelCase) — delegates to snake_case.
 	// -----------------------------------------------------------------
 
-	/** @inheritDoc */
+	/**
+	 * Yield all published content (interface delegate).
+	 *
+	 * @param array $options Source options; supports 'post_types'.
+	 *
+	 * @inheritDoc
+	 */
 	public function getPublishedContent( array $options = array() ): iterable {
 		$post_types = $options['post_types'] ?? array( 'post', 'page' );
 		return $this->get_published_content( $post_types );
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Yield changed content from the tracker (interface delegate).
+	 *
+	 * @inheritDoc
+	 */
 	public function getChangedContent(): iterable {
 		return $this->get_changed_content();
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Get deleted/unpublished content IDs (interface delegate).
+	 *
+	 * @inheritDoc
+	 */
 	public function getDeletedIds(): array {
 		return $this->get_deleted_ids();
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Clear the change tracker (interface delegate).
+	 *
+	 * @inheritDoc
+	 */
 	public function clearTracker(): void {
 		Scolta_Tracker::clear();
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Get total published content count (interface delegate).
+	 *
+	 * @param array $options Source options; supports 'post_types'.
+	 *
+	 * @inheritDoc
+	 */
 	public function getTotalCount( array $options = array() ): int {
 		$post_types = $options['post_types'] ?? array( 'post', 'page' );
 		return $this->get_total_count( $post_types );
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Get the count of pending tracker records (interface delegate).
+	 *
+	 * @inheritDoc
+	 */
 	public function getPendingCount(): int {
 		return Scolta_Tracker::get_pending_count();
 	}
@@ -89,24 +132,9 @@ class Scolta_Content_Source implements ContentSourceInterface {
 			);
 
 			foreach ( $query->posts as $post ) {
+				// The shared mapper applies the scolta_content_item filter
+				// and returns null for excluded/empty items.
 				$item = $this->post_to_content_item( $post );
-				if ( $item === null ) {
-					continue;
-				}
-
-				/**
-				 * Filter a content item before it is added to the search index.
-				 *
-				 * Return null to exclude the item entirely. Return a modified
-				 * ContentItem to change what gets indexed (title, body, URL, etc.).
-				 *
-				 * This filter fires in both the binary and PHP indexer pipelines,
-				 * making it the reliable hook for per-post exclusion logic.
-				 *
-				 * @param ContentItem $item The content item about to be indexed.
-				 * @param \WP_Post    $post The WordPress post object.
-				 */
-				$item = apply_filters( 'scolta_content_item', $item, $post );
 				if ( $item !== null ) {
 					yield $item;
 				}
@@ -151,39 +179,21 @@ class Scolta_Content_Source implements ContentSourceInterface {
 
 	/**
 	 * Convert a WP_Post into a platform-agnostic ContentItem.
+	 *
+	 * Delegates to the shared mapper so both pipelines produce identical
+	 * items — see Scolta_Content_Gatherer::to_content_item() for the
+	 * canonical id/date/title semantics.
+	 *
+	 * @param \WP_Post $post The post to convert.
 	 */
 	private function post_to_content_item( \WP_Post $post ): ?ContentItem {
-		setup_postdata( $post );
-
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Intentionally applying WordPress core's the_content filter.
-		$content = apply_filters( 'the_content', $post->post_content );
-
-		if ( empty( trim( wp_strip_all_tags( $content ) ) ) ) {
-			wp_reset_postdata();
-			return null;
-		}
-
-		$id = "{$post->post_type}-{$post->ID}";
-
-		$date = $post->post_modified
-			? gmdate( 'Y-m-d', strtotime( $post->post_modified ) )
-			: gmdate( 'Y-m-d', strtotime( $post->post_date ) );
-
-		$item = new ContentItem(
-			id: $id,
-			title: html_entity_decode( get_the_title( $post ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
-			bodyHtml: $content,
-			url: get_permalink( $post ),
-			date: $date,
-			siteName: $this->config->siteName,
-		);
-
-		wp_reset_postdata();
-		return $item;
+		return Scolta_Content_Gatherer::to_content_item( $post, $this->config->siteName );
 	}
 
 	/**
 	 * Get total published post count for configured types.
+	 *
+	 * @param string[] $post_types Post types to count.
 	 */
 	public function get_total_count( array $post_types = array( 'post', 'page' ) ): int {
 		$count = 0;

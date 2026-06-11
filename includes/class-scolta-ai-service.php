@@ -15,14 +15,20 @@
  *
  * Controllers call message() and conversation() — they never touch
  * AiClient directly. The dual-path fallback is invisible to callers.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\AiProvider\Amazee\AmazeeBudgetExceededException;
+use Tag1\Scolta\AiProvider\Amazee\BudgetAwareProviderDecorator;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Service\AiServiceAdapter;
 
+/**
+ * WordPress adapter around the shared scolta-php AI service.
+ */
 class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
@@ -41,7 +47,7 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	 * rerouted to the Amazee LiteLLM proxy.
 	 */
 	public static function from_options(): self {
-		$settings    = get_option( 'scolta_settings', array() );
+		$settings     = get_option( 'scolta_settings', array() );
 		$explicit_key = self::get_api_key();
 
 		if ( $explicit_key !== '' ) {
@@ -218,9 +224,16 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $systemPrompt System prompt for the request.
+	 * @param string $userMessage  User message to send.
+	 * @param int    $maxTokens    Maximum tokens for the response.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	protected function tryFrameworkAi( string $systemPrompt, string $userMessage, int $maxTokens ): ?string {
+	protected function tryFrameworkAi(
+		string $systemPrompt,
+		string $userMessage,
+		int $maxTokens
+	): ?string {
 		if ( ! $this->has_wp_ai_sdk() ) {
 			return null;
 		}
@@ -240,9 +253,16 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
 	 * {@inheritdoc}
+	 *
+	 * @param string $systemPrompt System prompt for the conversation.
+	 * @param array  $messages     Conversation messages (role/content pairs).
+	 * @param int    $maxTokens    Maximum tokens for the response.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	protected function tryFrameworkConversation( string $systemPrompt, array $messages, int $maxTokens ): ?string {
+	protected function tryFrameworkConversation(
+		string $systemPrompt,
+		array $messages,
+		int $maxTokens
+	): ?string {
 		if ( ! $this->has_wp_ai_sdk() ) {
 			return null;
 		}
@@ -261,10 +281,21 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
 	 * Send a message via the WordPress AI Client SDK.
+	 *
+	 * @param string $system_prompt System prompt for the request.
+	 * @param string $user_message  User message to send.
+	 * @param int    $max_tokens    Maximum tokens for the response.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	private function message_via_wp_sdk( string $system_prompt, string $user_message, int $max_tokens ): string {
-		/** @var \WordPress\AI\Client $ai */
+	private function message_via_wp_sdk(
+		string $system_prompt,
+		string $user_message,
+		int $max_tokens
+	): string {
+		/**
+		 * The WP AI Client SDK singleton.
+		 *
+		 * @var \WordPress\AI\Client $ai
+		 */
 		$ai = \WordPress\AI\Client::instance();
 
 		$response = $ai->prompt(
@@ -280,10 +311,21 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
 	/**
 	 * Send a conversation via the WordPress AI Client SDK.
+	 *
+	 * @param string $system_prompt System prompt for the conversation.
+	 * @param array  $messages      Conversation messages (role/content pairs).
+	 * @param int    $max_tokens    Maximum tokens for the response.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	private function conversation_via_wp_sdk( string $system_prompt, array $messages, int $max_tokens ): string {
-		/** @var \WordPress\AI\Client $ai */
+	private function conversation_via_wp_sdk(
+		string $system_prompt,
+		array $messages,
+		int $max_tokens
+	): string {
+		/**
+		 * The WP AI Client SDK singleton.
+		 *
+		 * @var \WordPress\AI\Client $ai
+		 */
 		$ai = \WordPress\AI\Client::instance();
 
 		$sdk_messages = array();
@@ -307,12 +349,15 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 
 	// -- Amazee.ai budget exception handling --
 
+	// phpcs:disable WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- overrides a camelCase vendor base method.
 	/**
 	 * {@inheritdoc}
 	 *
 	 * Converts Amazee.ai budget errors to AmazeeBudgetExceededException, notifies
-	 * the budget handler, and re-throws. No-op if the exception message does not
-	 * contain the Amazee budget signal. Invoked by the base AI methods' catch block.
+	 * the budget handler, and re-throws. No-op unless scolta-php's
+	 * BudgetAwareProviderDecorator::isBudgetError() recognizes the exception
+	 * (it owns the Amazee budget signal — no duplicated magic string here).
+	 * Invoked by the base AI methods' catch block.
 	 *
 	 * Named in camelCase (not the WordPress snake_case convention) because it
 	 * overrides the protected hook on the vendor base class AiServiceAdapter.
@@ -320,9 +365,8 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	 * @param \RuntimeException $e The exception to inspect.
 	 * @throws AmazeeBudgetExceededException When the budget message is detected.
 	 */
-	// phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid -- overrides a camelCase vendor base method.
 	protected function handlePossibleBudgetException( \RuntimeException $e ): void {
-		if ( ! str_contains( $e->getMessage(), 'Budget has been exceeded!' ) ) {
+		if ( ! BudgetAwareProviderDecorator::isBudgetError( $e ) ) {
 			return;
 		}
 		$budget_exception = new AmazeeBudgetExceededException( $e );
@@ -331,4 +375,5 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		}
 		throw $budget_exception;
 	}
+	// phpcs:enable WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
 }

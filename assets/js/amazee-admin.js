@@ -1,15 +1,26 @@
-/* global scoltaAmazee, jQuery */
+/* global scoltaAmazee, jQuery, wp */
 /**
  * Amazee.ai multi-step admin connection UI.
  *
  * Drives step transitions via AJAX without full page reloads.
  * Falls back gracefully when JS is disabled (server renders the active step).
+ *
+ * All user-facing strings go through wp.i18n with the same source strings
+ * as the PHP step renderers in class-scolta-amazee-admin-page.php, so the
+ * two renderings share one set of translations.
  */
 ( function ( $ ) {
 	'use strict';
 
+	var __ = wp.i18n.__;
+	var sprintf = wp.i18n.sprintf;
+
 	var app = null;
 	var selectedRegionId = null;
+
+	function escText( value ) {
+		return $( '<span>' ).text( value ).html();
+	}
 
 	function post( action, data, done, fail ) {
 		$.post(
@@ -19,12 +30,12 @@
 				if ( res.success ) {
 					done( res.data );
 				} else {
-					fail( res.data && res.data.message ? res.data.message : 'An error occurred.' );
+					fail( res.data && res.data.message ? res.data.message : __( 'An error occurred.', 'scolta-ai-search' ) );
 				}
 			},
 			'json'
 		).fail( function () {
-			fail( 'Network error. Please try again.' );
+			fail( __( 'Network error. Please try again.', 'scolta-ai-search' ) );
 		} );
 	}
 
@@ -45,10 +56,13 @@
 		clearError();
 		app.html(
 			'<p>' +
-			/* translators: %s: region name */
-			'Connected to Amazee.ai (region: <strong>' + $( '<span>' ).text( region ).html() + '</strong>).' +
+			sprintf(
+				/* translators: %s: Amazee.ai region name */
+				escText( __( 'Connected to Amazee.ai (region: %s).', 'scolta-ai-search' ) ),
+				'<strong>' + escText( region ) + '</strong>'
+			) +
 			'</p>' +
-			'<button type="button" id="scolta-amazee-disconnect" class="button button-secondary">Disconnect</button>'
+			'<button type="button" id="scolta-amazee-disconnect" class="button button-secondary">' + escText( __( 'Disconnect', 'scolta-ai-search' ) ) + '</button>'
 		);
 		bindDisconnect();
 	}
@@ -56,12 +70,12 @@
 	function renderStart() {
 		clearError();
 		app.html(
-			'<p>Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.</p>' +
-			'<label for="scolta-amazee-email">Email address</label>' +
+			'<p>' + escText( __( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.', 'scolta-ai-search' ) ) + '</p>' +
+			'<label for="scolta-amazee-email">' + escText( __( 'Email address', 'scolta-ai-search' ) ) + '</label>' +
 			'<input type="email" id="scolta-amazee-email" class="regular-text" />' +
 			'<p>' +
-			'<button type="button" id="scolta-amazee-trial" class="button button-primary">Start free trial</button>' +
-			' <button type="button" id="scolta-amazee-signin" class="button button-secondary">Sign in to existing account</button>' +
+			'<button type="button" id="scolta-amazee-trial" class="button button-primary">' + escText( __( 'Start free trial', 'scolta-ai-search' ) ) + '</button>' +
+			' <button type="button" id="scolta-amazee-signin" class="button button-secondary">' + escText( __( 'Sign in to existing account', 'scolta-ai-search' ) ) + '</button>' +
 			'</p>'
 		);
 		bindStart();
@@ -70,12 +84,18 @@
 	function renderVerification( email ) {
 		clearError();
 		app.html(
-			'<p>A verification code has been sent to <strong>' + $( '<span>' ).text( email ).html() + '</strong>. Enter it below.</p>' +
-			'<label for="scolta-amazee-code">Verification code</label>' +
+			'<p>' +
+			sprintf(
+				/* translators: %s: email address */
+				escText( __( 'A verification code has been sent to %s. Enter it below.', 'scolta-ai-search' ) ),
+				'<strong>' + escText( email ) + '</strong>'
+			) +
+			'</p>' +
+			'<label for="scolta-amazee-code">' + escText( __( 'Verification code', 'scolta-ai-search' ) ) + '</label>' +
 			'<input type="text" id="scolta-amazee-code" class="regular-text" autocomplete="one-time-code" />' +
 			'<p>' +
-			'<button type="button" id="scolta-amazee-verify" class="button button-primary">Verify code</button>' +
-			' <button type="button" id="scolta-amazee-back" class="button button-secondary">Back</button>' +
+			'<button type="button" id="scolta-amazee-verify" class="button button-primary">' + escText( __( 'Verify code', 'scolta-ai-search' ) ) + '</button>' +
+			' <button type="button" id="scolta-amazee-back" class="button button-secondary">' + escText( __( 'Back', 'scolta-ai-search' ) ) + '</button>' +
 			'</p>'
 		);
 		bindVerification();
@@ -86,7 +106,7 @@
 		selectedRegionId = null;
 		var html = '<fieldset>';
 		regions.forEach( function ( r ) {
-			html += '<label><input type="radio" name="scolta_region" value="' + $( '<span>' ).text( r.id ).html() + '" /> ' + $( '<span>' ).text( r.name ).html() + '</label><br/>';
+			html += '<label><input type="radio" name="scolta_region" value="' + escText( r.id ) + '" /> ' + escText( r.name ) + '</label><br/>';
 		} );
 		html += '</fieldset>';
 		$( '#scolta-amazee-regions-loading' ).hide();
@@ -153,12 +173,12 @@
 
 	function loadRegions() {
 		app.html(
-			'<p>Select the region where your AI requests will be processed.</p>' +
-			'<p id="scolta-amazee-regions-loading">Loading regions&hellip;</p>' +
+			'<p>' + escText( __( 'Select the region where your AI requests will be processed.', 'scolta-ai-search' ) ) + '</p>' +
+			'<p id="scolta-amazee-regions-loading">' + __( 'Loading regions&hellip;', 'scolta-ai-search' ) + '</p>' +
 			'<div id="scolta-amazee-regions-list" style="display:none;"></div>' +
 			'<p>' +
-			'<button type="button" id="scolta-amazee-connect" class="button button-primary" style="display:none;">Connect</button>' +
-			' <button type="button" id="scolta-amazee-back" class="button button-secondary">Back</button>' +
+			'<button type="button" id="scolta-amazee-connect" class="button button-primary" style="display:none;">' + escText( __( 'Connect', 'scolta-ai-search' ) ) + '</button>' +
+			' <button type="button" id="scolta-amazee-back" class="button button-secondary">' + escText( __( 'Back', 'scolta-ai-search' ) ) + '</button>' +
 			'</p>'
 		);
 

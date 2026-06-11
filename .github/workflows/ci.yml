@@ -149,6 +149,34 @@ jobs:
       - name: Run tests with coverage
         run: ./vendor/bin/phpunit --coverage-text --colors=never 2>&1 | tail -20
 
+  static-analysis:
+    name: Static analysis (PHPStan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl
+          coverage: none
+
+      - name: Replace path repo with GitHub VCS repo
+        run: |
+          php -r '
+            $j = json_decode(file_get_contents("composer.json"), true);
+            $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
+            $j["require"]["tag1/scolta-php"] = "dev-main@dev";
+            file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+          '
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --ignore-platform-req=php
+
+      - name: PHPStan
+        run: composer analyse
+
   docs-check:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'

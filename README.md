@@ -136,6 +136,8 @@ aggressive     # peak ≤ 1 GB   — high-memory servers              (500 posts
 
 The **Settings > Scolta > Chunk Size** field sets pages-per-chunk independently of the memory budget. Leave it blank to use the profile default. Lower values reduce peak RAM; higher values reduce merge overhead on large corpora.
 
+Both settings apply to every PHP-indexer build path — `wp scolta build`, the admin **Rebuild Now** button, and Action Scheduler background rebuilds all stream content through the same budget-aware pipeline.
+
 Both settings can be overridden per-run:
 
 ```bash

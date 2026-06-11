@@ -96,9 +96,12 @@ class AmazeeAiServiceTest extends TestCase {
         $this->assertStringNotContainsString( 'public function messageForOperation(', $content );
         $this->assertStringNotContainsString( 'public function message(', $content );
         $this->assertStringNotContainsString( 'public function conversation(', $content );
-        // ...but the hook (and its budget signal) is still present.
+        // ...but the hook is still present, and the budget signal comes
+        // from scolta-php's isBudgetError() — the magic string must NOT
+        // be duplicated locally.
         $this->assertStringContainsString( 'function handlePossibleBudgetException(', $content );
-        $this->assertStringContainsString( 'Budget has been exceeded!', $content );
+        $this->assertStringContainsString( 'BudgetAwareProviderDecorator::isBudgetError(', $content );
+        $this->assertStringNotContainsString( 'Budget has been exceeded!', $content );
     }
 
     public function test_imports_amazee_budget_exception(): void {

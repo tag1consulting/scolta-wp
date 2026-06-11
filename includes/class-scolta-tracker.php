@@ -9,13 +9,22 @@
  * Design: WordPress hooks (save_post, before_delete_post,
  * transition_post_status) populate this table. WP-CLI and admin UI
  * consume it. Event-driven, not polling-based.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Records which posts need reindexing or removal from the search index.
+ */
 class Scolta_Tracker {
 
-	/** @var string Table name (without prefix). */
+	/**
+	 * Table name (without prefix).
+	 *
+	 * @var string
+	 */
 	const TABLE = 'scolta_tracker';
 
 	/**
@@ -51,9 +60,16 @@ class Scolta_Tracker {
 	 *
 	 * Uses REPLACE INTO for atomic upsert on the (content_id, content_type)
 	 * unique key. No race conditions, no lost records on partial failure.
+	 *
+	 * @param int    $content_id   The post ID that changed.
+	 * @param string $content_type Content type identifier (e.g. 'post').
+	 * @param string $action       Either 'index' or 'delete'.
 	 */
-	// phpcs:ignore Generic.Files.LineLength.MaxExceeded
-	public static function track( int $content_id, string $content_type, string $action = 'index' ): void {
+	public static function track(
+		int $content_id,
+		string $content_type,
+		string $action = 'index'
+	): void {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE;
 
@@ -73,6 +89,7 @@ class Scolta_Tracker {
 	/**
 	 * Get all pending records.
 	 *
+	 * @param string|null $action Optional action filter ('index' or 'delete').
 	 * @return object[] Rows with content_id, content_type, action, changed_at.
 	 */
 	public static function get_pending( ?string $action = null ): array {
@@ -96,6 +113,8 @@ class Scolta_Tracker {
 
 	/**
 	 * Get count of pending items.
+	 *
+	 * @param string|null $action Optional action filter ('index' or 'delete').
 	 */
 	public static function get_pending_count( ?string $action = null ): int {
 		global $wpdb;

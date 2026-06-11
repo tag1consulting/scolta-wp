@@ -1,0 +1,20 @@
+includes:
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+	- phpstan-baseline.neon
+
+parameters:
+	level: 5
+	paths:
+		- scolta.php
+		- uninstall.php
+		- includes
+		- admin
+		- cli
+	bootstrapFiles:
+		- tests/stubs/phpstan-bootstrap.php
+	scanFiles:
+		- tests/stubs/wp-cli-stubs.php
+		- tests/stubs/wp-cli-utils-stubs.php
+		# .phpstub keeps this out of Composer's test classmap — it would
+		# otherwise be autoloaded into PHPUnit and redeclare bootstrap stubs.
+		- tests/stubs/phpstan-extra-stubs.phpstub

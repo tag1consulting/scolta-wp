@@ -12,6 +12,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Schedules debounced index rebuilds when content changes.
+ */
 class Scolta_Auto_Rebuild {
 
 	/** Action hook for debounced rebuild. */
@@ -43,7 +46,7 @@ class Scolta_Auto_Rebuild {
 	 *
 	 * @since 0.2.0
 	 *
-	 * @param int          $post_id Post ID.
+	 * @param int           $post_id Post ID.
 	 * @param \WP_Post|null $post    Post object (null on before_delete_post).
 	 */
 	public static function on_content_change( $post_id, $post = null ): void {

@@ -10,6 +10,8 @@
  * When a TimestampManifest is passed to gather(), posts whose
  * post_modified_gmt timestamp matches the manifest are yielded as
  * CachedContentReference objects without loading their full content.
+ *
+ * @package Scolta
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -19,6 +21,9 @@ use Tag1\Scolta\Index\CachedContentReference;
 use Tag1\Scolta\Index\PhpIndexer;
 use Tag1\Scolta\Index\TimestampManifest;
 
+/**
+ * Gathers published WordPress content for the PHP indexer pipeline.
+ */
 class Scolta_Content_Gatherer {
 
 	/**
@@ -59,11 +64,11 @@ class Scolta_Content_Gatherer {
 
 		global $wpdb;
 
-		$ids_int    = array_map( 'intval', $ids );
+		$ids_int      = array_map( 'intval', $ids );
 		$placeholders = implode( ',', array_fill( 0, count( $ids_int ), '%d' ) );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQL.NotPrepared
-		$sql  = "SELECT ID, UNIX_TIMESTAMP(post_modified_gmt) FROM {$wpdb->posts}"
+		$sql = "SELECT ID, UNIX_TIMESTAMP(post_modified_gmt) FROM {$wpdb->posts}"
 			. " WHERE ID IN ({$placeholders})";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Bulk timestamp lookup for incremental indexing; core API has no batch equivalent.
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, ...$ids_int ), ARRAY_N );
@@ -94,10 +99,8 @@ class Scolta_Content_Gatherer {
 	 * generator directly to IndexBuildOrchestrator::build() or
 	 * ContentExporter::filterItems().
 	 *
-	 * @param \Tag1\Scolta\Index\TimestampManifest|null $manifest
-	 *   When provided, unchanged posts are yielded as CachedContentReferences.
-	 * @param bool $force
-	 *   When true, ignore the manifest and fully load every post.
+	 * @param TimestampManifest|null $manifest Unchanged posts yield cached references if provided.
+	 * @param bool                   $force    When true, ignore the manifest and load every post.
 	 *
 	 * @return \Generator<ContentItem|CachedContentReference>
 	 *
@@ -179,36 +182,11 @@ class Scolta_Content_Gatherer {
 				);
 
 				foreach ( $query->posts as $post ) {
-					$woo_meta = ( 'product' === $post->post_type )
-						? self::extract_woocommerce_metadata( $post )
-						: array(
-							'metadata' => array(),
-							'sortable' => array(),
-						);
-
-					$item = new ContentItem(
-						id: 'post-' . $post->ID,
-						title: $post->post_title,
-						// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core the_content filter, not a custom hook.
-						bodyHtml: apply_filters( 'the_content', $post->post_content ),
-						url: get_permalink( $post ),
-						date: get_the_date( 'Y-m-d', $post ),
-						siteName: $site_name,
-						metadata: $woo_meta['metadata'],
-						sortable: $woo_meta['sortable'],
-					);
-
-					/**
-					 * Filter the ContentItem before it is added to the search index.
-					 *
-					 * @param ContentItem  $item  The content item about to be indexed.
-					 * @param \WP_Post     $post  The WordPress post object.
-					 */
-					$item = apply_filters( 'scolta_content_item', $item, $post );
+					$item = self::to_content_item( $post, $site_name );
 					if ( $item !== null ) {
 						if ( $manifest !== null && ! $force ) {
-							$ts    = (int) ( $timestamps[ $post->ID ] ?? 0 );
-							$hash  = PhpIndexer::contentHash( $item );
+							$ts   = (int) ( $timestamps[ $post->ID ] ?? 0 );
+							$hash = PhpIndexer::contentHash( $item );
 							$manifest->put(
 								(string) $post->ID,
 								$ts,
@@ -248,6 +226,71 @@ class Scolta_Content_Gatherer {
 			// callbacks that PHP's refcount GC cannot collect.
 			gc_collect_cycles();
 		}
+	}
+
+	/**
+	 * Map a WP_Post to the platform-agnostic ContentItem used by BOTH
+	 * indexing pipelines: the PHP indexer (via gather()) and the
+	 * binary/export pipeline (via Scolta_Content_Source). The pipelines
+	 * previously carried separate mappers that diverged on every field.
+	 *
+	 * Canonical field semantics — change them here or nowhere:
+	 * - id: "post-{ID}", the historical PHP-indexer scheme, kept so
+	 *   existing indexes and page-word caches stay valid.
+	 * - date: the PUBLISH date. Recency scoring follows publication —
+	 *   a typo fix must not bump a post's recency boost. (The export
+	 *   pipeline previously used post_modified.)
+	 * - title: get_the_title() with HTML entities decoded, so indexed
+	 *   tokens match what readers see (e.g. & not &amp;).
+	 * - WooCommerce products contribute price/SKU/category metadata and
+	 *   a sortable price in both pipelines.
+	 *
+	 * Returns null when the rendered body is empty or when the
+	 * `scolta_content_item` filter vetoes the item.
+	 *
+	 * @param \WP_Post $post      The post to map.
+	 * @param string   $site_name Site name carried on the ContentItem.
+	 * @return ContentItem|null The mapped item, or null to exclude it.
+	 */
+	public static function to_content_item( \WP_Post $post, string $site_name ): ?ContentItem {
+		setup_postdata( $post );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core the_content filter, not a custom hook.
+		$content = apply_filters( 'the_content', $post->post_content );
+		wp_reset_postdata();
+
+		if ( '' === trim( wp_strip_all_tags( $content ) ) ) {
+			return null;
+		}
+
+		$woo_meta = ( 'product' === $post->post_type )
+			? self::extract_woocommerce_metadata( $post )
+			: array(
+				'metadata' => array(),
+				'sortable' => array(),
+			);
+
+		$item = new ContentItem(
+			id: 'post-' . $post->ID,
+			title: html_entity_decode( get_the_title( $post ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
+			bodyHtml: $content,
+			url: get_permalink( $post ),
+			date: get_the_date( 'Y-m-d', $post ),
+			siteName: $site_name,
+			metadata: $woo_meta['metadata'],
+			sortable: $woo_meta['sortable'],
+		);
+
+		/**
+		 * Filter the ContentItem before it is added to the search index.
+		 *
+		 * Return null to exclude the item entirely. Fires for both the
+		 * PHP and binary/export pipelines — the single reliable hook for
+		 * per-post exclusion logic.
+		 *
+		 * @param ContentItem  $item  The content item about to be indexed.
+		 * @param \WP_Post     $post  The WordPress post object.
+		 */
+		return apply_filters( 'scolta_content_item', $item, $post );
 	}
 
 	/**
