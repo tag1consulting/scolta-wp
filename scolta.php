@@ -20,6 +20,19 @@ define( 'SCOLTA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_FILE', __FILE__ );
 
+/*
+ * Whether Amazee.ai trial provisioning may run automatically at activation
+ * and AI features start enabled. The WordPress.org distribution build flips
+ * this default to false (scripts/build-dist.sh): activation performs zero
+ * outbound HTTP and all AI features stay off until an administrator
+ * explicitly enables them or configures an API key. Self-distributed and
+ * partner builds keep auto-provisioning. Sites can override via wp-config.php.
+ */
+if ( ! defined( 'SCOLTA_AUTO_PROVISION_DEFAULT' ) ) {
+	// Flipped to false by scripts/build-dist.sh for the WordPress.org build.
+	define( 'SCOLTA_AUTO_PROVISION_DEFAULT', true );
+}
+
 // Composer autoloader (scolta-php).
 $scolta_autoloader = SCOLTA_PLUGIN_DIR . 'vendor/autoload.php';
 if ( file_exists( $scolta_autoloader ) ) {
@@ -160,8 +173,8 @@ function scolta_activate(): void {
 		'post_types'                   => array( 'post', 'page' ),
 		'cache_ttl'                    => 2592000,
 		'max_follow_ups'               => 3,
-		'ai_expand_query'              => true,
-		'ai_summarize'                 => true,
+		'ai_expand_query'              => SCOLTA_AUTO_PROVISION_DEFAULT,
+		'ai_summarize'                 => SCOLTA_AUTO_PROVISION_DEFAULT,
 		'ai_languages'                 => array( 'en' ),
 		// Scoring.
 		'title_match_boost'            => 2.0,
@@ -233,14 +246,29 @@ function scolta_activate(): void {
 		);
 	}
 
-	// Queue initial index build and Amazee.ai provisioning if Action Scheduler
-	// is available. Both are deferred so activation does not block on HTTP calls.
+	// Queue the initial index build if Action Scheduler is available. The
+	// build is local-only (no outbound HTTP) and deferred so activation
+	// does not block.
 	if ( function_exists( 'as_schedule_single_action' ) ) {
-		as_schedule_single_action( time() + 5, 'scolta_amazee_provision', array(), 'scolta' );
 		as_schedule_single_action( time() + 10, 'scolta_rebuild_start', array(), 'scolta' );
-	} else {
-		// Without Action Scheduler, fall back to synchronous provisioning.
-		scolta_auto_provision_amazee();
+	}
+
+	if ( SCOLTA_AUTO_PROVISION_DEFAULT ) {
+		// Auto-provisioning builds: queue Amazee.ai provisioning via Action
+		// Scheduler so activation does not block on HTTP, or fall back to a
+		// synchronous call without it.
+		if ( function_exists( 'as_schedule_single_action' ) ) {
+			as_schedule_single_action( time() + 5, 'scolta_amazee_provision', array(), 'scolta' );
+		} else {
+			scolta_auto_provision_amazee();
+		}
+	} elseif ( ! scolta_has_explicit_api_key() ) {
+		// Opt-in builds (WordPress.org): activation contacts no remote
+		// service. Record that AI features are available but awaiting
+		// explicit admin consent; this drives the opt-in admin notice and
+		// the "Enable AI features" control on the settings page. An explicit
+		// API key is itself the consent act, so no opt-in flow is needed.
+		update_option( 'scolta_ai_optin_pending', true, false );
 	}
 
 	// Set transient for admin notice.
@@ -248,20 +276,47 @@ function scolta_activate(): void {
 }
 register_activation_hook( __FILE__, 'scolta_activate' );
 
-// Register the Action Scheduler callback for background provisioning.
-add_action( 'scolta_amazee_provision', 'scolta_auto_provision_amazee' );
+// Register the Action Scheduler callback for background provisioning. The
+// wrapper discards the bool result — scheduled actions have no caller to
+// report failure to; the opt-in flow calls scolta_auto_provision_amazee()
+// directly and surfaces failures in admin.
+add_action(
+	'scolta_amazee_provision',
+	function (): void {
+		scolta_auto_provision_amazee();
+	}
+);
 
 /**
- * Attempt Amazee.ai trial provisioning at plugin activation time.
+ * Attempt Amazee.ai trial provisioning.
  *
- * No-op when the user has an explicit API key configured, or when
- * credentials are already stored. Failures are silenced — activation
- * succeeds regardless.
+ * Called from the scolta_amazee_provision scheduled action, the synchronous
+ * activation fallback (auto-provisioning builds only), and the explicit
+ * opt-in flow. No-op when the user has an explicit API key configured, or
+ * when credentials are already stored. Failures are silenced — the caller
+ * decides how to surface them.
+ *
+ * @return bool True when provisioning succeeded; false when skipped or failed.
  */
-function scolta_auto_provision_amazee(): void {
+function scolta_auto_provision_amazee(): bool {
+	/**
+	 * Short-circuits Amazee.ai provisioning before any remote contact.
+	 *
+	 * Mirrors WordPress's pre_http_request pattern: return a non-null value
+	 * to skip the provisioning call entirely; the value (cast to bool) is
+	 * returned as the provisioning result. Used by tests to assert
+	 * provisioning attempts without network access.
+	 *
+	 * @param bool|null $pre Non-null to short-circuit provisioning.
+	 */
+	$pre = apply_filters( 'scolta_pre_auto_provision', null );
+	if ( null !== $pre ) {
+		return (bool) $pre;
+	}
+
 	$storage = new Scolta_Amazee_Config_Storage();
 
-	\Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
+	return \Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
 		$storage,
 		hasExplicitApiKey: scolta_has_explicit_api_key(),
 	);

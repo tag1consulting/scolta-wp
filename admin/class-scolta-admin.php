@@ -44,6 +44,15 @@ class Scolta_Admin {
 		// Show rebuild result notices.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_rebuild_notice' ) );
 
+		// AI features opt-in flow (builds with auto-provisioning disabled,
+		// e.g. the WordPress.org distribution): availability notice, the
+		// explicit enable action, its result notice, and server-side
+		// notice dismissal.
+		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_result_notice' ) );
+		add_action( 'admin_post_scolta_enable_ai', array( self::class, 'handle_enable_ai' ) );
+		add_action( 'admin_post_scolta_dismiss_ai_optin_notice', array( self::class, 'handle_dismiss_ai_optin_notice' ) );
+
 		// Show auto-configured Amazee.ai model notice.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_amazee_models_notice' ) );
 
@@ -1686,6 +1695,8 @@ class Scolta_Admin {
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
+			<?php self::render_ai_optin_box(); ?>
+
 			<form method="post" action="options.php">
 				<?php
 				settings_fields( 'scolta_settings_group' );
@@ -1916,6 +1927,185 @@ class Scolta_Admin {
 		exit;
 	}
 
+	// -----------------------------------------------------------------
+	// AI features opt-in (builds with auto-provisioning disabled)
+	// -----------------------------------------------------------------
+
+	/**
+	 * Whether the AI features opt-in is pending admin consent.
+	 *
+	 * True only when activation recorded the pending flag (builds with
+	 * SCOLTA_AUTO_PROVISION_DEFAULT false, e.g. the WordPress.org
+	 * distribution) and no explicit API key has been configured since —
+	 * configuring a key is itself the consent act.
+	 *
+	 * @return bool True when the opt-in notice and control should be offered.
+	 */
+	public static function ai_optin_pending(): bool {
+		return get_option( 'scolta_ai_optin_pending' )
+			&& ! scolta_has_explicit_api_key();
+	}
+
+	/**
+	 * Show the AI features availability notice while the opt-in is pending.
+	 *
+	 * Rendered on the plugins and Scolta settings screens. The notice only
+	 * points to the settings page; the "Enable AI features" control there
+	 * carries the full disclosure and the confirmation step.
+	 */
+	public static function maybe_show_ai_optin_notice(): void {
+		if ( ! self::ai_optin_pending() || get_option( 'scolta_ai_optin_notice_dismissed' ) ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$screen = get_current_screen();
+		if ( ! $screen || ! in_array( $screen->id, array( 'plugins', 'settings_page_scolta' ), true ) ) {
+			return;
+		}
+
+		$dismiss_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=scolta_dismiss_ai_optin_notice' ),
+			'scolta_dismiss_ai_optin_notice'
+		);
+
+		echo '<div class="notice notice-info"><p>';
+		echo wp_kses_post(
+			sprintf(
+				/* translators: %s: URL of the Scolta settings page */
+				__( '<strong>Scolta AI Search:</strong> AI features (query expansion and result summaries) are available — <a href="%s">enable them in Scolta settings</a>. Scolta makes no remote requests until you enable them.', 'scolta-ai-search' ),
+				esc_url( admin_url( 'options-general.php?page=scolta' ) )
+			)
+		);
+		echo wp_kses_post( ' <a href="' . esc_url( $dismiss_url ) . '" style="margin-left:1em">' . esc_html__( 'Dismiss', 'scolta-ai-search' ) . '</a>' );
+		echo '</p></div>';
+	}
+
+	/**
+	 * Show the result notice after the "Enable AI features" action ran.
+	 */
+	public static function maybe_show_ai_optin_result_notice(): void {
+		$result = get_transient( 'scolta_ai_optin_result' );
+		if ( ! $result ) {
+			return;
+		}
+		delete_transient( 'scolta_ai_optin_result' );
+
+		if ( 'ok' === $result ) {
+			echo '<div class="notice notice-success is-dismissible"><p>';
+			echo esc_html__( 'Scolta AI features enabled. Query expansion and result summaries are now active.', 'scolta-ai-search' );
+			echo '</p></div>';
+		} else {
+			echo '<div class="notice notice-error is-dismissible"><p>';
+			echo esc_html__( 'Scolta could not provision the Amazee.ai trial — AI features remain off. Check your site’s outbound connectivity and try again, or configure your own API key.', 'scolta-ai-search' );
+			echo '</p></div>';
+		}
+	}
+
+	/**
+	 * Render the explicit "Enable AI features" opt-in control.
+	 *
+	 * Shown above the settings form while the opt-in recorded at activation
+	 * is pending. States exactly what enabling does — provisioning a free
+	 * Amazee.ai trial sends the site admin email address to api.amazee.ai —
+	 * with links to Amazee.ai's terms and privacy policy.
+	 */
+	private static function render_ai_optin_box(): void {
+		if ( ! self::ai_optin_pending() ) {
+			return;
+		}
+		?>
+		<div class="notice notice-info inline" style="margin: 1em 0 1.5em; padding: 0.5em 1em 1em;">
+			<h2><?php esc_html_e( 'Enable AI features?', 'scolta-ai-search' ); ?></h2>
+			<p><?php esc_html_e( 'AI query expansion and result summaries are currently OFF, and Scolta makes no remote requests of any kind.', 'scolta-ai-search' ); ?></p>
+			<p>
+				<?php
+				echo wp_kses_post(
+					sprintf(
+						/* translators: 1: Amazee.ai terms of service URL, 2: Amazee.ai privacy policy URL */
+						__( 'Enabling AI features provisions a free Amazee.ai trial: your site admin email address will be sent to amazee.ai (api.amazee.ai), and AI search queries plus result excerpts will be processed by the Amazee.ai gateway. See the Amazee.ai <a href="%1$s">Terms of Service</a> and <a href="%2$s">Privacy Policy</a>.', 'scolta-ai-search' ),
+						'https://amazee.ai/terms',
+						'https://amazee.ai/privacy'
+					)
+				);
+				?>
+			</p>
+			<p>
+				<?php
+				echo wp_kses_post(
+					sprintf(
+						/* translators: %s: wp-config.php constant example */
+						__( 'Prefer your own provider? Configure an API key instead (e.g. %s in wp-config.php) and turn on the AI settings below — no trial is provisioned and nothing is sent to amazee.ai when a key is present.', 'scolta-ai-search' ),
+						'<code>SCOLTA_API_KEY</code>'
+					)
+				);
+				?>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="scolta_enable_ai" />
+				<?php wp_nonce_field( 'scolta_enable_ai' ); ?>
+				<?php submit_button( __( 'Enable AI features', 'scolta-ai-search' ), 'primary', 'scolta-enable-ai', false ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Handle the explicit "Enable AI features" opt-in action.
+	 *
+	 * Provisions the Amazee.ai trial (unless an explicit API key or stored
+	 * credentials already provide AI access), then enables the AI feature
+	 * settings and clears the pending flag. On provisioning failure the AI
+	 * features stay off, the pending flag is kept, and an error notice is
+	 * queued for the next admin page load.
+	 */
+	public static function handle_enable_ai(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to enable AI features.', 'scolta-ai-search' ), 403 );
+		}
+		check_admin_referer( 'scolta_enable_ai' );
+
+		$success = scolta_has_explicit_api_key();
+		if ( ! $success ) {
+			$storage = new Scolta_Amazee_Config_Storage();
+			$success = $storage->load() !== null || scolta_auto_provision_amazee();
+		}
+
+		if ( $success ) {
+			$settings                    = get_option( 'scolta_settings', array() );
+			$settings['ai_expand_query'] = true;
+			$settings['ai_summarize']    = true;
+			update_option( 'scolta_settings', $settings );
+			delete_option( 'scolta_ai_optin_pending' );
+			delete_option( 'scolta_ai_optin_notice_dismissed' );
+			set_transient( 'scolta_ai_optin_result', 'ok', 5 * MINUTE_IN_SECONDS );
+		} else {
+			set_transient( 'scolta_ai_optin_result', 'error', 5 * MINUTE_IN_SECONDS );
+		}
+
+		wp_safe_redirect( admin_url( 'options-general.php?page=scolta' ) );
+		exit;
+	}
+
+	/**
+	 * Handle the admin-post action for dismissing the AI opt-in notice.
+	 *
+	 * Site-wide dismissal: the notice stays gone, but the "Enable AI
+	 * features" control remains available on the settings page.
+	 */
+	public static function handle_dismiss_ai_optin_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to dismiss this notice.', 'scolta-ai-search' ), 403 );
+		}
+		check_admin_referer( 'scolta_dismiss_ai_optin_notice' );
+
+		update_option( 'scolta_ai_optin_notice_dismissed', true, false );
+
+		wp_safe_redirect( admin_url( 'options-general.php?page=scolta' ) );
+		exit;
+	}
+
 	/**
 	 * Show a one-time notice when Amazee.ai auto-selected AI models after provisioning.
 	 *
@@ -1954,6 +2144,13 @@ class Scolta_Admin {
 		}
 
 		if ( class_exists( '\WordPress\AI\Client' ) ) {
+			return;
+		}
+
+		// While the AI features opt-in is pending, AI is off by design — a
+		// missing API key is not a problem to warn about; the opt-in notice
+		// and settings-page control carry the messaging.
+		if ( self::ai_optin_pending() ) {
 			return;
 		}
 

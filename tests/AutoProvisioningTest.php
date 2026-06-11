@@ -41,9 +41,14 @@ class AutoProvisioningTest extends TestCase {
 
     public function test_amazee_provision_action_registered(): void {
         $this->assertStringContainsString(
-            "add_action( 'scolta_amazee_provision', 'scolta_auto_provision_amazee' )",
+            "'scolta_amazee_provision',",
             $this->pluginSource,
-            'scolta_amazee_provision action must call scolta_auto_provision_amazee'
+            'scolta_amazee_provision action must be registered'
+        );
+        $this->assertMatchesRegularExpression(
+            "/add_action\\(\\s*'scolta_amazee_provision',.*?scolta_auto_provision_amazee\\(\\)/s",
+            $this->pluginSource,
+            'scolta_amazee_provision action must call scolta_auto_provision_amazee()'
         );
     }
 

@@ -257,9 +257,9 @@ class StructuralIntegrityTest extends TestCase {
     public function test_validate_script_checks_test_singular(): void {
         $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
         $this->assertStringContainsString(
-            "scolta/vendor/.+/test/",
+            "scolta/vendor/.+/tests?/",
             $script,
-            'Validate script must check for vendor test/ directories (singular)'
+            'Validate script must check for vendor test/ and tests/ directories'
         );
     }
 
@@ -290,17 +290,56 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
-    public function test_validate_script_checks_disallowed_extensions(): void {
+    public function test_validate_script_sweeps_whole_archive_fail_closed(): void {
         $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        // The per-extension denylist (.sha256, .toml, ...) was replaced by a
+        // fail-closed sweep: every file must match the extension allowlist or
+        // an enumerated exception. Assert the sweep and its allowlist exist.
         $this->assertStringContainsString(
-            '.sha256',
+            '*.php|*.js|*.css|*.wasm|*.pagefind|*.json|*.lock|*.txt|*.md',
             $script,
-            'Validate script must check for disallowed .sha256 files'
+            'Validate script must sweep the whole archive against an extension allowlist'
         );
         $this->assertStringContainsString(
-            '.toml',
+            'file not covered by the dist allowlist',
             $script,
-            'Validate script must check for disallowed .toml files'
+            'Validate script must fail closed on any file outside the allowlist'
+        );
+    }
+
+    public function test_validate_script_diffs_nonsource_manifest(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        $this->assertStringContainsString(
+            'dist-manifest-nonsource.txt',
+            $script,
+            'Validate script must diff the archive against the committed non-source manifest'
+        );
+        $this->assertFileExists(
+            $this->root . '/tests/fixtures/dist-manifest-nonsource.txt',
+            'The non-source manifest fixture must be committed'
+        );
+    }
+
+    public function test_validate_script_asserts_optin_default_in_archive(): void {
+        $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
+        $this->assertStringContainsString(
+            "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', false );",
+            $script,
+            'Validate script must assert the shipped zip defaults auto-provisioning off'
+        );
+    }
+
+    public function test_build_script_flips_optin_default_fail_closed(): void {
+        $script = file_get_contents($this->root . '/scripts/build-dist.sh');
+        $this->assertStringContainsString(
+            "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', true );",
+            $script,
+            'Build script must match the exact source define line'
+        );
+        $this->assertStringContainsString(
+            '-ne 1',
+            $script,
+            'Build script must fail when the define line is not found exactly once'
         );
     }
 
