@@ -190,8 +190,7 @@ class Scolta_Rebuild_Scheduler {
 		$budget = self::memory_budget( $settings );
 		$intent = BuildIntentFactory::fromFlags( $resume, false, $total, $budget );
 
-		// Logger + progress reporter are passed to build() below.
-		$orchestrator = new IndexBuildOrchestrator(
+		$orchestrator = new IndexBuildOrchestrator( // logger/progress are passed to build() below.
 			$state_dir,
 			$output_dir,
 			wp_salt( 'auth' ),
