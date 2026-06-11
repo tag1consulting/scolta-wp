@@ -357,7 +357,10 @@ class Scolta_Rest_Api {
 	/**
 	 * GET /wp-json/scolta/v1/health
 	 *
-	 * Returns service status for monitoring tools.
+	 * Returns service status for monitoring tools. Anonymous requests
+	 * receive only the overall `status` value — enough for uptime checks.
+	 * The full diagnostic payload (AI provider, index paths, integrity
+	 * breakdown) requires the manage_options capability.
 	 *
 	 * @param \WP_REST_Request $request The incoming REST request.
 	 */
@@ -423,6 +426,13 @@ class Scolta_Rest_Api {
 			}
 		} else {
 			$result['index'] = array( 'built' => false );
+		}
+
+		// The gate sits after the enrichment so anonymous monitors still see
+		// a status that reflects index integrity (e.g. 'degraded'), just not
+		// the diagnostic detail behind it.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return new \WP_REST_Response( array( 'status' => $result['status'] ), 200 );
 		}
 
 		return new \WP_REST_Response( $result, 200 );
