@@ -1,7 +1,2 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#^Offset ''limit'' on array\{ok\: false, data\?\: mixed, status\?\: int, error\?\: string\} in isset\(\) does not exist\.$#'
-			identifier: isset.offset
-			count: 1
-			path: includes/class-scolta-rest-api.php
+	ignoreErrors: []
