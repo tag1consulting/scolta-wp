@@ -138,6 +138,135 @@ if ! diff -u "$MANIFEST" zip-nonsource.txt; then
 fi
 echo "Non-source manifest OK: archive matches tests/fixtures/dist-manifest-nonsource.txt."
 
+# ---------------------------------------------------------------------------
+# Outbound-HTTP surface under change control (WP.org Guidelines 7 & 9).
+# Round 3's root cause was a new feature adding a remote call with nobody
+# noticing. Same philosophy as the non-source manifest: the artifact's
+# network surface is committed, reviewed, and any drift fails the build.
+#   1. Every outbound-HTTP call site in shipped PHP (vendor INCLUDED — the
+#      AI clients live there) must match the committed call-site fixture.
+#   2. Every https?:// host literal in shipped FIRST-PARTY PHP (plugin code
+#      plus vendor/tag1/scolta-php/src — first-party remote calls go through
+#      Guzzle, so a new endpoint adds no new transport call site; the host
+#      literal is what changes) must be listed in the hosts fixture.
+#   3. Every host the fixture marks `service` must appear in readme.txt's
+#      "== External Services ==" section — the disclosure travels in the zip.
+# ---------------------------------------------------------------------------
+CALLSITES_FIXTURE="$SCRIPT_DIR/../tests/fixtures/dist-network-callsites.txt"
+HOSTS_FIXTURE="$SCRIPT_DIR/../tests/fixtures/dist-network-hosts.txt"
+
+EXTRACT_DIR=$(mktemp -d)
+unzip -q "$ZIP" -d "$EXTRACT_DIR"
+
+# (1) Call-site manifest: "relative/path.php<TAB>marker", sorted, deduped.
+# No line numbers — they churn; a file gaining a marker it already has is
+# not a new surface.
+: > network-callsites-raw.txt
+HTTP_MARKERS="wp_remote_get wp_remote_post wp_remote_request wp_remote_head curl_init curl_exec fsockopen stream_socket_client"
+for marker in $HTTP_MARKERS; do
+  grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null \
+    | while IFS= read -r f; do
+        printf '%s\t%s\n' "${f#"$EXTRACT_DIR"/scolta/}" "$marker" >> network-callsites-raw.txt
+      done
+done
+# file_get_contents / fopen count only with an http literal on the same line
+# (their overwhelmingly common use is local files).
+for marker in file_get_contents fopen; do
+  grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null \
+    | while IFS= read -r f; do
+        if grep -E "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" "$f" | grep -q "http"; then
+          printf '%s\t%s\n' "${f#"$EXTRACT_DIR"/scolta/}" "${marker}+http" >> network-callsites-raw.txt
+        fi
+      done
+done
+sort -u network-callsites-raw.txt > network-callsites.txt
+
+if [ ! -f "$CALLSITES_FIXTURE" ]; then
+  echo "ERROR: network call-site fixture missing: $CALLSITES_FIXTURE"
+  echo "Seed it from a known-good build (review every entry against readme.txt"
+  echo "'External Services' first): cp network-callsites.txt $CALLSITES_FIXTURE"
+  exit 1
+fi
+if ! diff -u <(grep -vE '^#|^$' "$CALLSITES_FIXTURE") network-callsites.txt; then
+  echo "ERROR: New outbound-HTTP call site. Check WP.org Guidelines 7 & 9 (remote"
+  echo "calls must be opt-in, OFF by default in the .org build, behind the"
+  echo "SCOLTA_AUTO_PROVISION_DEFAULT / explicit-key consent gates), disclose the"
+  echo "service in readme.txt External Services, then update this manifest"
+  echo "(tests/fixtures/dist-network-callsites.txt) in an explicit commit."
+  exit 1
+fi
+echo "Network call-site manifest OK: archive matches tests/fixtures/dist-network-callsites.txt."
+
+# (2) First-party host literals must all be enumerated in the hosts fixture.
+if [ ! -f "$HOSTS_FIXTURE" ]; then
+  echo "ERROR: network hosts fixture missing: $HOSTS_FIXTURE"
+  exit 1
+fi
+grep -rhEo 'https?://[A-Za-z0-9._-]+' --include='*.php' \
+  "$EXTRACT_DIR/scolta/includes" "$EXTRACT_DIR/scolta/admin" "$EXTRACT_DIR/scolta/cli" \
+  "$EXTRACT_DIR/scolta/scolta.php" "$EXTRACT_DIR/scolta/uninstall.php" \
+  "$EXTRACT_DIR/scolta/vendor/tag1/scolta-php/src" 2>/dev/null \
+  | sed -E 's#^https?://##' | sort -u > network-hosts-found.txt
+grep -vE '^#|^$' "$HOSTS_FIXTURE" | cut -f1 | sort -u > network-hosts-allowed.txt
+NEW_HOSTS=$(comm -23 network-hosts-found.txt network-hosts-allowed.txt)
+GONE_HOSTS=$(comm -13 network-hosts-found.txt network-hosts-allowed.txt)
+if [ -n "$NEW_HOSTS" ]; then
+  echo "ERROR: first-party shipped PHP references hosts not in tests/fixtures/dist-network-hosts.txt:"
+  echo "$NEW_HOSTS"
+  echo "If the plugin can contact the host, it is a remote service: it must be opt-in"
+  echo "(WP.org Guidelines 7 & 9) and disclosed in readme.txt External Services, then"
+  echo "added to the fixture as 'service'. A documentation-only URL is added as"
+  echo "'reference'. Update the fixture in an explicit commit."
+  exit 1
+fi
+if [ -n "$GONE_HOSTS" ]; then
+  echo "ERROR: tests/fixtures/dist-network-hosts.txt lists hosts no longer present in"
+  echo "first-party shipped PHP (stale fixture — remove them in an explicit commit):"
+  echo "$GONE_HOSTS"
+  exit 1
+fi
+echo "Network hosts OK: first-party host literals match tests/fixtures/dist-network-hosts.txt."
+
+# (3) Every `service` host must be disclosed in the SHIPPED readme.txt.
+awk '/^== External Services ==/{f=1;next} /^== /{f=0} f' "$EXTRACT_DIR/scolta/readme.txt" > readme-external-services.txt
+DISCLOSURE_FAIL=0
+while IFS=$'\t' read -r host category; do
+  [ "$category" = "service" ] || continue
+  if ! grep -qF "$host" readme-external-services.txt; then
+    echo "ERROR: host '$host' is marked 'service' in dist-network-hosts.txt but is not"
+    echo "disclosed in the shipped readme.txt '== External Services ==' section."
+    DISCLOSURE_FAIL=1
+  fi
+done < <(grep -vE '^#|^$' "$HOSTS_FIXTURE")
+if [ "$DISCLOSURE_FAIL" -ne 0 ]; then
+  exit 1
+fi
+echo "External Services disclosure OK: every contactable host is documented in readme.txt."
+
+# ---------------------------------------------------------------------------
+# Shipped-binary justification sync: every enumerated binary exception above
+# must be justified by name in the shipped readme.txt under "Source code and
+# compiled assets" — round 3 re-flagged binaries whose justification lived
+# only in PR threads. Keep this list in sync with the presence assertions and
+# the allowlist exceptions earlier in this script.
+# ---------------------------------------------------------------------------
+awk '/^== Source code and compiled assets ==/{f=1;next} /^== /{f=0} f' "$EXTRACT_DIR/scolta/readme.txt" > readme-compiled-assets.txt
+JUSTIFY_FAIL=0
+for basename in scolta_core_bg.wasm pagefind.js pagefind-worker.js wasm.en.pagefind wasm.unknown.pagefind; do
+  if ! grep -qF "$basename" readme-compiled-assets.txt; then
+    echo "ERROR: shipped binary '$basename' is not justified in the shipped readme.txt"
+    echo "'== Source code and compiled assets ==' section. The justification must"
+    echo "travel in the zip — reviewers do not read our PR threads."
+    JUSTIFY_FAIL=1
+  fi
+done
+if [ "$JUSTIFY_FAIL" -ne 0 ]; then
+  exit 1
+fi
+echo "Binary justification OK: every enumerated binary is documented in readme.txt."
+
+rm -rf "$EXTRACT_DIR"
+
 # ZIP must be under 5 MB (rc4 was 2.2 MB; 5 MB gives headroom for growth)
 ZIP_SIZE=$(stat --format=%s "$ZIP" 2>/dev/null || stat -f%z "$ZIP" 2>/dev/null)
 MAX_SIZE=$((5 * 1024 * 1024))
@@ -150,5 +279,8 @@ if [ "$ZIP_SIZE" -gt "$MAX_SIZE" ]; then
 fi
 echo "ZIP size OK: $(( ZIP_SIZE / 1024 )) KB"
 
-echo "Archive structure OK: correct directory, required files present, opt-in default false, no unjustified files."
-rm -f zip-contents.txt zip-files.txt zip-nonsource.txt
+echo "Archive structure OK: correct directory, required files present, opt-in default false, no unjustified files, network surface under change control."
+rm -f zip-contents.txt zip-files.txt zip-nonsource.txt \
+  network-callsites-raw.txt network-callsites.txt \
+  network-hosts-found.txt network-hosts-allowed.txt \
+  readme-external-services.txt readme-compiled-assets.txt
