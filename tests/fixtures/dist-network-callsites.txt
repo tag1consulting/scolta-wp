@@ -9,12 +9,14 @@
 #
 # Current entries, each mapped to its disclosed service:
 # - cli/class-scolta-cli.php: wp scolta download-pagefind queries the GitHub
-#   API for the latest Pagefind release (readme.txt "GitHub API"; the archive
-#   download itself goes through WP core's download_url()).
+#   API for the latest Pagefind release (wp_remote_get) and downloads the
+#   release archive from github.com via WP core's download_url() —
+#   readme.txt "GitHub API" and "Pagefind Binary".
 # - vendor/guzzlehttp/guzzle: the curl transport used exclusively by
 #   tag1/scolta-php's AiClient (api.anthropic.com, api.openai.com,
 #   admin-configured OpenAI-compatible endpoints) and AmazeeClient
 #   (api.amazee.ai) — readme.txt "AI Provider APIs" and "Amazee.ai".
+cli/class-scolta-cli.php	download_url
 cli/class-scolta-cli.php	wp_remote_get
 vendor/guzzlehttp/guzzle/src/Handler/CurlFactory.php	curl_init
 vendor/guzzlehttp/guzzle/src/Handler/CurlHandler.php	curl_exec

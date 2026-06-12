@@ -162,7 +162,7 @@ unzip -q "$ZIP" -d "$EXTRACT_DIR"
 # No line numbers — they churn; a file gaining a marker it already has is
 # not a new surface.
 : > network-callsites-raw.txt
-HTTP_MARKERS="wp_remote_get wp_remote_post wp_remote_request wp_remote_head curl_init curl_exec fsockopen stream_socket_client"
+HTTP_MARKERS="wp_remote_get wp_remote_post wp_remote_request wp_remote_head wp_safe_remote_get wp_safe_remote_post wp_safe_remote_request wp_safe_remote_head wp_remote_fopen download_url curl_init curl_exec fsockopen stream_socket_client"
 for marker in $HTTP_MARKERS; do
   # `|| true`: a marker with zero hits is normal, not an error (pipefail).
   { grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null || true; } \
