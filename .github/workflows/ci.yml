@@ -318,8 +318,8 @@ jobs:
           unzip -q "scolta-${VERSION}.zip" -d plugin-check-build
 
       # Run WP.org's own Plugin Check against the exact artifact reviewers
-      # would receive — not the repo checkout. Errors fail the job; warnings
-      # are reported but non-fatal.
+      # would receive — not the repo checkout. Errors AND warnings fail the
+      # job: a warning-grade issue must not ride into a review round.
       #
       # The official wordpress/plugin-check-action is currently broken on the
       # ubuntu-24.04 runner image: it puts the plugin-check zip in
@@ -353,11 +353,13 @@ jobs:
           wp-env run cli wp plugin activate scolta
           # --slug: the wp.org slug (matches the Text Domain); without it the
           # check infers the slug from the directory name and flags every
-          # i18n call. Exit code is non-zero when errors are found;
-          # --ignore-warnings keeps warnings reported but non-fatal.
+          # i18n call. Exit code is non-zero when errors OR warnings are
+          # found — warnings are fatal on purpose. If a future warning is a
+          # confirmed false positive, suppress that one check with plugin
+          # check's --exclude-checks flag in an explicit, justified commit;
+          # never re-add --ignore-warnings.
           wp-env run cli wp plugin check scolta \
             --slug=scolta-ai-search \
-            --ignore-warnings \
             --require=./wp-content/plugins/plugin-check/cli.php
 
   antipatterns:

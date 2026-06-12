@@ -164,7 +164,8 @@ unzip -q "$ZIP" -d "$EXTRACT_DIR"
 : > network-callsites-raw.txt
 HTTP_MARKERS="wp_remote_get wp_remote_post wp_remote_request wp_remote_head curl_init curl_exec fsockopen stream_socket_client"
 for marker in $HTTP_MARKERS; do
-  grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null \
+  # `|| true`: a marker with zero hits is normal, not an error (pipefail).
+  { grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null || true; } \
     | while IFS= read -r f; do
         printf '%s\t%s\n' "${f#"$EXTRACT_DIR"/scolta/}" "$marker" >> network-callsites-raw.txt
       done
@@ -172,7 +173,7 @@ done
 # file_get_contents / fopen count only with an http literal on the same line
 # (their overwhelmingly common use is local files).
 for marker in file_get_contents fopen; do
-  grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null \
+  { grep -rlE "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" --include='*.php' "$EXTRACT_DIR/scolta" 2>/dev/null || true; } \
     | while IFS= read -r f; do
         if grep -E "(^|[^A-Za-z0-9_\$])${marker}[[:space:]]*\(" "$f" | grep -q "http"; then
           printf '%s\t%s\n' "${f#"$EXTRACT_DIR"/scolta/}" "${marker}+http" >> network-callsites-raw.txt
@@ -202,10 +203,10 @@ if [ ! -f "$HOSTS_FIXTURE" ]; then
   echo "ERROR: network hosts fixture missing: $HOSTS_FIXTURE"
   exit 1
 fi
-grep -rhEo 'https?://[A-Za-z0-9._-]+' --include='*.php' \
+{ grep -rhEo 'https?://[A-Za-z0-9._-]+' --include='*.php' \
   "$EXTRACT_DIR/scolta/includes" "$EXTRACT_DIR/scolta/admin" "$EXTRACT_DIR/scolta/cli" \
   "$EXTRACT_DIR/scolta/scolta.php" "$EXTRACT_DIR/scolta/uninstall.php" \
-  "$EXTRACT_DIR/scolta/vendor/tag1/scolta-php/src" 2>/dev/null \
+  "$EXTRACT_DIR/scolta/vendor/tag1/scolta-php/src" 2>/dev/null || true; } \
   | sed -E 's#^https?://##' | sort -u > network-hosts-found.txt
 grep -vE '^#|^$' "$HOSTS_FIXTURE" | cut -f1 | sort -u > network-hosts-allowed.txt
 NEW_HOSTS=$(comm -23 network-hosts-found.txt network-hosts-allowed.txt)
