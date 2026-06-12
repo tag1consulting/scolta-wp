@@ -1,0 +1,23 @@
+# Every https?:// host literal in first-party shipped PHP (includes/, admin/,
+# cli/, scolta.php, uninstall.php, vendor/tag1/scolta-php/src), one per line as
+# "host<TAB>category". scripts/validate-dist.sh extracts the literals from the
+# built zip and fails on any host missing here (new remote surface) or listed
+# here but gone from the code (stale fixture).
+#
+# Categories:
+#   service   — the plugin can contact this host. It must be opt-in
+#               (WP.org Guidelines 7 & 9) and validate-dist.sh asserts it is
+#               disclosed in readme.txt == External Services ==.
+#   reference — appears only in comments, docs links, or UI link hrefs the
+#               browser follows; the plugin never sends a request to it.
+actionscheduler.org	reference
+amazee.ai	reference
+api.amazee.ai	service
+api.anthropic.com	service
+api.github.com	service
+api.openai.com	service
+github.com	service
+myapp.ddev.site	reference
+myapp.example.com	reference
+www.gnu.org	reference
+www.tag1.com	reference

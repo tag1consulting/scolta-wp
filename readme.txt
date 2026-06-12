@@ -160,7 +160,7 @@ This plugin connects to the following external services under specific condition
 
 = Pagefind Binary (GitHub Releases / CloudCannon) =
 
-**When:** The `wp scolta download-pagefind` WP-CLI command downloads the Pagefind binary from GitHub Releases after querying the GitHub API above.
+**When:** The `wp scolta download-pagefind` WP-CLI command downloads the Pagefind binary from GitHub Releases (github.com) after querying the GitHub API above.
 **What is sent:** A standard HTTPS GET request to download the release archive. No personally identifiable information is transmitted beyond the standard HTTP request headers.
 **Service:** Pagefind is an open-source project (MIT license) created and maintained by CloudCannon.
 **Pagefind:** https://pagefind.app/
@@ -173,11 +173,11 @@ This plugin connects to the following external services under specific condition
 **What is sent:** The user's search query text and selected page content excerpts (for result summarization) are sent to the configured AI provider's API endpoint.
 **Providers:** The specific provider depends on site configuration. Supported providers are:
 
-* **Anthropic (Claude)** — processes search queries and page excerpts.
+* **Anthropic (Claude)** — processes search queries and page excerpts. API endpoint: api.anthropic.com.
   Terms of Service: https://www.anthropic.com/legal/consumer-terms
   Privacy Policy: https://www.anthropic.com/legal/privacy
 
-* **OpenAI** — processes search queries and page excerpts.
+* **OpenAI** — processes search queries and page excerpts. API endpoint: api.openai.com.
   Terms of Use: https://openai.com/policies/terms-of-use
   Privacy Policy: https://openai.com/policies/privacy-policy
 
