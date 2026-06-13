@@ -380,6 +380,10 @@ class Scolta_Rest_Api {
 			indexOutputDir: $output_dir,
 			pagefindBinaryPath: $settings['pagefind_binary'] ?? null,
 			projectDir: SCOLTA_PLUGIN_DIR,
+			// Same transient store Scolta_Ai_Service records recovery markers
+			// in, so `ai_usable` reflects whether the stored key still
+			// authenticates (a cached marker, never a live API call here).
+			cache: new \Scolta_Cache_Driver(),
 		);
 
 		$result = $checker->check();

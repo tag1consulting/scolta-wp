@@ -23,6 +23,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\AiProvider\Amazee\AmazeeBudgetExceededException;
 use Tag1\Scolta\AiProvider\Amazee\BudgetAwareProviderDecorator;
+use Tag1\Scolta\AiProvider\Amazee\KeyExpiryRecovery;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Service\AiServiceAdapter;
 
@@ -68,6 +69,19 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		$service = new self( $config );
 		if ( $creds !== null ) {
 			$service->budget_handler = new Scolta_Amazee_Budget_Handler();
+			// Auto-provisioned path only: an expired/revoked trial key now
+			// triggers a one-shot re-provision (guarded to one attempt per
+			// window) and a single retry instead of silently killing AI. The
+			// explicit-key path returned above never reaches here, so a user's
+			// own key is never replaced behind their back; budget-exhaustion is
+			// excluded by KeyExpiryRecovery so it can't reset the spend ceiling.
+			$service->setKeyExpiryRecovery(
+				new KeyExpiryRecovery(
+					storage: $storage,
+					cache: new Scolta_Cache_Driver(),
+					logger: new Scolta_Logger()
+				)
+			);
 		}
 		return $service;
 	}
