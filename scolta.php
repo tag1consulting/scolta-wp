@@ -319,7 +319,72 @@ function scolta_auto_provision_amazee(): bool {
 	return \Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
 		$storage,
 		hasExplicitApiKey: scolta_has_explicit_api_key(),
+		// Persist the resolved model names so the LiteLLM gateway is driven with
+		// a real model rather than the shipped dated default (which it rejects
+		// with HTTP 400). Guarded so a user's explicit model choice is never
+		// clobbered — see scolta_amazee_persist_resolved_models().
+		onModelsResolved: 'scolta_amazee_persist_resolved_models',
+		// Report whether models are already resolved. When credentials are
+		// stored but resolution previously failed (only the dated default is
+		// persisted), this returns false and ensureAiAvailable() re-resolves
+		// against the ALREADY-STORED key — self-healing the half-provisioned
+		// state — instead of no-opping forever on the stored credentials.
+		hasResolvedModels: 'scolta_amazee_models_resolved',
 	);
+}
+
+/**
+ * Whether a genuinely resolved Amazee AI model name is persisted in settings.
+ *
+ * The provisioner stores credentials and resolves model names in two steps; a
+ * provision whose `/model/info` step failed leaves credentials with only the
+ * shipped dated default in `ai_model`. This predicate reports that
+ * half-provisioned state so AutoProvisioner re-resolves against the stored key.
+ *
+ * It MUST treat the shipped dated default (`AiClient::DEFAULT_MODEL`,
+ * `claude-sonnet-4-5-20250929`) as unresolved: settings seed `ai_model` to it
+ * out of the box, so a naive "is `ai_model` non-empty" check would always
+ * report resolved and the self-heal would never fire — shipping the bug.
+ *
+ * @return bool True only when a resolved (non-default) model name is stored.
+ */
+function scolta_amazee_models_resolved(): bool {
+	$settings = get_option( 'scolta_settings', array() );
+	$model    = $settings['ai_model'] ?? '';
+	return is_string( $model ) && $model !== '' && $model !== \Tag1\Scolta\AiClient::DEFAULT_MODEL;
+}
+
+/**
+ * Persist Amazee-resolved model names without clobbering admin configuration.
+ *
+ * Mirrors the admin Amazee connect flow (Scolta_Amazee_Admin_Page): only fills
+ * `ai_model` when it still equals the shipped dated default (or is unset), and
+ * only fills `ai_expansion_model` when it is empty, so an administrator's
+ * explicit model choice is never overwritten by auto-resolution.
+ *
+ * @param string $ai_model           Resolved primary model name.
+ * @param string $ai_expansion_model Resolved expansion model name.
+ */
+function scolta_amazee_persist_resolved_models(
+	string $ai_model,
+	string $ai_expansion_model
+): void {
+	$settings = get_option( 'scolta_settings', array() );
+	$default  = \Tag1\Scolta\AiClient::DEFAULT_MODEL;
+	$changed  = false;
+
+	if ( $ai_model !== '' && ( $settings['ai_model'] ?? $default ) === $default ) {
+		$settings['ai_model'] = $ai_model;
+		$changed              = true;
+	}
+	if ( $ai_expansion_model !== '' && ( $settings['ai_expansion_model'] ?? '' ) === '' ) {
+		$settings['ai_expansion_model'] = $ai_expansion_model;
+		$changed                        = true;
+	}
+
+	if ( $changed ) {
+		update_option( 'scolta_settings', $settings );
+	}
 }
 
 /**

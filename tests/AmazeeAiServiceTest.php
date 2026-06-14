@@ -22,6 +22,11 @@ class AmazeeAiServiceTest extends TestCase {
         if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
             $this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot test Amazee fallback in same process.' );
         }
+        // A real provisioned trial has a resolved (non-default) model persisted;
+        // only then does from_options() drive the LiteLLM gateway. (A credentials-
+        // stored-but-model-unresolved install degrades instead — see
+        // test_from_options_degrades_when_model_unresolved.)
+        update_option( 'scolta_settings', array( 'ai_model' => 'claude-sonnet-4-5' ) );
         $storage = new Scolta_Amazee_Config_Storage();
         $storage->store( 'litellm-token', 'https://api.amazee.test', 'us-east-1' );
 
@@ -31,6 +36,32 @@ class AmazeeAiServiceTest extends TestCase {
         $this->assertSame( 'openai', $config->aiProvider );
         $this->assertSame( 'litellm-token', $config->aiApiKey );
         $this->assertSame( 'https://api.amazee.test', $config->aiBaseUrl );
+    }
+
+    public function test_from_options_degrades_when_model_unresolved(): void {
+        // Regression: credentials stored but model resolution failed (only the
+        // shipped dated default is persisted). from_options() must NOT inject the
+        // Amazee key — a key-less client throws ApiKeyMissingException (degrade to
+        // HTTP 200) instead of sending the gateway the dated default (HTTP 400).
+        if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
+            $this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot test the Amazee degrade path.' );
+        }
+        update_option( 'scolta_settings', array( 'ai_model' => 'claude-sonnet-4-5-20250929' ) );
+        $storage = new Scolta_Amazee_Config_Storage();
+        $storage->store( 'litellm-token', 'https://api.amazee.test', 'us-east-1' );
+
+        $service = Scolta_Ai_Service::from_options();
+        $config  = $service->get_config();
+
+        $this->assertSame(
+            '',
+            $config->aiApiKey,
+            'A model-unresolved Amazee install must degrade (no key) rather than send the gateway the dated default'
+        );
+        $this->assertTrue(
+            $service->is_amazee_active(),
+            'Credentials are still stored, so Amazee is active — only the client degrades'
+        );
     }
 
     public function test_from_options_uses_env_key_when_no_amazee_creds(): void {
