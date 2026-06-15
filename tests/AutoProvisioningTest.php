@@ -87,13 +87,29 @@ class AutoProvisioningTest extends TestCase {
         );
     }
 
-    public function test_auto_provision_does_not_overwrite_models(): void {
-        // The onModelsResolved callback must NOT be passed — it would overwrite
-        // user-configured model settings with Amazee defaults.
-        $this->assertStringNotContainsString(
-            'onModelsResolved:',
+    public function test_auto_provision_persists_models_without_clobbering_user_config(): void {
+        // onModelsResolved IS now passed — provisioning must persist the resolved
+        // model names, otherwise the LiteLLM gateway is driven with the shipped
+        // dated default (which it rejects with HTTP 400). The callback
+        // (scolta_amazee_persist_resolved_models) is guarded to only fill the
+        // dated default / empty expansion model, so a user's explicit model
+        // choice is never overwritten.
+        $this->assertStringContainsString(
+            "onModelsResolved: 'scolta_amazee_persist_resolved_models'",
             $this->pluginSource,
-            'scolta_auto_provision_amazee() must not pass an onModelsResolved callback'
+            'scolta_auto_provision_amazee() must persist resolved models via the guarded callback'
+        );
+        $this->assertStringContainsString(
+            "hasResolvedModels: 'scolta_amazee_models_resolved'",
+            $this->pluginSource,
+            'scolta_auto_provision_amazee() must pass the hasResolvedModels predicate so a half-provision self-heals'
+        );
+        // The persistence helper must guard against clobbering an explicit model:
+        // it only writes when the stored model is still the dated default.
+        $this->assertMatchesRegularExpression(
+            "/function scolta_amazee_persist_resolved_models.*?ai_model.*?\\?\\? \\\$default.*?=== \\\$default/s",
+            $this->pluginSource,
+            'scolta_amazee_persist_resolved_models() must only overwrite the dated default, preserving user config'
         );
     }
 

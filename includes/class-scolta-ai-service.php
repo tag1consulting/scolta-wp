@@ -60,9 +60,25 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		$storage = new Scolta_Amazee_Config_Storage();
 		$creds   = $storage->load();
 		if ( $creds !== null ) {
-			$settings['ai_provider'] = 'openai';
-			$settings['ai_api_key']  = $creds['litellm_token'];
-			$settings['ai_base_url'] = $creds['litellm_api_url'];
+			if ( scolta_amazee_models_resolved() ) {
+				// A resolved model is persisted — drive the LiteLLM gateway.
+				$settings['ai_provider'] = 'openai';
+				$settings['ai_api_key']  = $creds['litellm_token'];
+				$settings['ai_base_url'] = $creds['litellm_api_url'];
+			} else {
+				// Half-provisioned: credentials are stored but model resolution
+				// never succeeded, so settings still carry the shipped dated
+				// default — which the Amazee LiteLLM gateway rejects with HTTP
+				// 400, breaking AI permanently and silently. Do NOT inject the
+				// Amazee key here: a key-less client throws ApiKeyMissingException,
+				// which the REST controllers degrade to an unexpanded/no-summary
+				// HTTP 200 (the same path as a wholly unconfigured site), never a
+				// 400. The state self-heals when provisioning next re-resolves
+				// against the stored key (scolta_amazee_models_resolved() /
+				// scolta_auto_provision_amazee()). Mirrors scolta-node's
+				// AmazeeAiService::buildClient().
+				unset( $settings['ai_api_key'] );
+			}
 		}
 
 		$config  = ScoltaConfig::fromArray( $settings );
