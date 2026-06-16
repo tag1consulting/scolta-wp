@@ -35,7 +35,6 @@ class AdminSettingsSanitizeExtrasTest extends TestCase {
 	}
 
 	public function test_base_url_javascript_scheme_is_dropped(): void {
-		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
 		$clean = $this->sanitize( array( 'ai_base_url' => 'javascript:alert(1)' ) );
 		$this->assertSame( '', $clean['ai_base_url'], 'non-http(s) schemes must not survive sanitization' );
 	}

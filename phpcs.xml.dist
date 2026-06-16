@@ -42,10 +42,18 @@
     <exclude-pattern>cli/*</exclude-pattern>
   </rule>
 
-  <!-- WordPress hook and WP-CLI command signatures are fixed by core;
-       callbacks legitimately ignore trailing parameters. -->
+  <!-- WordPress hook, REST/shortcode, WP-CLI command, and interface
+       signatures are fixed by their contracts; those callbacks legitimately
+       ignore trailing parameters. Scoped to the files that actually hold such
+       callbacks rather than excluded repo-wide, so genuinely unused params
+       elsewhere still surface. -->
   <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
-    <exclude-pattern>*</exclude-pattern>
+    <exclude-pattern>scolta\.php</exclude-pattern>
+    <exclude-pattern>cli/*</exclude-pattern>
+    <exclude-pattern>includes/class-scolta-rest-api\.php</exclude-pattern>
+    <exclude-pattern>includes/class-scolta-shortcode\.php</exclude-pattern>
+    <exclude-pattern>includes/class-scolta-build-status-progress-reporter\.php</exclude-pattern>
+    <exclude-pattern>includes/class-scolta-amazee-budget-handler\.php</exclude-pattern>
   </rule>
 
   <!--
