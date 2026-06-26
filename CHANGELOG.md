@@ -4,7 +4,7 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Major versions are synchronized across all Scolta packages; minor and patch versions are released independently per package.
 
-## [Unreleased]
+## [1.0.5] - 2026-06-26
 
 ### Fixed
 - **CI asset-drift guard now verifies the WASM pair in its manifest-absent fallback, not just `scolta.js`.** The "Verify duplicated assets" CI step is manifest-driven: when scolta-php ships `assets/ASSETS.sha256` it checksums all four canonical runtime assets (`assets/js/scolta.js`, `assets/css/scolta.css`, `assets/wasm/scolta_core.js`, `assets/wasm/scolta_core_bg.wasm`) and is correct. But its backward-compat fallback — taken when the vendored scolta-php predates the manifest — checksummed **only `assets/js/scolta.js`** and then `exit 0`'d, so a sync that refreshed the JS but left `scolta_core.js` / `scolta_core_bg.wasm` (or `scolta.css`) stale passed CI. That JS-only verification path is the class of gap behind demos shipping a stale browser WASM scorer. The fallback now verifies **every** canonical asset directly against the vendored scolta-php source (`vendor/tag1/scolta-php/assets/<rel>`), covering the WASM glue + binary pair and the CSS, so a stale WASM can no longer slip through regardless of which branch runs. Guarded by `StructuralIntegrityTest::test_ci_asset_verify_fallback_covers_wasm_pair`, which asserts the fallback branch references `scolta_core.js`, `scolta_core_bg.wasm`, and `scolta.css` (it fails against the old `scolta.js`-only fallback). The Composer `copy-assets` hook, the manifest-present CI branch, and the `build-dist.sh` / `validate-dist.sh` dist paths already covered both WASM files and are unchanged.

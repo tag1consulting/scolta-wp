@@ -1,6 +1,6 @@
 {
     "name": "tag1/scolta-wp",
-    "version": "1.0.5-dev",
+    "version": "1.0.5",
     "description": "Scolta AI Search for WordPress \u2014 zero-infrastructure AI-powered search with Pagefind",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",

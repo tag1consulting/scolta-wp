@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.5-dev
+Stable Tag: 1.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,16 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 3. WP-CLI status output showing tracker and index state
 
 == Changelog ==
+
+= 1.0.5 =
+* Amazee.ai credentials that were provisioned without resolved model names now self-heal instead of leaving AI permanently broken, and expired trial keys recover automatically; the /health endpoint reports AI status truthfully.
+* The /health endpoint now returns only the overall status to anonymous (logged-out) requesters — a user-visible REST API change.
+* On the wordpress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
+* Amazee.ai credentials are now stored with authenticated encryption (encrypt-then-MAC) instead of plain encryption.
+* Ordinary page views no longer pay two extra non-autoloaded option reads per request on hosts without a persistent object cache.
+* Scheduler and admin index builds now run the same streamed, budget-aware pipeline as `wp scolta build`, and both content paths produce identical items via one shared mapper.
+* Several admin and CLI fixes: the Amazee trial start no longer overwrites a customized AI model, the budget-exceeded admin notice can display, the dashboard widget is hidden from non-administrators, "Reset to default" on the custom-prompt fields works, "Rebuild Now" honors the build lock, and `wp scolta clear-cache` also clears transient timeout rows.
+* Synced the bundled browser script, stylesheet, and modern stemmer from scolta-php 1.0.4 (AI-Overview latency fix and the up-to-date Snowball stemmer).
 
 = 1.0.4 =
 * New expansion_combine_mode scoring setting (default relevance_union; preset-defaulted to round_robin for catalog-style Site Types) for round-robin AI-summary candidate selection across query-expansion sub-queries. The Expansion Per-Term Top K setting is removed (locked at 3 upstream).
