@@ -19,5 +19,6 @@ api.openai.com	service
 github.com	service
 myapp.ddev.site	reference
 myapp.example.com	reference
+snowballstem.org	reference
 www.gnu.org	reference
 www.tag1.com	reference
