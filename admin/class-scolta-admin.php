@@ -62,6 +62,13 @@ class Scolta_Admin {
 		// renders it on the next admin page load.
 		add_action( 'admin_notices', array( Scolta_Amazee_Budget_Handler::class, 'maybe_render_pending_notice' ) );
 
+		// Show the Amazee.ai re-authentication prompt while the stored
+		// credentials are no longer accepted. scolta-php records a persistent
+		// marker on an auth-class failure during AI requests; this hook reads
+		// it on each admin page load and routes the operator to reconnect or
+		// upgrade. It is not consumed on render — it stays until reconnect.
+		add_action( 'admin_notices', array( Scolta_Amazee_Reauth_Handler::class, 'maybe_render_pending_notice' ) );
+
 		// Show a pending Amazee.ai credential decrypt-failure notice (same
 		// persisted-transient pattern — the failure surfaces during AI
 		// requests, not admin page loads).

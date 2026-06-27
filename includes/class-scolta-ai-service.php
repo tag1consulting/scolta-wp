@@ -85,12 +85,15 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 		$service = new self( $config );
 		if ( $creds !== null ) {
 			$service->budget_handler = new Scolta_Amazee_Budget_Handler();
-			// Auto-provisioned path only: an expired/revoked trial key now
-			// triggers a one-shot re-provision (guarded to one attempt per
-			// window) and a single retry instead of silently killing AI. The
-			// explicit-key path returned above never reaches here, so a user's
-			// own key is never replaced behind their back; budget-exhaustion is
-			// excluded by KeyExpiryRecovery so it can't reset the spend ceiling.
+			// Amazee.ai path only. Policy: when the stored credentials are no
+			// longer accepted, KeyExpiryRecovery records the failure so /health
+			// reports AI degraded and sets a persistent marker the admin UI
+			// reads to route the operator to reconnect/upgrade
+			// (Scolta_Amazee_Reauth_Handler). It never requests fresh
+			// credentials on this path and never retries — the request degrades
+			// gracefully. The explicit-key path returned above never reaches
+			// here, so a user's own key is never touched; budget-exhaustion is
+			// excluded by KeyExpiryRecovery and follows the budget path instead.
 			$service->setKeyExpiryRecovery(
 				new KeyExpiryRecovery(
 					storage: $storage,

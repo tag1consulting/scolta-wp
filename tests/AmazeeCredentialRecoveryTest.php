@@ -2,11 +2,6 @@
 
 declare(strict_types=1);
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Psr7\Response;
-use Tag1\Scolta\AiProvider\Amazee\AmazeeClient;
 use Tag1\Scolta\AiProvider\Amazee\KeyExpiryRecovery;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Health\HealthChecker;
@@ -14,24 +9,19 @@ use Tag1\Scolta\Service\AiServiceAdapter;
 use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 
 /**
- * Behavioral coverage for the Amazee key-expiry recovery wiring.
+ * Coverage for the Amazee.ai credential-recovery wiring.
  *
- * Regression (django demo, 2026-06-09): an expired Amazee trial key returned
- * 400 expired_key while the adapter no-opped on the stored dead credentials —
- * expand echoed the query and /health still reported ai_configured: true.
- * Scolta_Ai_Service::from_options() now wires scolta-php's KeyExpiryRecovery on
- * the auto-provisioned path, and the health endpoint hands the same transient
- * store to HealthChecker.
- *
- * scolta-php's AiServiceAdapterTest proves the base recover-and-retry loop;
- * these tests prove the WordPress-specific wiring: recovery is wired only on
- * the Amazee path, the transient cache bridge satisfies KeyExpiryRecovery's
- * marker contract, and health stays truthful.
+ * When the stored Amazee.ai credentials are no longer accepted, the next AI
+ * call fails authentication. The adapter must degrade cleanly rather than
+ * swallow it: record the failure so `/health` reports AI as degraded, set a
+ * persistent marker so wp-admin prompts the operator to reconnect/upgrade, and
+ * leave the stored credentials in place — no new connection is requested on
+ * this path. scolta-php 1.0.5 owns that behaviour (its AiServiceAdapterTest
+ * proves the base call-path); these tests prove the WordPress-specific wiring:
+ * recovery is wired only on the Amazee.ai path, the transient cache bridge
+ * satisfies KeyExpiryRecovery's marker contract, and health stays truthful.
  */
-class KeyExpiryRecoveryWiringTest extends TestCase {
-
-	private const FRESH_TRIAL_RESPONSE = '{"key": {"litellm_token": "sk-fresh-token", "litellm_api_url": "https://llm.test.amazee.ai", "region": "test-region"}}';
-	private const MODEL_INFO_RESPONSE  = '{"data": [{"model_name": "claude-sonnet-4-5"}, {"model_name": "claude-haiku-4-5"}]}';
+class AmazeeCredentialRecoveryTest extends TestCase {
 
 	protected function set_up(): void {
 		$GLOBALS['wp_options']           = array();
@@ -42,7 +32,7 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------
-	// from_options() wires recovery only on the auto-provisioned path
+	// from_options() wires recovery only on the Amazee.ai path
 	// -------------------------------------------------------------------
 
 	public function test_recovery_wired_when_amazee_credentials_present(): void {
@@ -50,20 +40,20 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 			$this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot exercise the Amazee path.' );
 		}
 		$storage = new Scolta_Amazee_Config_Storage();
-		$storage->store( 'sk-expired-token', 'https://llm.test.amazee.ai', 'test-region' );
+		$storage->store( 'sk-stored-token', 'https://llm.test.amazee.ai', 'test-region' );
 
 		$service = Scolta_Ai_Service::from_options();
 
 		$this->assertInstanceOf(
 			KeyExpiryRecovery::class,
 			$this->wiredRecovery( $service ),
-			'Recovery must be wired on the auto-provisioned Amazee path'
+			'Recovery must be wired on the Amazee.ai path'
 		);
 	}
 
 	public function test_recovery_not_wired_for_explicit_key(): void {
 		// An explicit env key failing auth is the user's to fix — the adapter
-		// must not silently re-provision an Amazee trial behind it.
+		// must not touch the Amazee.ai credentials behind it.
 		putenv( 'SCOLTA_API_KEY=sk-explicit-user-key' );
 
 		$service = Scolta_Ai_Service::from_options();
@@ -88,44 +78,42 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------
-	// Recovery once-per-window through the WordPress transient bridge
+	// An auth failure degrades and flags re-authentication; it never
+	// re-connects and never swallows the failure
 	// -------------------------------------------------------------------
 
-	public function test_recovery_reprovisions_once_per_window_through_transient_bridge(): void {
+	public function test_auth_failure_degrades_and_flags_reauth_leaving_credentials_in_place(): void {
 		$storage = new Scolta_Amazee_Config_Storage();
-		$storage->store( 'sk-expired-token', 'https://llm.test.amazee.ai', 'test-region' );
+		$storage->store( 'sk-stored-token', 'https://llm.test.amazee.ai', 'test-region' );
 
-		$recovery = new KeyExpiryRecovery(
-			storage: $storage,
-			cache: new Scolta_Cache_Driver(),
-			client: $this->makeAmazeeClient(
-				array(
-					new Response( 200, array(), self::FRESH_TRIAL_RESPONSE ),
-					new Response( 200, array(), self::MODEL_INFO_RESPONSE ),
-				),
-				$mock
-			),
+		$recovery = $this->makeRecovery( $storage );
+
+		$handled = $recovery->handleAuthFailure( new \RuntimeException( 'code: expired_key' ) );
+
+		$this->assertFalse( $handled, 'The failure is not silently recovered — the caller degrades gracefully' );
+		$this->assertTrue( $recovery->isAuthFailing(), 'Health must report AI as degraded' );
+		$this->assertTrue( $recovery->isUpgradeNeeded(), 'The admin must be prompted to re-authenticate' );
+		$this->assertSame(
+			'sk-stored-token',
+			$recovery->credentials()['litellm_token'],
+			'The stored credentials are left untouched — no new connection is requested'
 		);
+	}
 
-		$first = $recovery->handleAuthFailure( new \RuntimeException( 'code: expired_key' ) );
+	public function test_reauth_marker_round_trips_and_clears_through_transient_bridge(): void {
+		$recovery = $this->makeRecovery();
 
-		$this->assertTrue( $first, 'An expired key triggers a re-provision' );
-		$this->assertSame( 'sk-fresh-token', $recovery->credentials()['litellm_token'], 'Fresh credentials stored' );
-		$this->assertFalse( $recovery->isAuthFailing(), 'Successful recovery clears the marker via transients' );
-		$this->assertSame( 0, $mock->count(), 'Both provisioning calls (trial + models) ran' );
+		$this->assertFalse( $recovery->isUpgradeNeeded() );
 
-		// A second failure inside the window must not hit the provisioning API
-		// again — the MockHandler queue is empty, so any call would throw.
-		$second = $recovery->handleAuthFailure( new \RuntimeException( 'code: expired_key' ) );
-		$this->assertFalse( $second, 'The window guard (read through transients) blocks a second attempt' );
+		$recovery->flagUpgradeNeeded();
+		$this->assertTrue( $recovery->isUpgradeNeeded(), 'Marker round-trips through the WordPress transient store' );
+
+		$recovery->clearUpgradeNeeded();
+		$this->assertFalse( $recovery->isUpgradeNeeded(), 'Clearing removes the re-authentication prompt' );
 	}
 
 	public function test_record_auth_failure_is_visible_through_transient_bridge(): void {
-		$cache    = new Scolta_Cache_Driver();
-		$recovery = new KeyExpiryRecovery(
-			storage: new Scolta_Amazee_Config_Storage(),
-			cache: $cache,
-		);
+		$recovery = $this->makeRecovery();
 
 		$this->assertFalse( $recovery->isAuthFailing() );
 
@@ -140,13 +128,13 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 
 	public function test_health_reports_auth_failing_when_marker_set(): void {
 		$cache = new Scolta_Cache_Driver();
-		( new KeyExpiryRecovery( new Scolta_Amazee_Config_Storage(), $cache ) )->recordAuthFailure();
+		$this->makeRecovery( null, $cache )->recordAuthFailure();
 
 		$result = $this->runHealthCheck( $cache );
 
 		$this->assertTrue( $result['ai_configured'], 'Credentials are still present' );
 		$this->assertTrue( $result['ai_auth_failing'], 'The recorded marker must surface' );
-		$this->assertFalse( $result['ai_usable'], 'Known-expired credentials must not report usable' );
+		$this->assertFalse( $result['ai_usable'], 'Known-bad credentials must not report usable' );
 		$this->assertSame( 'degraded', $result['status'] );
 	}
 
@@ -175,6 +163,20 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 	}
 
 	/**
+	 * Build a KeyExpiryRecovery over the WordPress transient cache bridge.
+	 *
+	 * @param Scolta_Amazee_Config_Storage|null $storage Credential store (defaults to a fresh one).
+	 * @param Scolta_Cache_Driver|null          $cache   Cache bridge (defaults to a fresh one).
+	 * @return KeyExpiryRecovery The recovery helper under test.
+	 */
+	private function makeRecovery( ?Scolta_Amazee_Config_Storage $storage = null, ?Scolta_Cache_Driver $cache = null ): KeyExpiryRecovery {
+		return new KeyExpiryRecovery(
+			storage: $storage ?? new Scolta_Amazee_Config_Storage(),
+			cache: $cache ?? new Scolta_Cache_Driver(),
+		);
+	}
+
+	/**
 	 * Run a HealthChecker for a configured Amazee install with the given cache.
 	 *
 	 * @param \Tag1\Scolta\Cache\CacheDriverInterface $cache The cache bridge.
@@ -196,20 +198,5 @@ class KeyExpiryRecoveryWiringTest extends TestCase {
 		);
 
 		return $checker->check();
-	}
-
-	/**
-	 * Build an AmazeeClient backed by a MockHandler queue.
-	 *
-	 * @param array            $responses Queued Guzzle responses.
-	 * @param MockHandler|null $mock      Receives the handler for count asserts.
-	 * @return AmazeeClient The stubbed control-plane client.
-	 */
-	private function makeAmazeeClient( array $responses, ?MockHandler &$mock = null ): AmazeeClient {
-		$mock = new MockHandler( $responses );
-		return new AmazeeClient(
-			'https://api.amazee.ai',
-			new Client( array( 'handler' => HandlerStack::create( $mock ) ) )
-		);
 	}
 }
