@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Changed
+- **When the Amazee.ai connection needs re-authentication, wp-admin now surfaces a prompt to reconnect or upgrade, and AI health status reflects the credential state.** If the stored Amazee.ai credentials stop being accepted, an AI request degrades gracefully and records a persistent marker; `Scolta_Amazee_Reauth_Handler` reads it on each admin page load and shows a warning notice with a "Continue with Amazee.ai" call to action that runs the existing email-verification connection flow, clearing the notice once fresh credentials are stored. `GET /wp-json/scolta/v1/health` reports `ai_usable: false` / `ai_auth_failing: true` (status `degraded`) while the credentials are known-bad. The explicit-key path (`SCOLTA_API_KEY` env/constant or a database key) is untouched — only the Amazee.ai path surfaces the prompt. Updated to scolta-php 1.0.5. Covered by `AmazeeCredentialRecoveryTest` and `AmazeeReauthNoticeTest`.
+
 ## [1.0.5] - 2026-06-26
 
 ### Fixed

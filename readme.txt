@@ -82,6 +82,9 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 
 == Changelog ==
 
+= Unreleased =
+* When the Amazee.ai connection needs re-authentication, wp-admin now shows a prompt to reconnect or upgrade, and the AI health status reflects the credential state. Updated to scolta-php 1.0.5.
+
 = 1.0.5 =
 * Amazee.ai credentials that were provisioned without resolved model names now self-heal instead of leaving AI permanently broken, and expired trial keys recover automatically; the /health endpoint reports AI status truthfully.
 * The /health endpoint now returns only the overall status to anonymous (logged-out) requesters — a user-visible REST API change.
