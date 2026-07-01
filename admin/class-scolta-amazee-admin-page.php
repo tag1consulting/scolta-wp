@@ -173,6 +173,8 @@ class Scolta_Amazee_Admin_Page {
 				);
 			}
 
+			// Fresh credentials are stored — clear any re-authentication prompt.
+			Scolta_Amazee_Reauth_Handler::clear();
 			self::clear_flow_state();
 			wp_send_json_success(
 				array(
@@ -285,6 +287,8 @@ class Scolta_Amazee_Admin_Page {
 		try {
 			$upgrader = new AmazeeAccountUpgrader( new AmazeeClient(), new Scolta_Amazee_Config_Storage() );
 			$upgrader->upgrade( $flow['session_token'], $region_id );
+			// Fresh credentials are stored — clear any re-authentication prompt.
+			Scolta_Amazee_Reauth_Handler::clear();
 			self::clear_flow_state();
 			wp_send_json_success( array( 'step' => 'connected' ) );
 		} catch ( AmazeeApiException $e ) {
@@ -300,6 +304,8 @@ class Scolta_Amazee_Admin_Page {
 
 		$storage = new Scolta_Amazee_Config_Storage();
 		$storage->clear();
+		// No credentials remain — clear any stale re-authentication prompt.
+		Scolta_Amazee_Reauth_Handler::clear();
 		self::clear_flow_state();
 		wp_send_json_success( array( 'step' => 'start' ) );
 	}
