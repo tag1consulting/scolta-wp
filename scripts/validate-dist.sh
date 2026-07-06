@@ -101,9 +101,8 @@ while IFS= read -r path; do
   case "$base" in
     # Extension allowlist.
     *.php|*.js|*.css|*.wasm|*.pagefind|*.json|*.lock|*.txt|*.md) continue ;;
-    # Dependency license files — retained as required by their license terms
-    # (e.g. Apache-2.0 §4 for voku/portable-utf8). Justified in readme.txt
-    # under "Source code and compiled assets".
+    # Dependency license files — retained as required by their license terms.
+    # Justified in readme.txt under "Source code and compiled assets".
     LICENSE|LICENSE.*|LICENSE-*|COPYING|COPYING.*) continue ;;
   esac
   case "$path" in
