@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.7-dev
+Stable Tag: 1.0.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -82,9 +82,7 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 
 == Changelog ==
 
-= Unreleased =
-
-= 1.0.6 =
+= 1.0.7 =
 * On the WordPress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
 * The /health endpoint now returns only the overall status to anonymous (logged-out) requesters — a user-visible REST API change.
 * Amazee.ai credentials are now stored with authenticated encryption (encrypt-then-MAC) instead of plain encryption.
@@ -94,6 +92,8 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 * Amazee.ai credentials stored without resolved model names now self-heal by re-resolving the model against the stored credentials, instead of leaving AI unavailable; the /health endpoint reports AI status accurately.
 * Several admin and CLI fixes: connecting Amazee.ai no longer overwrites a customized AI model, the budget-exceeded admin notice can display, the dashboard widget is hidden from non-administrators, "Reset to default" on the custom-prompt fields works, "Rebuild Now" honors the build lock, and `wp scolta clear-cache` also clears transient timeout rows.
 * Synced the bundled browser script, stylesheet, and modern stemmer from scolta-php 1.0.5 (AI-Overview latency fix and the up-to-date Snowball stemmer).
+* Trimmed bundled dependency documentation from the distribution archive.
+* Clarified historical changelog entries.
 
 = 1.0.4 =
 * New expansion_combine_mode scoring setting (default relevance_union; preset-defaulted to round_robin for catalog-style Site Types) for round-robin AI-summary candidate selection across query-expansion sub-queries. The Expansion Per-Term Top K setting is removed (locked at 3 upstream).
@@ -147,7 +147,7 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 = 1.0.0-rc2 =
 * First release candidate.
 * PHP indexer as the default (no binary required).
-* Amazee.ai trial provisioning on activation.
+* Optional Amazee.ai integration.
 * Action Scheduler integration for automatic background rebuilds.
 * Configurable memory profiles: conservative (96 MB), balanced (384 MB), aggressive (1 GB).
 
