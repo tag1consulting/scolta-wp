@@ -60,6 +60,14 @@ find "$STAGE/vendor" \( \
   -o -name 'package-lock.json' -o -name '.editorconfig' \
 \) -delete 2>/dev/null || true
 
+# Prune bundled dependency documentation from the dist. CHANGELOGs, READMEs,
+# UPGRADING notes, docs/, and PROVENANCE only bloat the archive and describe
+# internals no consumer of the plugin ZIP needs. LICENSE*/COPYING* files are
+# kept (license terms require them; readme.txt justifies them), and the root
+# scolta/README.md lives outside vendor/, so this sweep never touches it.
+find "$STAGE/vendor" -type f -name '*.md' \
+  ! -iname 'LICENSE*' ! -iname 'COPYING*' -delete 2>/dev/null || true
+
 # Exclude duplicate WASM from vendor (plugin ships its own copy in assets/wasm/)
 rm -rf "$STAGE/vendor/tag1/scolta-php/assets/wasm" 2>/dev/null || true
 
