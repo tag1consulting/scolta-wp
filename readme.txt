@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.6
+Stable Tag: 1.0.7-dev
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,8 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 3. WP-CLI status output showing tracker and index state
 
 == Changelog ==
+
+= Unreleased =
 
 = 1.0.6 =
 * On the WordPress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
