@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.6-dev
+Stable Tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -82,18 +82,16 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 
 == Changelog ==
 
-= Unreleased =
-* When the Amazee.ai connection needs re-authentication, wp-admin now shows a prompt to reconnect or upgrade, and the AI health status reflects the credential state. Updated to scolta-php 1.0.5.
-
-= 1.0.5 =
-* Amazee.ai credentials that were provisioned without resolved model names now self-heal instead of leaving AI permanently broken, and expired trial keys recover automatically; the /health endpoint reports AI status truthfully.
+= 1.0.6 =
+* On the WordPress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
 * The /health endpoint now returns only the overall status to anonymous (logged-out) requesters — a user-visible REST API change.
-* On the wordpress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
 * Amazee.ai credentials are now stored with authenticated encryption (encrypt-then-MAC) instead of plain encryption.
+* When the stored Amazee.ai connection is no longer accepted, AI search degrades gracefully and wp-admin shows a prompt to reconnect; the /health endpoint reflects the credential state.
 * Ordinary page views no longer pay two extra non-autoloaded option reads per request on hosts without a persistent object cache.
 * Scheduler and admin index builds now run the same streamed, budget-aware pipeline as `wp scolta build`, and both content paths produce identical items via one shared mapper.
-* Several admin and CLI fixes: the Amazee trial start no longer overwrites a customized AI model, the budget-exceeded admin notice can display, the dashboard widget is hidden from non-administrators, "Reset to default" on the custom-prompt fields works, "Rebuild Now" honors the build lock, and `wp scolta clear-cache` also clears transient timeout rows.
-* Synced the bundled browser script, stylesheet, and modern stemmer from scolta-php 1.0.4 (AI-Overview latency fix and the up-to-date Snowball stemmer).
+* Amazee.ai credentials stored without resolved model names now self-heal by re-resolving the model against the stored credentials, instead of leaving AI unavailable; the /health endpoint reports AI status accurately.
+* Several admin and CLI fixes: connecting Amazee.ai no longer overwrites a customized AI model, the budget-exceeded admin notice can display, the dashboard widget is hidden from non-administrators, "Reset to default" on the custom-prompt fields works, "Rebuild Now" honors the build lock, and `wp scolta clear-cache` also clears transient timeout rows.
+* Synced the bundled browser script, stylesheet, and modern stemmer from scolta-php 1.0.5 (AI-Overview latency fix and the up-to-date Snowball stemmer).
 
 = 1.0.4 =
 * New expansion_combine_mode scoring setting (default relevance_union; preset-defaulted to round_robin for catalog-style Site Types) for round-robin AI-summary candidate selection across query-expansion sub-queries. The Expansion Per-Term Top K setting is removed (locked at 3 upstream).
@@ -214,7 +212,7 @@ The distribution archive contains a small number of compiled or binary files. Al
 
 * `assets/wasm/scolta_core_bg.wasm` — the browser-side search engine, compiled from the public source at https://github.com/tag1consulting/scolta-core with `wasm-pack build --target web --release` (output `pkg/scolta_core_bg.wasm`). No modifications are made to the build output.
 * `vendor/tag1/scolta-php/assets/pagefind/wasm.en.pagefind`, `wasm.unknown.pagefind`, `pagefind.js`, and `pagefind-worker.js` — the unmodified runtime of the open-source Pagefind project (https://github.com/Pagefind/pagefind, MIT license). The indexer copies these files into every generated search index; removing them would break client-side search.
-* Dependency `LICENSE*` files under `vendor/` are retained as required by those packages' license terms (for example, `voku/portable-utf8` is dual-licensed and Apache-2.0 section 4 requires the license text to accompany redistribution).
+* Dependency `LICENSE*` files under `vendor/` are retained as required by those packages' license terms.
 
 == About Tag1 Consulting ==
 
