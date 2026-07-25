@@ -185,6 +185,10 @@ class ShortcodeTest extends TestCase {
         $this->assertArrayHasKey('siteName', $config);
         $this->assertArrayHasKey('container', $config);
         $this->assertArrayHasKey('nonce', $config);
+        // hideEmptyFacets is bridged top-level (default true) so scolta.js can
+        // read the facet-visibility opt-out.
+        $this->assertArrayHasKey('hideEmptyFacets', $config);
+        $this->assertTrue($config['hideEmptyFacets']);
     }
 
     public function test_localized_config_container_matches_output(): void {

@@ -261,6 +261,7 @@ class Scolta_Admin {
 		add_settings_field( 'sortable_field_descriptions', __( 'Sortable Field Descriptions', 'scolta-ai-search' ), array( self::class, 'render_sortable_field_descriptions_field' ), 'scolta', 'scolta_search_customization_section' );
 		add_settings_field( 'filter_fields', __( 'Filter Fields', 'scolta-ai-search' ), array( self::class, 'render_filter_fields_field' ), 'scolta', 'scolta_search_customization_section' );
 		add_settings_field( 'filter_field_descriptions', __( 'Filter Field Descriptions', 'scolta-ai-search' ), array( self::class, 'render_filter_field_descriptions_field' ), 'scolta', 'scolta_search_customization_section' );
+		add_settings_field( 'hide_empty_facets', __( 'Hide Empty Facets', 'scolta-ai-search' ), array( self::class, 'render_hide_empty_facets_field' ), 'scolta', 'scolta_search_customization_section' );
 
 		// --- Section: Pagefind ---
 		add_settings_section( 'scolta_pagefind_section', __( 'Pagefind', 'scolta-ai-search' ), array( self::class, 'render_pagefind_section' ), 'scolta' );
@@ -748,6 +749,22 @@ class Scolta_Admin {
 		?>
 		<textarea name="scolta_settings[filter_field_descriptions]" rows="4" class="large-text"><?php echo esc_textarea( $value ); ?></textarea>
 		<p class="description"><?php esc_html_e( 'One entry per line: filter_name|Human-readable description with valid values. e.g., topic|Subject area. Values: Science, History, Biography. Helps the AI map user language to filter values.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the "Hide Empty Facets" checkbox.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_hide_empty_facets_field(): void {
+		$value = self::get_setting( 'hide_empty_facets', true );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[hide_empty_facets]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Hide facet values with zero results for the current query', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Enabled by default: a zero-count facet value is hidden and a filter group whose values are all zero is dropped; an active (checked) value stays visible so it can be unchecked. Disable to show every value, rendering a zero-count one as a disabled "(0)" option.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1371,9 +1388,10 @@ class Scolta_Admin {
 		$clean['ai_base_url'] = $raw_base_url;
 
 		// AI feature toggles.
-		$clean['ai_expand_query'] = ! empty( $input['ai_expand_query'] );
-		$clean['ai_summarize']    = ! empty( $input['ai_summarize'] );
-		$clean['max_follow_ups']  = max( 0, min( 10, (int) ( $input['max_follow_ups'] ?? 3 ) ) );
+		$clean['ai_expand_query']   = ! empty( $input['ai_expand_query'] );
+		$clean['ai_summarize']      = ! empty( $input['ai_summarize'] );
+		$clean['hide_empty_facets'] = ! empty( $input['hide_empty_facets'] );
+		$clean['max_follow_ups']    = max( 0, min( 10, (int) ( $input['max_follow_ups'] ?? 3 ) ) );
 
 		// AI languages.
 		$languages_raw = $input['ai_languages'] ?? 'en';
