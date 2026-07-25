@@ -154,6 +154,7 @@ class Scolta_Shortcode {
 				'siteName'           => ! empty( $config->siteName )
 					? $config->siteName
 					: get_bloginfo( 'name' ),
+				'hideEmptyFacets'    => $config->hideEmptyFacets,
 				'container'          => '#scolta-search',
 				'allowedLinkDomains' => array(),
 				'disclaimer'         => '',
