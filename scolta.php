@@ -189,6 +189,14 @@ function scolta_activate(): void {
 		'cross_list_bonus'             => 0.05,
 		'expand_subword_max_frequency' => 0.05,
 		'expansion_combine_mode'       => 'relevance_union',
+		// Specificity and co-occurrence ranking.
+		'specificity_weighting'        => true,
+		'specificity_floor'            => 0.15,
+		'specificity_strong_match'     => 0.55,
+		'specificity_cooccurrence'     => 0.9,
+		'specificity_agreement_gate'   => 0.45,
+		'specificity_agreement_decay'  => 1.0,
+		'hide_empty_facets'            => true,
 		// Display.
 		'excerpt_length'               => 300,
 		'results_per_page'             => 10,

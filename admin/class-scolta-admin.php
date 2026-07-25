@@ -289,6 +289,12 @@ class Scolta_Admin {
 		add_settings_field( 'recency_max_penalty', __( 'Recency Max Penalty', 'scolta-ai-search' ), array( self::class, 'render_recency_max_penalty_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expand_primary_weight', __( 'Expand Primary Weight', 'scolta-ai-search' ), array( self::class, 'render_expand_weight_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expand_subword_max_frequency', __( 'Search Breadth (advanced)', 'scolta-ai-search' ), array( self::class, 'render_subword_freq_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_weighting', __( 'Specificity-weighted Ranking', 'scolta-ai-search' ), array( self::class, 'render_specificity_weighting_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_floor', __( 'Specificity Floor', 'scolta-ai-search' ), array( self::class, 'render_specificity_floor_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_strong_match', __( 'Specificity Strong-match Threshold', 'scolta-ai-search' ), array( self::class, 'render_specificity_strong_match_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_cooccurrence', __( 'Co-occurrence Agreement Bonus', 'scolta-ai-search' ), array( self::class, 'render_specificity_cooccurrence_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_agreement_gate', __( 'Co-occurrence Agreement Gate', 'scolta-ai-search' ), array( self::class, 'render_specificity_agreement_gate_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'specificity_agreement_decay', __( 'Co-occurrence Agreement Decay', 'scolta-ai-search' ), array( self::class, 'render_specificity_agreement_decay_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'language', __( 'Scoring Language', 'scolta-ai-search' ), array( self::class, 'render_language_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'custom_stop_words', __( 'Custom Stop Words', 'scolta-ai-search' ), array( self::class, 'render_custom_stop_words_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'expand_subword_deny_list', __( 'Sub-word Guard Denylist', 'scolta-ai-search' ), array( self::class, 'render_expand_subword_deny_list_field' ), 'scolta', 'scolta_scoring_section' );
@@ -1014,6 +1020,87 @@ class Scolta_Admin {
 	}
 
 	/**
+	 * Render the specificity-weighted ranking toggle.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_weighting_field(): void {
+		$value = self::get_setting( 'specificity_weighting', true );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[specificity_weighting]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Weight partial matches by how rare each term is', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Enabled by default: a match on a rare, intent-bearing term outranks a match on a ubiquitous one instead of counting the same. This is what stops a common word, typed or leaked from an expansion phrase, from flooding the head of the result list. Disable to restore flat sub-query weighting.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the specificity floor field.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_floor_field(): void {
+		$value = self::get_setting( 'specificity_floor', 0.15 );
+		?>
+		<input type="number" name="scolta_settings[specificity_floor]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.01" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Floor for the specificity weight of a ubiquitous term. A term appearing in nearly every document is damped to this multiplier rather than to zero, so it still contributes to recall while ranking far below rare terms. Lower is more aggressive damping. Default: 0.15.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the specificity strong-match threshold field.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_strong_match_field(): void {
+		$value = self::get_setting( 'specificity_strong_match', 0.55 );
+		?>
+		<input type="number" name="scolta_settings[specificity_strong_match]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.01" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Specificity at or above which a matched term counts as a strong, on-intent hit. When a term this specific matched, the partial-match banner and the AI summary stop framing the result set as a failure and attribute any gap to the search rather than the collection. Default: 0.55.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the co-occurrence agreement bonus field.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_cooccurrence_field(): void {
+		$value = self::get_setting( 'specificity_cooccurrence', 0.9 );
+		?>
+		<input type="number" name="scolta_settings[specificity_cooccurrence]" value="<?php echo esc_attr( $value ); ?>" min="0" max="5" step="0.05" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Scales the bonus a result earns for agreeing with several query and expansion terms at once, rather than matching one term strongly. A page that is on-topic across the whole query usually answers it better than one that spikes on a single rare word. Default: 0.9. Set to 0 to score each result purely by its single best-matching sub-query.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the co-occurrence agreement gate field.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_agreement_gate_field(): void {
+		$value = self::get_setting( 'specificity_agreement_gate', 0.45 );
+		?>
+		<input type="number" name="scolta_settings[specificity_agreement_gate]" value="<?php echo esc_attr( $value ); ?>" min="0" max="1" step="0.01" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Specificity a term must clear before it counts toward the agreement bonus. Terms below the gate are too common for their presence to be evidence of topical agreement, so they are excluded rather than inflating the count. Default: 0.45.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the co-occurrence agreement decay field.
+	 *
+	 * @since 1.0.6
+	 */
+	public static function render_specificity_agreement_decay_field(): void {
+		$value = self::get_setting( 'specificity_agreement_decay', 1.0 );
+		?>
+		<input type="number" name="scolta_settings[specificity_agreement_decay]" value="<?php echo esc_attr( $value ); ?>" min="0" max="5" step="0.05" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Geometric factor applied to each successive agreeing term, so the second is worth this fraction of the first and so on. Values below 1 make the bonus saturate, which keeps a long page matching many mid-specificity terms from overtaking a focused page matching a genuinely rare one. Default: 1.0 (every agreeing term weighted equally).', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
 	 * Render the index language select field.
 	 */
 	public static function render_language_field(): void {
@@ -1480,6 +1567,16 @@ class Scolta_Admin {
 		$clean['recency_max_penalty']          = max( 0.0, min( 1.0, (float) ( $input['recency_max_penalty'] ?? 0.3 ) ) );
 		$clean['expand_primary_weight']        = max( 0.0, min( 1.0, (float) ( $input['expand_primary_weight'] ?? 0.5 ) ) );
 		$clean['expand_subword_max_frequency'] = max( 0.0, min( 1.0, (float) ( $input['expand_subword_max_frequency'] ?? 0.05 ) ) );
+
+		// Specificity and co-occurrence ranking. The floor, strong-match and
+		// agreement gate are specificity values in 0..1; the co-occurrence bonus
+		// and the agreement decay are multipliers, clamped to 0..5.
+		$clean['specificity_weighting']       = ! empty( $input['specificity_weighting'] );
+		$clean['specificity_floor']           = max( 0.0, min( 1.0, (float) ( $input['specificity_floor'] ?? 0.15 ) ) );
+		$clean['specificity_strong_match']    = max( 0.0, min( 1.0, (float) ( $input['specificity_strong_match'] ?? 0.55 ) ) );
+		$clean['specificity_cooccurrence']    = max( 0.0, min( 5.0, (float) ( $input['specificity_cooccurrence'] ?? 0.9 ) ) );
+		$clean['specificity_agreement_gate']  = max( 0.0, min( 1.0, (float) ( $input['specificity_agreement_gate'] ?? 0.45 ) ) );
+		$clean['specificity_agreement_decay'] = max( 0.0, min( 5.0, (float) ( $input['specificity_agreement_decay'] ?? 1.0 ) ) );
 
 		$valid_languages   = array( 'ar', 'ca', 'da', 'de', 'el', 'en', 'es', 'et', 'eu', 'fi', 'fr', 'ga', 'hi', 'hu', 'hy', 'id', 'it', 'lt', 'ne', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sr', 'sv', 'ta', 'tr', 'yi' );
 		$clean['language'] = in_array( $input['language'] ?? '', $valid_languages, true )

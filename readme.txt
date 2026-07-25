@@ -83,6 +83,8 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 == Changelog ==
 
 = Unreleased =
+* Filter group descriptions set in the admin now reach the search widget. The setting was saved and used for AI query expansion, but was never passed to the browser, so the labels never appeared.
+* Six new scoring settings for specificity-weighted and co-occurrence ranking: specificity_weighting (on by default), specificity_floor (0.15), specificity_strong_match (0.55), specificity_cooccurrence (0.9), specificity_agreement_gate (0.45), specificity_agreement_decay (1.0). The search widget already used these values; they are now configurable. Defaults match the previous built-in values, so ranking does not change on upgrade.
 
 = 1.0.7 =
 * On the WordPress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
