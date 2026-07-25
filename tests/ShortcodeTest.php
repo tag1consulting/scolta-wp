@@ -189,6 +189,34 @@ class ShortcodeTest extends TestCase {
         // read the facet-visibility opt-out.
         $this->assertArrayHasKey('hideEmptyFacets', $config);
         $this->assertTrue($config['hideEmptyFacets']);
+        // filterFieldDescriptions is bridged top-level so scolta.js can label
+        // filter groups. The admin field, renderer, sanitizer and the AI
+        // expansion prompt all consumed this setting already; only the browser
+        // bridge was missing, so the feature was dead client-side.
+        $this->assertArrayHasKey('filterFieldDescriptions', $config);
+    }
+
+    /**
+     * A configured filter-field description map must reach the browser config.
+     *
+     * Guards the bridge specifically: an empty default array is indistinguishable
+     * from a missing bridge, so the round-trip needs a non-empty value.
+     */
+    public function test_filter_field_descriptions_round_trip_into_localized_config(): void {
+        $settings = get_option('scolta_settings', []);
+        $settings['filter_field_descriptions'] = [
+            'topic'  => 'Subject area',
+            'author' => 'Who wrote it',
+        ];
+        update_option('scolta_settings', $settings);
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertSame(
+            ['topic' => 'Subject area', 'author' => 'Who wrote it'],
+            $config['filterFieldDescriptions']
+        );
     }
 
     public function test_localized_config_container_matches_output(): void {

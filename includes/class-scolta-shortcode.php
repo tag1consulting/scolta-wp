@@ -143,23 +143,24 @@ class Scolta_Shortcode {
 			'scolta-search',
 			'scolta',
 			array(
-				'scoring'            => $config->toJsScoringConfig(),
-				'wasmPath'           => SCOLTA_PLUGIN_URL . 'assets/wasm/scolta_core.js',
-				'endpoints'          => array(
+				'scoring'                 => $config->toJsScoringConfig(),
+				'wasmPath'                => SCOLTA_PLUGIN_URL . 'assets/wasm/scolta_core.js',
+				'endpoints'               => array(
 					'expand'    => rest_url( 'scolta/v1/expand-query' ),
 					'summarize' => rest_url( 'scolta/v1/summarize' ),
 					'followup'  => rest_url( 'scolta/v1/followup' ),
 				),
-				'pagefindPath'       => $pagefind_url . '/pagefind.js',
-				'siteName'           => ! empty( $config->siteName )
+				'pagefindPath'            => $pagefind_url . '/pagefind.js',
+				'siteName'                => ! empty( $config->siteName )
 					? $config->siteName
 					: get_bloginfo( 'name' ),
-				'hideEmptyFacets'    => $config->hideEmptyFacets,
-				'container'          => '#scolta-search',
-				'allowedLinkDomains' => array(),
-				'disclaimer'         => '',
-				'nonce'              => wp_create_nonce( 'wp_rest' ),
-				'currentLanguage'    => strtolower( explode( '_', get_locale() )[0] ),
+				'hideEmptyFacets'         => $config->hideEmptyFacets,
+				'filterFieldDescriptions' => $config->filterFieldDescriptions,
+				'container'               => '#scolta-search',
+				'allowedLinkDomains'      => array(),
+				'disclaimer'              => '',
+				'nonce'                   => wp_create_nonce( 'wp_rest' ),
+				'currentLanguage'         => strtolower( explode( '_', get_locale() )[0] ),
 			)
 		);
 
