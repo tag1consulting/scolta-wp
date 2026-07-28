@@ -14,11 +14,13 @@ Major versions are synchronized across all Scolta packages; minor and patch vers
 
 ### Version management and -dev workflow
 
-The version appears in FOUR places for WordPress: `composer.json`, the plugin header comment in `scolta.php`, the `SCOLTA_VERSION` constant, and `readme.txt` `Stable Tag`. **All four must match.** See scolta-core/VERSIONING.md for the full workflow. In Composer, `-dev` prevents accidental production installs without an explicit `@dev` flag.
+The version appears in THREE places for WordPress: the plugin header comment in `scolta.php`, the `SCOLTA_VERSION` constant, and `readme.txt` `Stable Tag`. **All three must match.** The plugin header is the source; everything in CI that needs the version reads it through `scripts/plugin-version.sh`. See scolta-core/VERSIONING.md for the full workflow.
 
 - If current version has `-dev`, **do not change it** — multiple commits accumulate on one dev version.
 - If current version is a bare release and you're making the first change after it, bump to next target with `-dev` in all three locations.
 - **WARNING:** Never commit a bare version bump without tagging it as a release.
+
+**NEVER add a `version` field to `composer.json`.** CI fails if one appears. There used to be one, making a fourth location. A declared version overrides the version Composer derives from the branch or tag, which is what the `extra.branch-alias` beside it exists to describe. Packagist ignores it, but the drupal.org Composer facade does not, and that is how the sibling Drupal adapter broke a client build: the package announced a fixed version string regardless of branch, so a consuming site could `composer update` but never `composer install` from the resulting lock. WordPress reads the plugin header and WordPress.org reads the Stable Tag, so nothing here needs it declared either.
 
 ### Local cross-package development
 
@@ -31,16 +33,33 @@ To test against un-released scolta-php locally, run `composer config minimum-sta
 - Settings use a single serialized option (`scolta_settings`).
 - All user-facing strings must use `__()` or `_e()` for i18n.
 
-## scolta.js — DO NOT EDIT DIRECTLY
+## Vendored browser assets — DO NOT EDIT DIRECTLY
 
-`assets/js/scolta.js` is a copy of the canonical source in `scolta-php/assets/js/scolta.js`. **Never edit it in this repo.** All JS changes go to scolta-php first, then the copy is updated here. CI verifies the checksum matches — direct edits will fail CI.
+Four files are copies of canonical sources in `scolta-php/assets/`:
 
-To update after a scolta-php change:
-```
-cp vendor/tag1/scolta-php/assets/js/scolta.js assets/js/scolta.js
-```
+| committed here | canonical in scolta-php |
+|---|---|
+| `assets/js/scolta.js` | `assets/js/scolta.js` |
+| `assets/css/scolta.css` | `assets/css/scolta.css` |
+| `assets/wasm/scolta_core.js` | `assets/wasm/scolta_core.js` |
+| `assets/wasm/scolta_core_bg.wasm` | `assets/wasm/scolta_core_bg.wasm` |
 
-Composer `post-install-cmd` and `post-update-cmd` also auto-copy the file when installing/updating dependencies.
+`assets/css/amazee-admin.css` and `assets/js/amazee-admin.js` are this plugin's own. They are not vendored and nothing above applies to them.
+
+**Never edit the vendored four in this repo.** All changes go to scolta-php first, then the copies are re-vendored here. The duplication is a requirement, not a smell: the plugin zip must contain these files, and Composer does not run a dependency's scripts, so nothing copies anything when a site installs the plugin. **The committed file is the shipped file.**
+
+### Re-vendoring after a scolta-php change
+
+**Assets are NOT refreshed as a side effect of `composer install` or `composer update`.** They used to be, via `post-install-cmd` / `post-update-cmd`, and that is precisely what made the CI parity check vacuous: the hook rewrote the tracked file from `vendor/` moments before the check compared the two, so the check could never fail on a stale committed copy. A fixer and a checker in the same pipeline is the bug class, and the fixer always wins. Re-vendoring a bundle is a deliberate act that lands in the CHANGELOG, so it is a command a human runs and CI notices when someone forgot.
+
+1. Bump `tag1/scolta-php` in `composer.json` / `composer.lock` as needed.
+2. Run `composer copy-assets`. It overwrites all four committed files from `vendor/tag1/scolta-php/assets/` and fails loudly if a source is missing.
+3. Commit the result, with a CHANGELOG entry describing what changed in the bundle.
+4. The `assets-in-sync` CI job byte-compares each committed file against the vendored canonical and fails if any differs.
+
+On a coordinated change, `assets-in-sync` goes red until the matching scolta-php pull request merges, because it resolves scolta-php from `dev-main`. That is correct signal, not a problem to work around: an adapter must not merge ahead of its upstream. **Do not run `composer copy-assets` to make it green** — that overwrites the new bundle with the old one.
+
+**Do not commit a `.sha256` sidecar.** There used to be an `assets/js/scolta.js.sha256`; nothing generated it and nothing read it, so it drifted for two revisions. scolta-php owns the canonical record in its own `assets/ASSETS.sha256`. `assets-in-sync` compares the asset bytes, which is the artifact rather than a claim about it.
 
 ## Testing
 

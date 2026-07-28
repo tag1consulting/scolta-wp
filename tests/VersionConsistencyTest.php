@@ -7,10 +7,21 @@ use Yoast\PHPUnitPolyfills\TestCases\TestCase;
 /**
  * Verifies that all canonical version strings are identical.
  *
- * The version appears in four places: the plugin header comment in scolta.php,
- * the SCOLTA_VERSION constant, composer.json "version", and readme.txt
- * "Stable Tag". All four must match to prevent silent mismatches that ship
- * the wrong version to WordPress admin, Composer, or WordPress.org.
+ * The version appears in three places: the plugin header comment in
+ * scolta.php, the SCOLTA_VERSION constant, and readme.txt "Stable Tag". All
+ * three must match to prevent silent mismatches that ship the wrong version
+ * to the WordPress admin or to WordPress.org.
+ *
+ * There used to be a fourth, a "version" key in composer.json. It is gone,
+ * and testComposerJsonDeclaresNoVersion below keeps it gone: declaring a
+ * version in a package published from version control overrides the version
+ * Composer derives from the branch or tag, which is what the
+ * extra.branch-alias beside it exists to describe. Packagist ignores the
+ * declared string, but the drupal.org Composer facade honours it, which is
+ * how the sibling Drupal adapter came to break `composer install` on every
+ * site tracking a dev branch. Nothing here needs it declared: WordPress reads
+ * the plugin header, WordPress.org reads the Stable Tag, and everything in CI
+ * that needs the version reads it through scripts/plugin-version.sh.
  */
 class VersionConsistencyTest extends TestCase {
 
@@ -27,14 +38,11 @@ class VersionConsistencyTest extends TestCase {
 	}
 
 	/**
-	 * Parse "version" from composer.json.
+	 * Read the version the way CI does, through scripts/plugin-version.sh.
 	 */
-	private static function read_composer_version(): string {
-		$composer = json_decode(
-			file_get_contents( dirname( __DIR__ ) . '/composer.json' ),
-			true
-		);
-		return $composer['version'] ?? '';
+	private static function read_plugin_version_script(): string {
+		$script = dirname( __DIR__ ) . '/scripts/plugin-version.sh';
+		return trim( (string) shell_exec( 'bash ' . escapeshellarg( $script ) . ' 2>/dev/null' ) );
 	}
 
 	/**
@@ -58,12 +66,40 @@ class VersionConsistencyTest extends TestCase {
 		);
 	}
 
-	public function test_composer_json_matches_constant(): void {
-		$composer = self::read_composer_version();
+	/**
+	 * composer.json must not declare a "version".
+	 *
+	 * A declared version overrides the one Composer derives from the branch or
+	 * tag. Packagist ignores it, but the drupal.org Composer facade does not,
+	 * and the sibling Drupal adapter broke a client build on 2026-07-27 for
+	 * exactly this reason: the package announced a fixed version string
+	 * regardless of branch, so a consuming site could `composer update` but
+	 * never `composer install` from the resulting lock.
+	 */
+	public function test_composer_json_declares_no_version(): void {
+		$composer = json_decode(
+			file_get_contents( dirname( __DIR__ ) . '/composer.json' ),
+			true
+		);
+		$this->assertArrayNotHasKey(
+			'version',
+			$composer,
+			'composer.json must not declare a version. The plugin header in scolta.php ' .
+			'is the source of the plugin version; extra.branch-alias describes the ' .
+			'dev-main mapping.'
+		);
+	}
+
+	/**
+	 * Everything in CI that needs the version reads it through this script, so
+	 * it must agree with the constant. A silent disagreement would name the
+	 * plugin zip after a version the plugin does not report.
+	 */
+	public function test_plugin_version_script_matches_constant(): void {
 		$this->assertSame(
 			SCOLTA_VERSION,
-			$composer,
-			'composer.json "version" must match the SCOLTA_VERSION constant'
+			self::read_plugin_version_script(),
+			'scripts/plugin-version.sh must report the SCOLTA_VERSION constant'
 		);
 	}
 

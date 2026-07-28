@@ -47,7 +47,7 @@ jobs:
 
       - name: Verify readme.txt changelog has an entry for this release
         run: |
-          VERSION=$(php -r "echo json_decode(file_get_contents('composer.json'))->version;")
+          VERSION=$(bash scripts/plugin-version.sh)
           echo "Releasing version: $VERSION"
 
           if ! grep -qF "= ${VERSION} =" readme.txt; then
