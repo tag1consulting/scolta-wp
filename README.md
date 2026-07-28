@@ -264,6 +264,35 @@ $settings['title_all_terms_multiplier'] = 2.0;
 update_option('scolta_settings', $settings);
 ```
 
+### Search as you type
+
+Configure at **Settings > Scolta > Search as you type**.
+
+Typing in the search box populates a suggestions dropdown under it. The full search — AI query expansion, the AI summary, follow-up questions — still runs only on Enter, on the search button, or when someone picks a suggestion. It is on by default and needs no index rebuild: it reads the index you already have.
+
+| Setting | Option key | Default | Description |
+| ------- | ---------- | ------- | ----------- |
+| Suggestions | `sayt_enabled` | `true` | Master switch. Set to `false` to get the pre-1.1.0 search box back exactly: no dropdown, no combobox roles, no browser storage, no suggest searches |
+| Minimum characters | `sayt_min_chars` | `2` | Characters typed before suggestions are requested, counted as a person counts them (an emoji is one). CJK sites usually want `1` |
+| Typing debounce | `sayt_debounce_ms` | `150` | Milliseconds of pause before suggestions are fetched |
+| Max suggestions | `sayt_max_suggestions` | `6` | Most suggestions shown, and the cap on index reads per pass |
+| Recent searches | `sayt_recent_searches` | `true` | Offer the visitor's own recent searches, kept in their browser under a single Scolta key. `false` reads and writes nothing |
+| Max recent searches | `sayt_max_recent` | `3` | Most recent searches shown above the content suggestions |
+| AI enrichment | `sayt_expand` | `true` | Enrich suggestions with AI query expansion. Inert with no AI provider configured, or with AI Query Expansion off |
+| AI enrichment cap | `sayt_expand_per_minute` | `6` | Enrichment calls per visitor per minute. SAYT expansions spend the same per-visitor AI budget as committed searches, so an uncapped suggest path would starve the search someone actually ran. Over the cap the dropdown falls back to keyword suggestions |
+| AI enrichment delay | `sayt_expansion_delay_ms` | `500` | Idle milliseconds before an enrichment call. Longer than the typing debounce on purpose: keyword suggestions should appear while typing, an AI call should not |
+| Suggestion action | `sayt_suggestion_action` | `navigate` | `navigate` opens the result directly; `search` puts the title in the box and runs the full search. A recent search always runs the search |
+
+Turning it off site-wide, without visiting the settings screen:
+
+```php
+$settings = get_option('scolta_settings', []);
+$settings['sayt_enabled'] = false;
+update_option('scolta_settings', $settings);
+```
+
+Full behaviour, including the browser events and the theming custom properties: [scolta-php `docs/SAYT.md`](https://github.com/tag1consulting/scolta-php/blob/main/docs/SAYT.md).
+
 ### Display
 
 Configure at **Settings > Scolta > Display**.

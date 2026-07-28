@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable Tag: 1.0.8-dev
+Stable Tag: 1.1.0-dev
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,7 @@ Scolta AI Search is a scoring, ranking, and AI layer built on [Pagefind](https:/
 
 * Static search index — no Elasticsearch, Solr, or external search service needed
 * Works on managed hosting (WP Engine, Kinsta, Flywheel, Pantheon) where running a search server is not possible
+* Search as you type — a suggestions dropdown while typing, including the visitor's own recent searches, with the full search still running only when they commit to one
 * Optional AI query expansion and result summarization (Anthropic, OpenAI, or self-hosted)
 * Configurable scoring: title match boost, content match boost, recency decay curves
 * `[scolta_search]` shortcode to embed the search UI on any page
@@ -83,6 +84,7 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 == Changelog ==
 
 = Unreleased =
+* Search as you type: typing now populates a suggestions dropdown under the search box, with the visitor's own recent searches above the content suggestions. The full search still runs only on Enter, on the search button, or when a suggestion is picked. On by default, no index rebuild needed; ten settings under Settings > Scolta > Search as you type, and sayt_enabled = false restores the previous search box exactly.
 * Filter group descriptions set in the admin now reach the search widget. The setting was saved and used for AI query expansion, but was never passed to the browser, so the labels never appeared.
 * Six new scoring settings for specificity-weighted and co-occurrence ranking: specificity_weighting (on by default), specificity_floor (0.15), specificity_strong_match (0.55), specificity_cooccurrence (0.9), specificity_agreement_gate (0.45), specificity_agreement_decay (1.0). The search widget already used these values; they are now configurable. Defaults match the previous built-in values, so ranking does not change on upgrade.
 

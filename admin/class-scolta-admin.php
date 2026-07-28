@@ -263,6 +263,19 @@ class Scolta_Admin {
 		add_settings_field( 'filter_field_descriptions', __( 'Filter Field Descriptions', 'scolta-ai-search' ), array( self::class, 'render_filter_field_descriptions_field' ), 'scolta', 'scolta_search_customization_section' );
 		add_settings_field( 'hide_empty_facets', __( 'Hide Empty Facets', 'scolta-ai-search' ), array( self::class, 'render_hide_empty_facets_field' ), 'scolta', 'scolta_search_customization_section' );
 
+		// --- Section: Search as you type ---
+		add_settings_section( 'scolta_sayt_section', __( 'Search as you type', 'scolta-ai-search' ), array( self::class, 'render_sayt_section' ), 'scolta' );
+		add_settings_field( 'sayt_enabled', __( 'Suggestions', 'scolta-ai-search' ), array( self::class, 'render_sayt_enabled_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_min_chars', __( 'Minimum Characters', 'scolta-ai-search' ), array( self::class, 'render_sayt_min_chars_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_debounce_ms', __( 'Typing Debounce (ms)', 'scolta-ai-search' ), array( self::class, 'render_sayt_debounce_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_max_suggestions', __( 'Max Suggestions', 'scolta-ai-search' ), array( self::class, 'render_sayt_max_suggestions_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_recent_searches', __( 'Recent Searches', 'scolta-ai-search' ), array( self::class, 'render_sayt_recent_searches_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_max_recent', __( 'Max Recent Searches', 'scolta-ai-search' ), array( self::class, 'render_sayt_max_recent_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_expand', __( 'AI Enrichment', 'scolta-ai-search' ), array( self::class, 'render_sayt_expand_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_expand_per_minute', __( 'AI Enrichment Cap (per minute)', 'scolta-ai-search' ), array( self::class, 'render_sayt_expand_per_minute_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_expansion_delay_ms', __( 'AI Enrichment Delay (ms)', 'scolta-ai-search' ), array( self::class, 'render_sayt_expansion_delay_field' ), 'scolta', 'scolta_sayt_section' );
+		add_settings_field( 'sayt_suggestion_action', __( 'Suggestion Action', 'scolta-ai-search' ), array( self::class, 'render_sayt_suggestion_action_field' ), 'scolta', 'scolta_sayt_section' );
+
 		// --- Section: Pagefind ---
 		add_settings_section( 'scolta_pagefind_section', __( 'Pagefind', 'scolta-ai-search' ), array( self::class, 'render_pagefind_section' ), 'scolta' );
 		add_settings_field( 'indexer', __( 'Indexer', 'scolta-ai-search' ), array( self::class, 'render_indexer_field' ), 'scolta', 'scolta_pagefind_section' );
@@ -357,6 +370,15 @@ class Scolta_Admin {
 	 */
 	public static function render_search_customization_section(): void {
 		echo '<p class="description">' . esc_html__( 'Optional. Configure sortable fields and filter dimensions so the AI can detect sort and filter intent in search queries.', 'scolta-ai-search' ) . '</p>';
+	}
+
+	/**
+	 * Render the Search as you type section description.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_section(): void {
+		echo '<p class="description">' . esc_html__( 'Typing in the search box populates a suggestions dropdown. The full search — AI query expansion, the AI summary and follow-ups — still runs only when someone presses Enter, uses the search button, or picks a suggestion. On by default; no index rebuild is needed either way.', 'scolta-ai-search' ) . '</p>';
 	}
 
 	/**
@@ -771,6 +793,151 @@ class Scolta_Admin {
 			<?php esc_html_e( 'Hide facet values with zero results for the current query', 'scolta-ai-search' ); ?>
 		</label>
 		<p class="description"><?php esc_html_e( 'Enabled by default: a zero-count facet value is hidden and a filter group whose values are all zero is dropped; an active (checked) value stays visible so it can be unchecked. Disable to show every value, rendering a zero-count one as a disabled "(0)" option.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the "Suggestions" master switch.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_enabled_field(): void {
+		$value = self::get_setting( 'sayt_enabled', true );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[sayt_enabled]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Show suggestions while someone types', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Enabled by default. Turn it off to get the pre-1.1.0 search box back exactly: no dropdown, no combobox roles on the input, no browser storage, and no searches until the visitor commits one.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the minimum characters number field.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_min_chars_field(): void {
+		$value = self::get_setting( 'sayt_min_chars', 2 );
+		?>
+		<input type="number" name="scolta_settings[sayt_min_chars]" value="<?php echo esc_attr( (string) $value ); ?>" min="1" max="10" step="1" class="small-text" />
+		<p class="description"><?php esc_html_e( 'How many characters someone types before suggestions appear (1-10, default 2). Counted the way a person counts them, so an emoji or a Devanagari cluster is one character. Sites in Chinese, Japanese or Korean usually want 1 — a single character is already a real query.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the typing debounce number field.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_debounce_field(): void {
+		$value = self::get_setting( 'sayt_debounce_ms', 150 );
+		?>
+		<input type="number" name="scolta_settings[sayt_debounce_ms]" value="<?php echo esc_attr( (string) $value ); ?>" min="0" max="2000" step="10" class="small-text" />
+		<p class="description"><?php esc_html_e( 'How long typing has to pause before suggestions are fetched, in milliseconds (0-2000, default 150). Raise it on a large index if suggestions feel busy; lower it for a snappier dropdown at the cost of more index reads.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the max suggestions number field.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_max_suggestions_field(): void {
+		$value = self::get_setting( 'sayt_max_suggestions', 6 );
+		?>
+		<input type="number" name="scolta_settings[sayt_max_suggestions]" value="<?php echo esc_attr( (string) $value ); ?>" min="1" max="20" step="1" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Most suggestions shown at once (1-20, default 6). This is also the hard cap on how many results the dropdown loads per keystroke pass, so a bigger number costs more per keystroke.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the recent searches checkbox.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_recent_searches_field(): void {
+		$value = self::get_setting( 'sayt_recent_searches', true );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[sayt_recent_searches]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( "Offer the visitor's own recent searches in the dropdown", 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Enabled by default. Recent searches are kept in the visitor\'s own browser storage under a single Scolta key and never leave their device. Turn it off and nothing is read from or written to storage at all.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the max recent searches number field.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_max_recent_field(): void {
+		$value = self::get_setting( 'sayt_max_recent', 3 );
+		?>
+		<input type="number" name="scolta_settings[sayt_max_recent]" value="<?php echo esc_attr( (string) $value ); ?>" min="0" max="20" step="1" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Most recent searches shown in the dropdown (0-20, default 3). They appear above the content suggestions. How many are stored is handled internally and is deliberately larger, so a typed prefix still has something to match.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the SAYT AI enrichment checkbox.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_expand_field(): void {
+		$value = self::get_setting( 'sayt_expand', true );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[sayt_expand]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Enrich suggestions with AI query expansion', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Enabled by default. Adds matches for terms the AI reads out of the prefix, so "brownie" can surface a chocolate traybake. Does nothing when no AI provider is configured or when AI Query Expansion is off.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the SAYT enrichment rate cap.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_expand_per_minute_field(): void {
+		$value = self::get_setting( 'sayt_expand_per_minute', 6 );
+		?>
+		<input type="number" name="scolta_settings[sayt_expand_per_minute]" value="<?php echo esc_attr( (string) $value ); ?>" min="0" max="60" step="1" class="small-text" />
+		<p class="description"><?php esc_html_e( 'Most AI enrichment calls a single visitor can make per minute while typing (0-60, default 6). The cap exists because suggestion expansions spend the same per-visitor AI budget that expansion, summarization and follow-ups spend for searches people actually ran: without it, typing would exhaust the allowance and starve the real search. Over the cap the dropdown quietly falls back to keyword suggestions until the minute rolls over. Set it to 0 to never spend AI on typing.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the SAYT enrichment idle delay.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_expansion_delay_field(): void {
+		$value = self::get_setting( 'sayt_expansion_delay_ms', 500 );
+		?>
+		<input type="number" name="scolta_settings[sayt_expansion_delay_ms]" value="<?php echo esc_attr( (string) $value ); ?>" min="0" max="5000" step="50" class="small-text" />
+		<p class="description"><?php esc_html_e( 'How long typing has to stop before an AI enrichment call is made, in milliseconds (0-5000, default 500). Deliberately longer than the typing debounce above: keyword suggestions should appear while someone types, an AI call should wait until they pause.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the suggestion action select.
+	 *
+	 * @since 1.1.0
+	 */
+	public static function render_sayt_suggestion_action_field(): void {
+		$value = self::get_setting( 'sayt_suggestion_action', 'navigate' );
+		if ( ! in_array( $value, \Tag1\Scolta\Config\ScoltaConfig::SAYT_SUGGESTION_ACTIONS, true ) ) {
+			$value = 'navigate';
+		}
+		?>
+		<select name="scolta_settings[sayt_suggestion_action]" id="scolta_sayt_suggestion_action">
+			<option value="navigate" <?php selected( $value, 'navigate' ); ?>><?php esc_html_e( 'Go to the page (default)', 'scolta-ai-search' ); ?></option>
+			<option value="search" <?php selected( $value, 'search' ); ?>><?php esc_html_e( 'Run a search for it', 'scolta-ai-search' ); ?></option>
+		</select>
+		<p class="description"><?php esc_html_e( 'What happens when someone picks a content suggestion. "Go to the page" opens that result directly, which is what most people expect from a title they recognize. "Run a search for it" puts the title in the box and runs the full search instead, which suits a site where one title usually has neighbours worth seeing. A recent search always runs the search, whichever option is selected here.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1621,6 +1788,27 @@ class Scolta_Admin {
 		$clean['ai_summary_top_n']     = max( 1, min( 20, (int) ( $input['ai_summary_top_n'] ?? 10 ) ) );
 		$clean['ai_summary_max_chars'] = max( 500, min( 10000, (int) ( $input['ai_summary_max_chars'] ?? 4000 ) ) );
 		$clean['show_attribution']     = ! empty( $input['show_attribution'] );
+
+		// Search as you type — three checkboxes, six bounded integers and one
+		// select. Every key must be written here: sanitize_settings() rebuilds
+		// the option from scratch, so a key it skips is dropped on every save.
+		$clean['sayt_enabled']            = ! empty( $input['sayt_enabled'] );
+		$clean['sayt_min_chars']          = max( 1, min( 10, (int) ( $input['sayt_min_chars'] ?? 2 ) ) );
+		$clean['sayt_debounce_ms']        = max( 0, min( 2000, (int) ( $input['sayt_debounce_ms'] ?? 150 ) ) );
+		$clean['sayt_max_suggestions']    = max( 1, min( 20, (int) ( $input['sayt_max_suggestions'] ?? 6 ) ) );
+		$clean['sayt_recent_searches']    = ! empty( $input['sayt_recent_searches'] );
+		$clean['sayt_max_recent']         = max( 0, min( 20, (int) ( $input['sayt_max_recent'] ?? 3 ) ) );
+		$clean['sayt_expand']             = ! empty( $input['sayt_expand'] );
+		$clean['sayt_expand_per_minute']  = max( 0, min( 60, (int) ( $input['sayt_expand_per_minute'] ?? 6 ) ) );
+		$clean['sayt_expansion_delay_ms'] = max( 0, min( 5000, (int) ( $input['sayt_expansion_delay_ms'] ?? 500 ) ) );
+
+		$clean['sayt_suggestion_action'] = in_array(
+			$input['sayt_suggestion_action'] ?? '',
+			\Tag1\Scolta\Config\ScoltaConfig::SAYT_SUGGESTION_ACTIONS,
+			true
+		)
+			? $input['sayt_suggestion_action']
+			: 'navigate';
 
 		// Cache.
 		$clean['cache_ttl'] = max( 0, min( 7776000, (int) ( $input['cache_ttl'] ?? 2592000 ) ) );

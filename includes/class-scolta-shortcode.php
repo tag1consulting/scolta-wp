@@ -156,6 +156,21 @@ class Scolta_Shortcode {
 					: get_bloginfo( 'name' ),
 				'hideEmptyFacets'         => $config->hideEmptyFacets,
 				'filterFieldDescriptions' => $config->filterFieldDescriptions,
+				// Search as you type. Ten top-level keys, not scoring keys:
+				// scolta.js reads each as instanceConfig.<camelCase>, the same
+				// bridging hideEmptyFacets uses. The suggestion action is read
+				// through the normalizer so an unrecognized stored value reaches
+				// the browser as 'navigate' rather than as itself.
+				'saytEnabled'             => $config->saytEnabled,
+				'saytMinChars'            => $config->saytMinChars,
+				'saytDebounceMs'          => $config->saytDebounceMs,
+				'saytMaxSuggestions'      => $config->saytMaxSuggestions,
+				'saytRecentSearches'      => $config->saytRecentSearches,
+				'saytMaxRecent'           => $config->saytMaxRecent,
+				'saytExpand'              => $config->saytExpand,
+				'saytExpandPerMinute'     => $config->saytExpandPerMinute,
+				'saytExpansionDelayMs'    => $config->saytExpansionDelayMs,
+				'saytSuggestionAction'    => $config->normalizedSaytSuggestionAction(),
 				'container'               => '#scolta-search',
 				'allowedLinkDomains'      => array(),
 				'disclaimer'              => '',
