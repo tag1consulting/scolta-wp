@@ -38,11 +38,17 @@ class VersionConsistencyTest extends TestCase {
 	}
 
 	/**
-	 * Read the version the way CI does, through scripts/plugin-version.sh.
+	 * Every workflow step that needs the version, and where it reads it from.
+	 *
+	 * @return array<string, string> workflow file => file contents
 	 */
-	private static function read_plugin_version_script(): string {
-		$script = dirname( __DIR__ ) . '/scripts/plugin-version.sh';
-		return trim( (string) shell_exec( 'bash ' . escapeshellarg( $script ) . ' 2>/dev/null' ) );
+	private static function workflows(): array {
+		$dir = dirname( __DIR__ ) . '/.github/workflows';
+		$out = [];
+		foreach ( [ 'ci.yml', 'release.yml' ] as $name ) {
+			$out[ $name ] = file_get_contents( $dir . '/' . $name );
+		}
+		return $out;
 	}
 
 	/**
@@ -91,16 +97,49 @@ class VersionConsistencyTest extends TestCase {
 	}
 
 	/**
-	 * Everything in CI that needs the version reads it through this script, so
-	 * it must agree with the constant. A silent disagreement would name the
-	 * plugin zip after a version the plugin does not report.
+	 * No workflow may go back to reading the version out of composer.json.
+	 *
+	 * Five steps used to hand-roll the same
+	 * `php -r "echo json_decode(file_get_contents('composer.json'))->version;"`,
+	 * which is what made the hardcoded key load-bearing in the first place.
+	 * They now all read scripts/plugin-version.sh, so there is one place to
+	 * change if the source ever moves — and a job that quietly reverted would
+	 * fail at runtime with an empty version rather than being caught here.
 	 */
-	public function test_plugin_version_script_matches_constant(): void {
-		$this->assertSame(
-			SCOLTA_VERSION,
-			self::read_plugin_version_script(),
-			'scripts/plugin-version.sh must report the SCOLTA_VERSION constant'
-		);
+	public function test_no_workflow_reads_the_version_from_composer_json(): void {
+		foreach ( self::workflows() as $name => $yaml ) {
+			$this->assertStringNotContainsString(
+				"composer.json'))->version",
+				$yaml,
+				"{$name} must not read the version from composer.json; composer.json " .
+				'declares none. Use scripts/plugin-version.sh.'
+			);
+		}
+	}
+
+	/**
+	 * scripts/plugin-version.sh must read the plugin header, which is the
+	 * source of the version. Not executed here: the shipped jobs run it, and
+	 * `scripts/build-dist.sh "$VERSION"` names the archive from its output, so
+	 * an empty or wrong result surfaces there. This pins what it reads.
+	 */
+	public function test_plugin_version_script_reads_the_plugin_header(): void {
+		$script = file_get_contents( dirname( __DIR__ ) . '/scripts/plugin-version.sh' );
+
+		// Executable lines only. The header comment explains why composer.json
+		// is not the source, so asserting over the whole file would trip on
+		// its own rationale.
+		$code = implode( "\n", array_filter(
+			explode( "\n", $script ),
+			static fn ( string $line ): bool => ! preg_match( '/^\s*(#|$)/', $line )
+		) );
+
+		$this->assertStringContainsString( 'scolta.php', $code,
+			'plugin-version.sh must read the plugin header in scolta.php' );
+		$this->assertStringContainsString( 'Version:', $code,
+			'plugin-version.sh must extract the Version: header' );
+		$this->assertStringNotContainsString( 'composer.json', $code,
+			'plugin-version.sh must not fall back to composer.json, which declares no version' );
 	}
 
 	public function test_readme_stable_tag_matches_constant(): void {
