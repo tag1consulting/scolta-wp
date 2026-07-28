@@ -189,11 +189,28 @@ if (!function_exists('_e')) {
 if (!function_exists('register_setting')) {
     function register_setting(string $group, string $name, array $args = []): void {}
 }
+// Sections and fields record what was registered, keyed by page, so a test can
+// assert that a settings screen actually offers a control rather than only that
+// its renderer produces HTML when called directly. Registration is where a
+// setting becomes reachable for a site owner; a renderer nobody registered is
+// invisible on the screen and no amount of renderer coverage catches it.
 if (!function_exists('add_settings_section')) {
-    function add_settings_section(string $id, string $title, $callback, string $page, array $args = []): void {}
+    function add_settings_section(string $id, string $title, $callback, string $page, array $args = []): void
+    {
+        $GLOBALS['scolta_settings_sections'][$page][$id] = [
+            'title' => $title,
+            'callback' => $callback,
+        ];
+    }
 }
 if (!function_exists('add_settings_field')) {
-    function add_settings_field(string $id, string $title, $callback, string $page, string $section = '', array $args = []): void {}
+    function add_settings_field(string $id, string $title, $callback, string $page, string $section = '', array $args = []): void
+    {
+        $GLOBALS['scolta_settings_fields'][$page][$section][$id] = [
+            'title' => $title,
+            'callback' => $callback,
+        ];
+    }
 }
 if (!function_exists('add_options_page')) {
     function add_options_page(string $title, string $menu, string $cap, string $slug, $callback = '', ?int $pos = null): string { return $slug; }
