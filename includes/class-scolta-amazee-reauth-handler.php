@@ -48,15 +48,18 @@ class Scolta_Amazee_Reauth_Handler {
 	/**
 	 * Whether the stored Amazee.ai credentials need admin re-authentication.
 	 *
-	 * True only on the Amazee.ai path (credentials stored) and once scolta-php
-	 * has recorded the persistent marker. A cache-marker read only — never a
-	 * live API call — so it is safe to call on every admin page load.
+	 * True only when the managed gateway is the AI path the site actually runs
+	 * on, and once scolta-php has recorded the persistent marker. "Is Amazee
+	 * active" comes from the shared key resolution rather than from the
+	 * credential store: a site whose own key serves every request must not be
+	 * asked to reconnect a gateway nothing routes through. A cache-marker read
+	 * only — never a live API call — so it is safe to call on every admin page
+	 * load.
 	 *
 	 * @return bool True when the re-authentication prompt should show.
 	 */
 	public static function is_reauth_needed(): bool {
-		$storage = new Scolta_Amazee_Config_Storage();
-		if ( $storage->load() === null ) {
+		if ( ! Scolta_Ai_Service::resolve_api_key()->isAmazee() ) {
 			return false;
 		}
 		return self::recovery()->isUpgradeNeeded();

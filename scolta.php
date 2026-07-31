@@ -20,19 +20,6 @@ define( 'SCOLTA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCOLTA_PLUGIN_FILE', __FILE__ );
 
-/*
- * Whether Amazee.ai trial provisioning may run automatically at activation
- * and AI features start enabled. The WordPress.org distribution build flips
- * this default to false (scripts/build-dist.sh): activation performs zero
- * outbound HTTP and all AI features stay off until an administrator
- * explicitly enables them or configures an API key. Self-distributed and
- * partner builds keep auto-provisioning. Sites can override via wp-config.php.
- */
-if ( ! defined( 'SCOLTA_AUTO_PROVISION_DEFAULT' ) ) {
-	// Flipped to false by scripts/build-dist.sh for the WordPress.org build.
-	define( 'SCOLTA_AUTO_PROVISION_DEFAULT', true );
-}
-
 // Composer autoloader (scolta-php).
 $scolta_autoloader = SCOLTA_PLUGIN_DIR . 'vendor/autoload.php';
 if ( file_exists( $scolta_autoloader ) ) {
@@ -181,8 +168,10 @@ function scolta_activate(): void {
 		'post_types'                   => array( 'post', 'page' ),
 		'cache_ttl'                    => 2592000,
 		'max_follow_ups'               => 3,
-		'ai_expand_query'              => SCOLTA_AUTO_PROVISION_DEFAULT,
-		'ai_summarize'                 => SCOLTA_AUTO_PROVISION_DEFAULT,
+		// AI features are turned on by the administrator, never by activation:
+		// see the opt-in flag set at the end of this function.
+		'ai_expand_query'              => false,
+		'ai_summarize'                 => false,
 		'ai_languages'                 => array( 'en' ),
 		// Scoring.
 		'title_match_boost'            => 2.0,
@@ -280,48 +269,26 @@ function scolta_activate(): void {
 		as_schedule_single_action( time() + 10, 'scolta_rebuild_start', array(), 'scolta' );
 	}
 
-	if ( SCOLTA_AUTO_PROVISION_DEFAULT ) {
-		// Auto-provisioning builds: queue Amazee.ai provisioning via Action
-		// Scheduler so activation does not block on HTTP, or fall back to a
-		// synchronous call without it.
-		if ( function_exists( 'as_schedule_single_action' ) ) {
-			as_schedule_single_action( time() + 5, 'scolta_amazee_provision', array(), 'scolta' );
-		} else {
-			scolta_auto_provision_amazee();
-		}
-	} elseif ( ! scolta_has_explicit_api_key() ) {
-		// Opt-in builds (WordPress.org): activation contacts no remote
-		// service. Record that AI features are available but awaiting
-		// explicit admin consent; this drives the opt-in admin notice and
-		// the "Enable AI features" control on the settings page. An explicit
-		// API key is itself the consent act, so no opt-in flow is needed.
-		update_option( 'scolta_ai_optin_pending', true, false );
-	}
+	// Activation contacts no remote service, on any build. Record that AI
+	// features are available but awaiting the administrator; this drives the
+	// opt-in admin notice and the "Enable AI features" control on the settings
+	// page. The flag is read through Scolta_Admin::ai_optin_pending(), which
+	// also treats an explicit API key as the consent act.
+	update_option( 'scolta_ai_optin_pending', true, false );
 
 	// Set transient for admin notice.
 	set_transient( 'scolta_activated', true, 60 );
 }
 register_activation_hook( __FILE__, 'scolta_activate' );
 
-// Register the Action Scheduler callback for background provisioning. The
-// wrapper discards the bool result — scheduled actions have no caller to
-// report failure to; the opt-in flow calls scolta_auto_provision_amazee()
-// directly and surfaces failures in admin.
-add_action(
-	'scolta_amazee_provision',
-	function (): void {
-		scolta_auto_provision_amazee();
-	}
-);
-
 /**
- * Attempt Amazee.ai trial provisioning.
+ * Establish the Amazee.ai connection.
  *
- * Called from the scolta_amazee_provision scheduled action, the synchronous
- * activation fallback (auto-provisioning builds only), and the explicit
- * opt-in flow. No-op when the user has an explicit API key configured, or
- * when credentials are already stored. Failures are silenced — the caller
- * decides how to surface them.
+ * Reachable from exactly one place: the administrator's "Enable AI features"
+ * action (Scolta_Admin::handle_enable_ai()). No request path and no scheduled
+ * action calls it, so nothing here runs without an explicit click. No-op when
+ * the user has an explicit API key configured, or when credentials are already
+ * stored. Failures are silenced — the caller decides how to surface them.
  *
  * @return bool True when provisioning succeeded; false when skipped or failed.
  */
@@ -518,8 +485,8 @@ add_action( 'plugins_loaded', 'scolta_migrate_amazee_model_key' );
  *
  * Returns true when SCOLTA_API_KEY env var, $_ENV, $_SERVER, a
  * wp-config.php constant, or the database-stored legacy option is
- * non-empty, meaning the user has their own provider and
- * auto-provisioning should be skipped.
+ * non-empty, meaning the user has their own provider and the managed
+ * gateway must stay out of the way.
  *
  * @return bool True if an explicit API key is configured.
  */
@@ -541,6 +508,66 @@ function scolta_has_explicit_api_key(): bool {
 	}
 	return false;
 }
+
+/**
+ * Drop the stored Amazee.ai connection and everything that describes it.
+ *
+ * The same two steps the Disconnect button performs — the credential store's
+ * own clear(), then the re-authentication marker clear used after a successful
+ * reconnect — plus the gateway-scoped model aliases, which are meaningful only
+ * against the gateway that resolved them. Safe to call when nothing is stored.
+ */
+function scolta_clear_amazee_connection(): void {
+	( new Scolta_Amazee_Config_Storage() )->clear();
+	Scolta_Amazee_Reauth_Handler::clear();
+
+	$settings = get_option( 'scolta_settings', array() );
+	if ( ! is_array( $settings ) ) {
+		return;
+	}
+	$model     = $settings['amazee_model'] ?? '';
+	$expansion = $settings['amazee_expansion_model'] ?? '';
+	if ( '' === $model && '' === $expansion ) {
+		return;
+	}
+	$settings['amazee_model']           = '';
+	$settings['amazee_expansion_model'] = '';
+	update_option( 'scolta_settings', $settings );
+}
+
+/**
+ * Release the managed-gateway connection when the site has moved off it.
+ *
+ * Two ways a site moves off: an explicit API key is configured (it wins the
+ * key resolution outright, so stored credentials serve nothing), or the
+ * administrator picks a different AI provider. Either way the credentials and
+ * the reconnect marker are stale state, and a site running on its own key must
+ * not be told to re-authenticate a connection it does not use.
+ *
+ * Hooked to update_option_scolta_settings, and written as a named function so
+ * the decision can be exercised directly in tests.
+ *
+ * @param mixed $old_settings The settings array before the save.
+ * @param mixed $new_settings The settings array after the save.
+ */
+function scolta_sync_amazee_connection_state( $old_settings, $new_settings ): void {
+	if ( get_option( 'scolta_amazee_credentials', null ) === null ) {
+		// Nothing stored: nothing to release, and no recursion through the
+		// update_option() call scolta_clear_amazee_connection() may make.
+		return;
+	}
+
+	$provider_before = is_array( $old_settings ) ? ( $old_settings['ai_provider'] ?? '' ) : '';
+	$provider_after  = is_array( $new_settings ) ? ( $new_settings['ai_provider'] ?? '' ) : '';
+	$switched_away   = 'amazee' === $provider_before && 'amazee' !== $provider_after;
+
+	if ( ! $switched_away && ! scolta_has_explicit_api_key() ) {
+		return;
+	}
+
+	scolta_clear_amazee_connection();
+}
+add_action( 'update_option_scolta_settings', 'scolta_sync_amazee_connection_state', 10, 2 );
 
 /**
  * Show one-time admin notice after plugin activation.
@@ -611,6 +638,9 @@ function scolta_deactivate(): void {
 		as_unschedule_all_actions( 'scolta_process_chunk', null, 'scolta' );
 		as_unschedule_all_actions( 'scolta_finalize_build', array(), 'scolta' );
 		as_unschedule_all_actions( 'scolta_debounced_rebuild', array(), 'scolta' );
+		// Nothing schedules this any more; the sweep clears a leftover queued
+		// by a version that did, which would otherwise sit in the queue with
+		// no callback behind it.
 		as_unschedule_all_actions( 'scolta_amazee_provision', array(), 'scolta' );
 	}
 

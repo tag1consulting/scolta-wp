@@ -2,8 +2,8 @@
 # "relative/path.php<TAB>marker", sorted. scripts/validate-dist.sh regenerates
 # this list from the built zip (vendor included) and fails on any difference.
 # A new entry means a new way for the plugin to contact the network: it must
-# be opt-in and OFF by default in the wp.org build (WP.org Guidelines 7 & 9,
-# behind the SCOLTA_AUTO_PROVISION_DEFAULT / explicit-key consent gates) and
+# be opt-in and OFF by default (WP.org Guidelines 7 & 9, behind the explicit
+# admin-enable action or the explicit-key consent gate) and
 # the service disclosed in readme.txt == External Services == before this
 # manifest is updated in an explicit commit.
 #

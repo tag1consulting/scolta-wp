@@ -53,15 +53,15 @@ Yes. The PHP indexer works without `exec()` or Node.js, making it compatible wit
 
 = Is the AI tier required? =
 
-No. The base search tier works without any API key. In the WordPress.org distribution, all AI features are opt-in and OFF by default: the plugin makes no remote requests of any kind until an administrator explicitly enables AI features in Settings > Scolta or configures an API key.
+No. The base search tier works without any API key. AI features are enabled explicitly by the administrator and are OFF until then: the plugin makes no remote requests of any kind until an administrator enables AI features in Settings > Scolta or configures an API key.
 
 = What AI providers are supported? =
 
-Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). If no API key is configured, an administrator can enable AI features in Settings > Scolta, which provisions free Amazee.ai trial credits — this is an explicit opt-in step and never happens automatically.
+Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). If no API key is configured, an administrator can enable Amazee.ai in Settings > Scolta to add AI-powered search with a free trial. If it works well for you, sign up with Amazee to keep it running when the trial ends. Enabling is always an explicit administrator action.
 
 = What happens when I enable AI features? =
 
-Enabling AI features in Settings > Scolta provisions a free Amazee.ai trial: your site admin email address is sent to amazee.ai (api.amazee.ai) to create the trial account, and AI search queries plus result excerpts are then processed by the Amazee.ai gateway. The settings page states this before you confirm, with links to Amazee.ai's terms and privacy policy. If you configure your own API key instead, nothing is ever sent to amazee.ai.
+Enabling AI features in Settings > Scolta starts a free Amazee.ai trial: your site admin email address is sent to amazee.ai (api.amazee.ai) to create the trial account, and AI search queries plus result excerpts are then processed by the Amazee.ai gateway. The settings page states this before you confirm, with links to Amazee.ai's terms and privacy policy. If it works well for you, sign up with Amazee to keep it running when the trial ends. If you configure your own API key instead, nothing is ever sent to amazee.ai.
 
 = Does this work with WooCommerce? =
 
@@ -84,6 +84,7 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 == Changelog ==
 
 = Unreleased =
+* AI features are enabled explicitly by the administrator instead of being configured automatically on activation, on every build. Activation contacts no remote service and stores no credentials; AI query expansion and summaries stay off until you click "Enable AI features" in Settings > Scolta or configure your own API key. Configuring your own key, or switching the AI provider away from Amazee.ai, now clears the stored Amazee.ai connection and its reconnect prompt.
 * Search as you type: typing now populates a suggestions dropdown under the search box, with the visitor's own recent searches above the content suggestions. The full search still runs only on Enter, on the search button, or when a suggestion is picked. On by default, no index rebuild needed; ten settings under Settings > Scolta > Search as you type, and sayt_enabled = false restores the previous search box exactly.
 * Filter group descriptions set in the admin now reach the search widget. The setting was saved and used for AI query expansion, but was never passed to the browser, so the labels never appeared.
 * Six new scoring settings for specificity-weighted and co-occurrence ranking: specificity_weighting (on by default), specificity_floor (0.15), specificity_strong_match (0.55), specificity_cooccurrence (0.9), specificity_agreement_gate (0.45), specificity_agreement_decay (1.0). The search widget already used these values; they are now configurable. Defaults match the previous built-in values, so ranking does not change on upgrade.
@@ -167,7 +168,7 @@ First stable release. Upgrades from rc2/rc3/rc4 are seamless. If upgrading from 
 
 == External Services ==
 
-This plugin connects to the following external services under specific conditions. No data is sent automatically — all connections are triggered by explicit admin action or explicit site configuration. In the WordPress.org distribution, all AI features are opt-in and OFF by default: the plugin makes no remote requests of any kind until an administrator enables AI features in Settings > Scolta or configures an API key.
+This plugin connects to the following external services under specific conditions. No data is sent automatically — all connections are triggered by explicit admin action or explicit site configuration. AI features are enabled explicitly by the administrator and are OFF until then: the plugin makes no remote requests of any kind until an administrator enables AI features in Settings > Scolta or configures an API key.
 
 = GitHub API (api.github.com) =
 

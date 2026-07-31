@@ -29,8 +29,10 @@ class ActivationTest extends TestCase {
         $this->assertEquals('', $settings['ai_base_url']);
         $this->assertEquals('website', $settings['site_description']);
         $this->assertEquals(['post', 'page'], $settings['post_types']);
-        $this->assertTrue($settings['ai_expand_query']);
-        $this->assertTrue($settings['ai_summarize']);
+        // AI features wait for the administrator to enable them.
+        $this->assertFalse($settings['ai_expand_query']);
+        $this->assertFalse($settings['ai_summarize']);
+        $this->assertTrue(get_option('scolta_ai_optin_pending'));
         $this->assertEquals(['en'], $settings['ai_languages']);
         $this->assertEquals(3, $settings['max_follow_ups']);
         $this->assertEquals(2592000, $settings['cache_ttl']);

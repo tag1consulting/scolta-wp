@@ -320,26 +320,72 @@ class StructuralIntegrityTest extends TestCase {
         );
     }
 
-    public function test_validate_script_asserts_optin_default_in_archive(): void {
+    public function test_validate_script_asserts_activation_establishes_nothing(): void {
         $script = file_get_contents($this->root . '/scripts/validate-dist.sh');
         $this->assertStringContainsString(
-            "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', false );",
+            'function scolta_activate',
             $script,
-            'Validate script must assert the shipped zip defaults auto-provisioning off'
+            'Validate script must inspect the shipped activation function'
+        );
+        $this->assertStringContainsString(
+            'scolta_auto_provision_amazee',
+            $script,
+            'Validate script must assert activation never calls the connection helper'
+        );
+        $this->assertStringContainsString(
+            "add_action\\( *'scolta_amazee_provision'",
+            $script,
+            'Validate script must assert no deferred action mirrors the enable flow'
         );
     }
 
-    public function test_build_script_flips_optin_default_fail_closed(): void {
+    public function test_build_script_rewrites_no_source(): void {
         $script = file_get_contents($this->root . '/scripts/build-dist.sh');
-        $this->assertStringContainsString(
-            "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', true );",
+        // Every build is opt-in, so the dist build is a straight copy: a sed
+        // over staged source would mean the shipped plugin differs from the
+        // one the test suite ran against.
+        $this->assertStringNotContainsString(
+            'sed -i',
             $script,
-            'Build script must match the exact source define line'
+            'Build script must not rewrite staged plugin source'
         );
-        $this->assertStringContainsString(
-            '-ne 1',
+        $this->assertStringNotContainsString(
+            self::RETIRED_CONSTANT,
             $script,
-            'Build script must fail when the define line is not found exactly once'
+            'The retired build-time constant must be gone from the build script'
+        );
+    }
+
+    /**
+     * Assembled at runtime so this file is not itself a hit for the sweep below.
+     */
+    private const RETIRED_CONSTANT = 'SCOLTA_AUTO_' . 'PROVISION_DEFAULT';
+
+    public function test_optin_constant_is_gone_from_the_tree(): void {
+        $hits = [];
+        $files = new RecursiveIteratorIterator(
+            new RecursiveCallbackFilterIterator(
+                new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
+                static function (SplFileInfo $file): bool {
+                    return !in_array($file->getFilename(), ['vendor', 'node_modules', '.git'], true);
+                }
+            )
+        );
+        foreach ($files as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+            if (!in_array($file->getExtension(), ['php', 'sh', 'txt', 'neon', 'dist', 'yml'], true)) {
+                continue;
+            }
+            if (str_contains((string) file_get_contents($file->getPathname()), self::RETIRED_CONSTANT)) {
+                $hits[] = str_replace($this->root . '/', '', $file->getPathname());
+            }
+        }
+        $this->assertSame(
+            [],
+            $hits,
+            'AI features are enabled by the administrator on every build; no build-time gate remains'
         );
     }
 
