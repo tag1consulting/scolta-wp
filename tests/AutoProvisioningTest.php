@@ -104,13 +104,37 @@ class AutoProvisioningTest extends TestCase {
             $this->pluginSource,
             'scolta_auto_provision_amazee() must pass the hasResolvedModels predicate so a half-provision self-heals'
         );
-        // The persistence helper must guard against clobbering an explicit model:
-        // it only writes when the stored model is still the dated default.
-        $this->assertMatchesRegularExpression(
-            "/function scolta_amazee_persist_resolved_models.*?ai_model.*?\\?\\? \\\$default.*?=== \\\$default/s",
-            $this->pluginSource,
-            'scolta_amazee_persist_resolved_models() must only overwrite the dated default, preserving user config'
+        // The persistence helper writes the gateway-scoped keys and nothing
+        // else. The old "only overwrite the dated default" guard is gone with
+        // the shared key it protected — it spared an explicit administrator
+        // choice but still parked a gateway alias where a later provider
+        // switch would find it.
+        $body = $this->persistResolvedModelsBody();
+        $this->assertStringContainsString( "\$settings['amazee_model']", $body );
+        $this->assertStringContainsString( "\$settings['amazee_expansion_model']", $body );
+        $this->assertStringNotContainsString(
+            "\$settings['ai_model']",
+            $body,
+            'model resolution must never write the operator-facing ai_model'
         );
+        $this->assertStringNotContainsString(
+            "\$settings['ai_expansion_model']",
+            $body,
+            'model resolution must never write the operator-facing ai_expansion_model'
+        );
+    }
+
+    /**
+     * Isolate the callback body so the assertions cannot match neighbouring code.
+     */
+    private function persistResolvedModelsBody(): string
+    {
+        $start = strpos($this->pluginSource, 'function scolta_amazee_persist_resolved_models');
+        $this->assertNotFalse($start, 'scolta_amazee_persist_resolved_models() must exist');
+        $end = strpos($this->pluginSource, "\n}\n", $start);
+        $this->assertNotFalse($end, 'could not find the end of scolta_amazee_persist_resolved_models()');
+
+        return substr($this->pluginSource, $start, $end - $start);
     }
 
     // -------------------------------------------------------------------

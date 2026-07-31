@@ -22,11 +22,11 @@ class AmazeeAiServiceTest extends TestCase {
         if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
             $this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot test Amazee fallback in same process.' );
         }
-        // A real provisioned trial has a resolved (non-default) model persisted;
+        // A real provisioned trial has a resolved model in the gateway key;
         // only then does from_options() drive the LiteLLM gateway. (A credentials-
         // stored-but-model-unresolved install degrades instead — see
         // test_from_options_degrades_when_model_unresolved.)
-        update_option( 'scolta_settings', array( 'ai_model' => 'claude-sonnet-4-5' ) );
+        update_option( 'scolta_settings', array( 'amazee_model' => 'claude-4-5-sonnet' ) );
         $storage = new Scolta_Amazee_Config_Storage();
         $storage->store( 'litellm-token', 'https://api.amazee.test', 'us-east-1' );
 
@@ -36,6 +36,7 @@ class AmazeeAiServiceTest extends TestCase {
         $this->assertSame( 'openai', $config->aiProvider );
         $this->assertSame( 'litellm-token', $config->aiApiKey );
         $this->assertSame( 'https://api.amazee.test', $config->aiBaseUrl );
+        $this->assertSame( 'claude-4-5-sonnet', $config->aiModel, 'the gateway alias is what reaches the gateway' );
     }
 
     public function test_from_options_degrades_when_model_unresolved(): void {
@@ -46,7 +47,7 @@ class AmazeeAiServiceTest extends TestCase {
         if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
             $this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot test the Amazee degrade path.' );
         }
-        update_option( 'scolta_settings', array( 'ai_model' => 'claude-sonnet-4-5-20250929' ) );
+        update_option( 'scolta_settings', array( 'amazee_model' => '' ) );
         $storage = new Scolta_Amazee_Config_Storage();
         $storage->store( 'litellm-token', 'https://api.amazee.test', 'us-east-1' );
 
