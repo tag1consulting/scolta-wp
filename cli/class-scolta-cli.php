@@ -29,6 +29,7 @@
 defined( 'ABSPATH' ) || exit;
 
 use Tag1\Scolta\Binary\PagefindBinary;
+use Tag1\Scolta\Config\ApiKeySource;
 use Tag1\Scolta\Config\MemoryBudgetConfig;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Export\ContentExporter;
@@ -914,18 +915,30 @@ class Scolta_CLI {
 		if ( $ai->has_wp_ai_sdk() ) {
 			\WP_CLI::log( '  Provider: WordPress AI Client SDK (WP 7.0+)' );
 		} else {
-			$provider   = $settings['ai_provider'] ?? 'anthropic';
-			$key_source = \Scolta_Ai_Service::get_api_key_source();
-			\WP_CLI::log( "  Provider: {$provider} (built-in)" );
-			$source_label = match ( $key_source ) {
-				'env'      => 'environment variable',
-				'constant' => 'wp-config.php constant',
-				'database' => 'database (INSECURE — migrate to env var)',
-				default    => 'NOT SET',
+			// The provider, the source and the description all come from the
+			// one resolution the client uses, so `status` cannot report a key
+			// the site is not sending (tag1consulting/scolta-php#252). The old
+			// match() had no Amazee arm at all, so an Amazee.ai site was told
+			// its API key was NOT SET.
+			$resolved   = \Scolta_Ai_Service::resolve_api_key();
+			$key_source = $resolved->source->value;
+			$provider   = $resolved->isAmazee() ? 'Amazee.ai (managed gateway)' : $resolved->provider . ' (built-in)';
+			\WP_CLI::log( "  Provider: {$provider}" );
+			$source_label = match ( $resolved->source ) {
+				ApiKeySource::Env => 'environment variable',
+				ApiKeySource::Constant => 'wp-config.php constant',
+				ApiKeySource::Database => 'database (INSECURE — migrate to env var)',
+				ApiKeySource::AmazeeAuto => 'Amazee.ai (auto-provisioned free trial)',
+				ApiKeySource::AmazeeOperator => 'Amazee.ai',
+				default => 'NOT SET',
 			};
 			\WP_CLI::log( "  API key:  {$source_label}" );
+			\WP_CLI::log( '  ' . $resolved->describe() );
 			if ( $key_source === 'database' ) {
 				\WP_CLI::warning( 'API key stored in database. Set SCOLTA_API_KEY environment variable and remove from DB.' );
+			}
+			if ( $resolved->amazeeOverridden() ) {
+				\WP_CLI::warning( 'Amazee.ai credentials are stored but overridden; requests use the explicit key above.' );
 			}
 		}
 	}
@@ -1137,6 +1150,11 @@ class Scolta_CLI {
 				configuredBinaryPath: $settings['pagefind_binary'] ?? null,
 				projectDir: SCOLTA_PLUGIN_DIR,
 				aiApiKey: $ai->get_api_key(),
+				browserWasmDir: null,
+				// The AI-key row names the source and reports an overridden
+				// Amazee.ai credential, from the same resolution the admin
+				// screens and /health read (tag1consulting/scolta-php#252).
+				resolvedKey: \Scolta_Ai_Service::resolve_api_key(),
 			);
 
 			foreach ( $results as $r ) {

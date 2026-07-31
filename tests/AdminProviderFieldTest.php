@@ -28,15 +28,19 @@ class AdminProviderFieldTest extends TestCase {
     }
 
     /**
-     * Store Amazee credentials so get_api_key_source() returns 'amazee'.
+     * Store Amazee credentials so the resolution reports an Amazee source.
+     *
+     * The source is 'amazee:auto' rather than 'amazee' since the resolver
+     * started distinguishing an auto-provisioned trial from a provider the
+     * operator selected (tag1consulting/scolta-php#252).
      */
     private function storeAmazeeCredentials(): void {
         $storage = new Scolta_Amazee_Config_Storage();
         $storage->store('amazee-token', 'https://api.amazee.example.com', 'us-east-1');
         $this->assertSame(
-            'amazee',
+            'amazee:auto',
             Scolta_Ai_Service::get_api_key_source(),
-            'Precondition: Amazee credentials must make get_api_key_source() return amazee'
+            'Precondition: Amazee credentials must make get_api_key_source() report an Amazee source'
         );
     }
 

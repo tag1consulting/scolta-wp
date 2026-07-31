@@ -14,6 +14,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+use Tag1\Scolta\Config\ApiKeySource;
+
 /**
  * Settings page, dashboard widget, and admin AJAX handlers for Scolta.
  */
@@ -500,8 +502,10 @@ class Scolta_Admin {
 		if ( '' !== $saved ) {
 			$value = $saved;
 		} else {
-			$source = Scolta_Ai_Service::get_api_key_source();
-			$value  = ( 'amazee' === $source ) ? 'amazee' : 'anthropic';
+			// "Is Amazee active" comes from the shared resolution, so stored
+			// credentials that lost to an explicit key cannot preselect Amazee
+			// (tag1consulting/scolta-php#252).
+			$value = Scolta_Ai_Service::resolve_api_key()->isAmazee() ? 'amazee' : 'anthropic';
 		}
 		?>
 		<select name="scolta_settings[ai_provider]" id="scolta_ai_provider">
@@ -524,26 +528,65 @@ class Scolta_Admin {
 	}
 
 	/**
+	 * A translated, operator-facing name for a resolved key source.
+	 *
+	 * @param ApiKeySource $source The resolved source.
+	 */
+	private static function api_key_source_label( ApiKeySource $source ): string {
+		switch ( $source ) {
+			case ApiKeySource::Env:
+				return __( 'the SCOLTA_API_KEY environment variable', 'scolta-ai-search' );
+
+			case ApiKeySource::Constant:
+				return __( 'the SCOLTA_API_KEY constant in wp-config.php', 'scolta-ai-search' );
+
+			case ApiKeySource::Database:
+				return __( 'the API key stored in the database', 'scolta-ai-search' );
+
+			default:
+				return __( 'an explicitly configured key', 'scolta-ai-search' );
+		}
+	}
+
+	/**
 	 * Render API key status (read-only — no input field).
 	 */
 	public static function render_api_key_status_field(): void {
-		$source = Scolta_Ai_Service::get_api_key_source();
+		// Derived from the one resolution the client performs, never from a
+		// second look at the credential store. This block claimed a site was
+		// connected to Amazee.ai whenever credentials were stored, including
+		// when an explicit key was serving every request — and said so in a
+		// success notice (tag1consulting/scolta-php#252).
+		$resolved = Scolta_Ai_Service::resolve_api_key();
+		$source   = $resolved->source->value;
 
-		switch ( $source ) {
-			case 'amazee':
-				echo '<div class="notice notice-success inline"><p>';
-				echo esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
+		switch ( $resolved->source ) {
+			case ApiKeySource::AmazeeAuto:
+			case ApiKeySource::AmazeeOperator:
+				$notice = $resolved->awaitingAmazeeModelResolution ? 'notice-warning' : 'notice-success';
+				echo '<div class="notice ' . esc_attr( $notice ) . ' inline"><p>';
+				echo $resolved->source === ApiKeySource::AmazeeAuto
+					? esc_html__( 'Connected to Amazee.ai (auto-provisioned free trial).', 'scolta-ai-search' )
+					: esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
 				echo ' <a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta-ai-search' ) . '</a>';
+				if ( $resolved->awaitingAmazeeModelResolution ) {
+					echo '</p><p class="description">';
+					echo esc_html__( 'Model resolution has not completed, so AI features stay degraded until it does.', 'scolta-ai-search' );
+				}
 				echo '</p></div>';
 				break;
 
-			case 'env':
-				echo '<div class="notice notice-success inline"><p>';
+			case ApiKeySource::Env:
+				// severity() is what keeps this out of success green when
+				// stored Amazee.ai credentials were overridden: the key is
+				// fine, but the state as a whole is not one to sign off on
+				// without reading the second notice below.
+				echo '<div class="notice ' . esc_attr( $resolved->severity() === 'ok' ? 'notice-success' : 'notice-warning' ) . ' inline"><p>';
 				echo esc_html__( 'API key loaded from SCOLTA_API_KEY environment variable.', 'scolta-ai-search' );
 				echo '</p></div>';
 				break;
 
-			case 'constant':
+			case ApiKeySource::Constant:
 				echo '<div class="notice notice-info inline"><p>';
 				echo esc_html__( 'API key loaded from SCOLTA_API_KEY constant in wp-config.php.', 'scolta-ai-search' );
 				echo '</p><p class="description">';
@@ -551,7 +594,7 @@ class Scolta_Admin {
 				echo '</p></div>';
 				break;
 
-			case 'database':
+			case ApiKeySource::Database:
 				echo '<div class="notice notice-error inline"><p>';
 				echo '<strong>' . esc_html__( 'Security warning:', 'scolta-ai-search' ) . '</strong> ';
 				echo esc_html__( 'API key is stored in the database, which is insecure. Migrate it to an environment variable by setting SCOLTA_API_KEY on your hosting platform, then remove the key from the database.', 'scolta-ai-search' );
@@ -575,6 +618,21 @@ class Scolta_Admin {
 				);
 				echo '</p></div>';
 				break;
+		}
+
+		// Say what happened to credentials the operator knows they created,
+		// rather than leaving the override invisible — and never in a success
+		// notice, which is how the old message came to be read as proof that
+		// Amazee was serving traffic.
+		if ( $resolved->amazeeOverridden() ) {
+			echo '<div class="notice notice-warning inline"><p>';
+			printf(
+				/* translators: %s: the source that overrode the stored credentials */
+				esc_html__( 'Amazee.ai credentials stored but overridden by %s.', 'scolta-ai-search' ),
+				esc_html( self::api_key_source_label( $resolved->source ) )
+			);
+			echo ' <a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta-ai-search' ) . '</a>';
+			echo '</p></div>';
 		}
 
 		if ( $source !== 'none' ) {
@@ -2127,10 +2185,17 @@ class Scolta_Admin {
 			echo '<tr><td>' . esc_html__( 'AI Provider', 'scolta-ai-search' ) . '</td>';
 			echo '<td>' . esc_html__( 'WordPress AI Client SDK (WP 7.0+)', 'scolta-ai-search' ) . '</td></tr>';
 		} else {
-			$provider = $settings['ai_provider'] ?? 'anthropic';
-			$source   = Scolta_Ai_Service::get_api_key_source();
+			// The effective provider, from the resolution, rather than the
+			// saved one: an active Amazee.ai gateway is what requests go to,
+			// whatever the settings row says (tag1consulting/scolta-php#252).
+			$resolved = Scolta_Ai_Service::resolve_api_key();
+			$source   = $resolved->source->value;
+			$provider = $resolved->isAmazee() ? 'Amazee.ai' : ucfirst( $resolved->provider );
 			echo '<tr><td>' . esc_html__( 'AI Provider', 'scolta-ai-search' ) . '</td>';
-			echo '<td>' . esc_html( ucfirst( $provider ) );
+			echo '<td>' . esc_html( $provider );
+			if ( $resolved->amazeeOverridden() ) {
+				echo ' <span style="color: #dba617;">(' . esc_html__( 'Amazee.ai credentials stored but overridden', 'scolta-ai-search' ) . ')</span>';
+			}
 			if ( $source === 'none' ) {
 				echo ' <span style="color: #d63638;">(' . esc_html__( 'no API key', 'scolta-ai-search' ) . ')</span>';
 			} elseif ( $source === 'database' ) {
@@ -2386,10 +2451,13 @@ class Scolta_Admin {
 		}
 		check_admin_referer( 'scolta_enable_ai' );
 
-		$success = scolta_has_explicit_api_key();
+		// "Is AI available at all" comes from the shared resolution: an
+		// explicit key, or credentials already stored. Asking the credential
+		// store directly here would be a second derivation of the same fact.
+		$resolved = Scolta_Ai_Service::resolve_api_key();
+		$success  = $resolved->isConfigured() || $resolved->amazeeCredentialsStored;
 		if ( ! $success ) {
-			$storage = new Scolta_Amazee_Config_Storage();
-			$success = $storage->load() !== null || scolta_auto_provision_amazee();
+			$success = scolta_auto_provision_amazee();
 		}
 
 		if ( $success ) {

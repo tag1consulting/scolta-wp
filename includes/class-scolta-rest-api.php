@@ -384,6 +384,10 @@ class Scolta_Rest_Api {
 			// in, so `ai_usable` reflects whether the stored key still
 			// authenticates (a cached marker, never a live API call here).
 			cache: new \Scolta_Cache_Driver(),
+			// The same resolution the client performs, so /health names the
+			// key's source instead of leaving a monitor to infer it
+			// (tag1consulting/scolta-php#252).
+			resolvedKey: \Scolta_Ai_Service::resolve_api_key(),
 		);
 
 		$result = $checker->check();
