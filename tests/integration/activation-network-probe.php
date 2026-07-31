@@ -5,36 +5,34 @@
  * Exercises the REAL activation layer — register_activation_hook through
  * do_action under a working hook registry — with recorders on
  * pre_http_request (WP HTTP API) and scolta_pre_auto_provision (the
- * provisioning seam, which fires before any HTTP client is constructed).
+ * connection seam, which fires before any HTTP client is constructed).
  * Reports observations as JSON on the last line of stdout.
  *
  * Modes:
- *   activate-on   SCOLTA_AUTO_PROVISION_DEFAULT=true — provisioning must be
- *                 scheduled at activation and attempted when the scheduled
- *                 action runs (intercepted, never real).
- *   activate-off  SCOLTA_AUTO_PROVISION_DEFAULT=false — activation must
- *                 perform zero outbound HTTP, AI defaults must be off, and
- *                 the opt-in pending flag must be set.
- *   optin         constant=false — activation, then the real
- *                 admin_post_scolta_enable_ai action: provisioning must run
- *                 exactly once and the AI settings must flip on.
+ *   activate  Activation alone: zero outbound HTTP, no credentials stored,
+ *             AI features off, and the opt-in pending flag set.
+ *   optin     Activation, then the real admin_post_scolta_enable_ai action:
+ *             the connection is established exactly once (intercepted, never
+ *             real) and the AI settings flip on.
+ *   optin-key Same, with SCOLTA_API_KEY set: the operator's own key is used,
+ *             so nothing is established and the provider is left alone.
  *
- * Run as a subprocess by tests/ActivationNetworkTest.php: the build-time
- * constant must be defined before scolta.php loads, which an in-process
- * PHPUnit test cannot do per-test.
+ * Run as a subprocess by tests/ActivationNetworkTest.php so activation is
+ * exercised through a working hook registry rather than by hand-calling
+ * scolta_activate(), which is the layer the original defect lived in.
  */
 
 declare(strict_types=1);
 
 $mode = $argv[1] ?? '';
-if (!in_array($mode, ['activate-on', 'activate-off', 'optin'], true)) {
-    fwrite(STDERR, "Usage: activation-network-probe.php <activate-on|activate-off|optin>\n");
+if (!in_array($mode, ['activate', 'optin', 'optin-key'], true)) {
+    fwrite(STDERR, "Usage: activation-network-probe.php <activate|optin|optin-key>\n");
     exit(2);
 }
 
-// Define the build-time constant before the plugin loads. The bootstrap
-// requires scolta.php, whose if-!defined guard keeps this value.
-define('SCOLTA_AUTO_PROVISION_DEFAULT', $mode === 'activate-on');
+if ($mode === 'optin-key') {
+    putenv('SCOLTA_API_KEY=sk-operator-key');
+}
 
 // ---------------------------------------------------------------------------
 // Real (minimal) hook registry — defined BEFORE tests/bootstrap.php so its
@@ -114,14 +112,16 @@ do_action('activate_scolta.php');
 
 $scheduled = array_column($GLOBALS['scolta_as_scheduled'], 'hook');
 
-// In auto-provision mode the work is deferred to the scheduled action; run it
-// the way Action Scheduler would, and let the seam intercept it.
-if ($mode === 'activate-on' && in_array('scolta_amazee_provision', $scheduled, true)) {
-    do_action('scolta_amazee_provision');
+// Whatever activation queued, run it the way Action Scheduler would. Nothing
+// registered may reach the network; the recorders above prove it either way.
+foreach ($scheduled as $hook) {
+    if ($hook !== 'scolta_rebuild_start') {
+        do_action($hook);
+    }
 }
 
 $redirect = null;
-if ($mode === 'optin') {
+if ($mode === 'optin' || $mode === 'optin-key') {
     // The real opt-in action, as admin-post.php would dispatch it.
     try {
         do_action('admin_post_scolta_enable_ai');
@@ -139,6 +139,8 @@ echo "\n" . json_encode([
     'scheduled'       => $scheduled,
     'ai_expand_query' => (bool) ($settings['ai_expand_query'] ?? false),
     'ai_summarize'    => (bool) ($settings['ai_summarize'] ?? false),
+    'ai_provider'     => (string) ($settings['ai_provider'] ?? ''),
     'optin_pending'   => (bool) get_option('scolta_ai_optin_pending', false),
+    'credentials'     => get_option('scolta_amazee_credentials', null) !== null,
     'redirect'        => $redirect,
 ]) . "\n";

@@ -2313,16 +2313,14 @@ class Scolta_Admin {
 	}
 
 	// -----------------------------------------------------------------
-	// AI features opt-in (builds with auto-provisioning disabled)
+	// AI features opt-in
 	// -----------------------------------------------------------------
 
 	/**
 	 * Whether the AI features opt-in is pending admin consent.
 	 *
-	 * True only when activation recorded the pending flag (builds with
-	 * SCOLTA_AUTO_PROVISION_DEFAULT false, e.g. the WordPress.org
-	 * distribution) and no explicit API key has been configured since —
-	 * configuring a key is itself the consent act.
+	 * True when activation recorded the pending flag and no explicit API key
+	 * has been configured since — configuring a key is itself the consent act.
 	 *
 	 * @return bool True when the opt-in notice and control should be offered.
 	 */
@@ -2359,7 +2357,7 @@ class Scolta_Admin {
 		echo wp_kses_post(
 			sprintf(
 				/* translators: %s: URL of the Scolta settings page */
-				__( '<strong>Scolta AI Search:</strong> AI features (query expansion and result summaries) are available — <a href="%s">enable them in Scolta settings</a>. Scolta makes no remote requests until you enable them.', 'scolta-ai-search' ),
+				__( '<strong>Scolta AI Search:</strong> enable Amazee.ai to add AI-powered search (query expansion and result summaries) with a free trial — <a href="%s">enable it in Scolta settings</a>. If it works well for you, sign up with Amazee to keep it running when the trial ends. Scolta makes no remote requests until you enable it.', 'scolta-ai-search' ),
 				esc_url( admin_url( 'options-general.php?page=scolta' ) )
 			)
 		);
@@ -2383,7 +2381,7 @@ class Scolta_Admin {
 			echo '</p></div>';
 		} else {
 			echo '<div class="notice notice-error is-dismissible"><p>';
-			echo esc_html__( 'Scolta could not provision the Amazee.ai trial — AI features remain off. Check your site’s outbound connectivity and try again, or configure your own API key.', 'scolta-ai-search' );
+			echo esc_html__( 'Scolta could not start the Amazee.ai free trial — AI features remain off. Check your site’s outbound connectivity and try again, or configure your own API key.', 'scolta-ai-search' );
 			echo '</p></div>';
 		}
 	}
@@ -2392,7 +2390,7 @@ class Scolta_Admin {
 	 * Render the explicit "Enable AI features" opt-in control.
 	 *
 	 * Shown above the settings form while the opt-in recorded at activation
-	 * is pending. States exactly what enabling does — provisioning a free
+	 * is pending. States exactly what enabling does — connecting a free
 	 * Amazee.ai trial sends the site admin email address to api.amazee.ai —
 	 * with links to Amazee.ai's terms and privacy policy.
 	 */
@@ -2403,13 +2401,14 @@ class Scolta_Admin {
 		?>
 		<div class="notice notice-info inline" style="margin: 1em 0 1.5em; padding: 0.5em 1em 1em;">
 			<h2><?php esc_html_e( 'Enable AI features?', 'scolta-ai-search' ); ?></h2>
+			<p><?php esc_html_e( 'Enable Amazee.ai to add AI-powered search with a free trial. If it works well for you, sign up with Amazee to keep it running when the trial ends.', 'scolta-ai-search' ); ?></p>
 			<p><?php esc_html_e( 'AI query expansion and result summaries are currently OFF, and Scolta makes no remote requests of any kind.', 'scolta-ai-search' ); ?></p>
 			<p>
 				<?php
 				echo wp_kses_post(
 					sprintf(
 						/* translators: 1: Amazee.ai terms of service URL, 2: Amazee.ai privacy policy URL */
-						__( 'Enabling AI features provisions a free Amazee.ai trial: your site admin email address will be sent to amazee.ai (api.amazee.ai), and AI search queries plus result excerpts will be processed by the Amazee.ai gateway. See the Amazee.ai <a href="%1$s">Terms of Service</a> and <a href="%2$s">Privacy Policy</a>.', 'scolta-ai-search' ),
+						__( 'Enabling AI features starts a free Amazee.ai trial: your site admin email address will be sent to amazee.ai (api.amazee.ai), and AI search queries plus result excerpts will be processed by the Amazee.ai gateway. See the Amazee.ai <a href="%1$s">Terms of Service</a> and <a href="%2$s">Privacy Policy</a>.', 'scolta-ai-search' ),
 						'https://amazee.ai/terms',
 						'https://amazee.ai/privacy'
 					)
@@ -2421,7 +2420,7 @@ class Scolta_Admin {
 				echo wp_kses_post(
 					sprintf(
 						/* translators: %s: wp-config.php constant example */
-						__( 'Prefer your own provider? Configure an API key instead (e.g. %s in wp-config.php) and turn on the AI settings below — no trial is provisioned and nothing is sent to amazee.ai when a key is present.', 'scolta-ai-search' ),
+						__( 'Prefer your own provider? Configure an API key instead (e.g. %s in wp-config.php) and turn on the AI settings below — no trial is started and nothing is sent to amazee.ai when a key is present.', 'scolta-ai-search' ),
 						'<code>SCOLTA_API_KEY</code>'
 					)
 				);
@@ -2439,11 +2438,12 @@ class Scolta_Admin {
 	/**
 	 * Handle the explicit "Enable AI features" opt-in action.
 	 *
-	 * Provisions the Amazee.ai trial (unless an explicit API key or stored
-	 * credentials already provide AI access), then enables the AI feature
-	 * settings and clears the pending flag. On provisioning failure the AI
-	 * features stay off, the pending flag is kept, and an error notice is
-	 * queued for the next admin page load.
+	 * The one path that establishes the Amazee.ai connection, and it runs only
+	 * on the administrator's click. An explicit API key (or credentials already
+	 * stored) is used as-is; otherwise the connection is established here.
+	 * Either way the AI feature settings are turned on and the pending flag is
+	 * cleared. On failure the AI features stay off, the pending flag is kept,
+	 * and an error notice is queued for the next admin page load.
 	 */
 	public static function handle_enable_ai(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -2455,6 +2455,7 @@ class Scolta_Admin {
 		// explicit key, or credentials already stored. Asking the credential
 		// store directly here would be a second derivation of the same fact.
 		$resolved = Scolta_Ai_Service::resolve_api_key();
+		$own_key  = $resolved->isConfigured() && ! $resolved->isAmazee();
 		$success  = $resolved->isConfigured() || $resolved->amazeeCredentialsStored;
 		if ( ! $success ) {
 			$success = scolta_auto_provision_amazee();
@@ -2464,6 +2465,14 @@ class Scolta_Admin {
 			$settings                    = get_option( 'scolta_settings', array() );
 			$settings['ai_expand_query'] = true;
 			$settings['ai_summarize']    = true;
+			if ( ! $own_key ) {
+				// The managed gateway is what this click turned on, so record it
+				// as the site's provider: the settings screen shows the operator
+				// what is actually serving AI, and switching the select away from
+				// it is what releases the stored connection
+				// (scolta_sync_amazee_connection_state()).
+				$settings['ai_provider'] = 'amazee';
+			}
 			update_option( 'scolta_settings', $settings );
 			delete_option( 'scolta_ai_optin_pending' );
 			delete_option( 'scolta_ai_optin_notice_dismissed' );

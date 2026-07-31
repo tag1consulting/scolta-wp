@@ -75,19 +75,38 @@ if grep -qE 'scolta/vendor/.+/tests?/' "$WORK/zip-contents.txt"; then
   exit 1
 fi
 
-# WP.org policy: the distributed build must default auto-provisioning OFF.
-# Activation in the shipped zip must not contact any remote service until an
-# administrator explicitly opts in.
-if [ "$(unzip -p "$ZIP" scolta/scolta.php | grep -cF "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', false );")" -ne 1 ]; then
-  echo "ERROR: scolta.php in the archive does not default SCOLTA_AUTO_PROVISION_DEFAULT to false."
-  echo "The WordPress.org build must be opt-in: no remote calls until the admin enables AI features."
+# WP.org policy: activation in the shipped zip must not contact any remote
+# service. AI features are established by the administrator's explicit action,
+# so scolta_activate() must reference no part of that path, and the deferred
+# action that used to mirror it must not be registered.
+# Comment lines are dropped before the check: what activation must not do is a
+# statement about the code it runs, and the settings defaults carry a comment
+# that names the gateway-scoped model keys.
+ACTIVATE_BODY=$(unzip -p "$ZIP" scolta/scolta.php \
+  | awk '/^function scolta_activate\(/{f=1} f{print} f&&/^}/{exit}' \
+  | grep -v '^[[:space:]]*//')
+if [ -z "$ACTIVATE_BODY" ]; then
+  echo "ERROR: could not extract scolta_activate() from scolta.php in the archive."
   exit 1
 fi
-if unzip -p "$ZIP" scolta/scolta.php | grep -qF "define( 'SCOLTA_AUTO_PROVISION_DEFAULT', true );"; then
-  echo "ERROR: scolta.php in the archive still contains the auto-provision true default."
+# Seeding local option keys is fine; calling, scheduling or constructing
+# anything on the connection path is not.
+FORBIDDEN='scolta_auto_provision_amazee|scolta_amazee_provision|AutoProvisioner|AmazeeClient|AmazeeTrialProvisioner|Scolta_Amazee_Config_Storage|wp_remote_'
+if printf '%s\n' "$ACTIVATE_BODY" | grep -qE "$FORBIDDEN"; then
+  echo "ERROR: scolta_activate() in the archive references the AI connection path:"
+  printf '%s\n' "$ACTIVATE_BODY" | grep -nE "$FORBIDDEN"
+  echo "Activation must contact no remote service. AI features are enabled by the"
+  echo "administrator from the settings screen, never as a side effect of activation."
   exit 1
 fi
-echo "Opt-in default OK: SCOLTA_AUTO_PROVISION_DEFAULT is false in the archive."
+# Whitespace is collapsed first: the registration can span lines.
+if unzip -p "$ZIP" scolta/scolta.php | tr -s '[:space:]' ' ' \
+  | grep -qE "add_action\( *'scolta_amazee_provision'"; then
+  echo "ERROR: scolta.php in the archive registers a scolta_amazee_provision callback."
+  echo "Nothing may establish the AI connection outside the explicit admin action."
+  exit 1
+fi
+echo "Opt-in activation OK: the archive establishes no AI connection at activation."
 
 # ---------------------------------------------------------------------------
 # Fail-closed sweep of the ENTIRE archive, vendor included. Every file must
@@ -197,8 +216,8 @@ if [ ! -f "$CALLSITES_FIXTURE" ]; then
 fi
 if ! diff -u <(grep -vE '^#|^$' "$CALLSITES_FIXTURE") "$WORK/network-callsites.txt"; then
   echo "ERROR: New outbound-HTTP call site. Check WP.org Guidelines 7 & 9 (remote"
-  echo "calls must be opt-in, OFF by default in the .org build, behind the"
-  echo "SCOLTA_AUTO_PROVISION_DEFAULT / explicit-key consent gates), disclose the"
+  echo "calls must be opt-in and OFF by default, behind the explicit admin-enable"
+  echo "or explicit-key consent gates), disclose the"
   echo "service in readme.txt External Services, then update this manifest"
   echo "(tests/fixtures/dist-network-callsites.txt) in an explicit commit."
   exit 1
@@ -285,4 +304,4 @@ if [ "$ZIP_SIZE" -gt "$MAX_SIZE" ]; then
 fi
 echo "ZIP size OK: $(( ZIP_SIZE / 1024 )) KB"
 
-echo "Archive structure OK: correct directory, required files present, opt-in default false, no unjustified files, network surface under change control."
+echo "Archive structure OK: correct directory, required files present, activation establishes nothing, no unjustified files, network surface under change control."
