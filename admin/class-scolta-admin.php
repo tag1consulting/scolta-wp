@@ -1636,6 +1636,16 @@ class Scolta_Admin {
 		$clean['ai_model']           = sanitize_text_field( $input['ai_model'] ?? 'claude-sonnet-4-5-20250929' );
 		$clean['ai_expansion_model'] = sanitize_text_field( $input['ai_expansion_model'] ?? '' );
 
+		// Gateway-resolved models are carried over from the stored option, not
+		// read from $input: they have no settings field on purpose (there is
+		// nothing for an administrator to choose, and offering one would
+		// recreate the alias-versus-native-ID confusion this split fixes).
+		// $clean replaces the option wholesale, so without this a routine
+		// settings save would silently wipe them and the next AI request would
+		// fall back to the shipped default the gateway rejects.
+		$clean['amazee_model']           = sanitize_text_field( (string) ( $existing['amazee_model'] ?? '' ) );
+		$clean['amazee_expansion_model'] = sanitize_text_field( (string) ( $existing['amazee_expansion_model'] ?? '' ) );
+
 		// Base URL must be an http(s) URL — it is the endpoint AI requests
 		// are sent to, so a non-URL or non-http scheme is dropped entirely.
 		$raw_base_url         = esc_url_raw( trim( (string) ( $input['ai_base_url'] ?? '' ) ), array( 'http', 'https' ) );

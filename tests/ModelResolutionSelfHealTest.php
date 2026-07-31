@@ -51,10 +51,10 @@ class ModelResolutionSelfHealTest extends TestCase {
 		$GLOBALS['wp_options'] = array();
 		$this->assertFalse( scolta_amazee_models_resolved(), 'No settings => unresolved' );
 
-		update_option( 'scolta_settings', array( 'ai_model' => '' ) );
+		update_option( 'scolta_settings', array( 'amazee_model' => '' ) );
 		$this->assertFalse( scolta_amazee_models_resolved(), 'Empty model => unresolved' );
 
-		update_option( 'scolta_settings', array( 'ai_model' => self::DATED_DEFAULT ) );
+		update_option( 'scolta_settings', array( 'amazee_model' => self::DATED_DEFAULT ) );
 		$this->assertFalse(
 			scolta_amazee_models_resolved(),
 			'The shipped dated default must report unresolved, or the self-heal never fires'
@@ -62,8 +62,34 @@ class ModelResolutionSelfHealTest extends TestCase {
 	}
 
 	public function test_predicate_reports_resolved_for_real_model_name(): void {
-		update_option( 'scolta_settings', array( 'ai_model' => 'claude-sonnet-4-5' ) );
+		update_option( 'scolta_settings', array( 'amazee_model' => 'claude-sonnet-4-5' ) );
 		$this->assertTrue( scolta_amazee_models_resolved() );
+	}
+
+	public function test_predicate_reads_the_gateway_key_not_the_operator_key(): void {
+		// Reading ai_model would report "resolved" for any site whose
+		// administrator had simply named a model, and the half-provisioned
+		// self-heal would then stop firing on exactly the sites that need it.
+		update_option(
+			'scolta_settings',
+			array(
+				'ai_model'     => 'claude-sonnet-4-5-20250929',
+				'amazee_model' => '',
+			)
+		);
+		$this->assertFalse( scolta_amazee_models_resolved() );
+
+		update_option(
+			'scolta_settings',
+			array(
+				'ai_model'     => 'my-custom-model',
+				'amazee_model' => '',
+			)
+		);
+		$this->assertFalse(
+			scolta_amazee_models_resolved(),
+			'An operator-chosen model in ai_model is not a resolved Amazee model'
+		);
 	}
 
 	// -------------------------------------------------------------------
@@ -71,8 +97,15 @@ class ModelResolutionSelfHealTest extends TestCase {
 	// -------------------------------------------------------------------
 
 	public function test_stored_creds_with_dated_default_self_heal(): void {
-		// Half-provisioned: credentials stored, only the dated default persisted.
-		update_option( 'scolta_settings', array( 'ai_model' => self::DATED_DEFAULT ) );
+		// Half-provisioned: credentials stored, nothing resolved into the
+		// gateway key, so settings still carry only the shipped dated default.
+		update_option(
+			'scolta_settings',
+			array(
+				'ai_model'     => self::DATED_DEFAULT,
+				'amazee_model' => '',
+			)
+		);
 		$storage = new Scolta_Amazee_Config_Storage();
 		$storage->store( 'stored-token', 'https://llm.test.amazee.ai', 'eu' );
 
@@ -90,15 +123,20 @@ class ModelResolutionSelfHealTest extends TestCase {
 
 		$this->assertFalse( $provisioned, 'A model-only heal is not a fresh-trial provision' );
 		$settings = get_option( 'scolta_settings', array() );
-		$this->assertSame( 'claude-sonnet-4-5', $settings['ai_model'], 'Dated default healed to a resolved model' );
-		$this->assertSame( 'claude-haiku-4-5', $settings['ai_expansion_model'], 'Expansion model resolved too' );
+		$this->assertSame( 'claude-sonnet-4-5', $settings['amazee_model'], 'Heal resolved into the gateway key' );
+		$this->assertSame( 'claude-haiku-4-5', $settings['amazee_expansion_model'], 'Expansion model resolved too' );
+		$this->assertSame(
+			self::DATED_DEFAULT,
+			$settings['ai_model'],
+			'The heal must leave the operator-facing key exactly where it was'
+		);
 		$this->assertTrue( scolta_amazee_models_resolved() );
 	}
 
 	public function test_naive_non_empty_predicate_would_not_heal(): void {
 		// Documents the trap: a "model is non-empty" predicate reports TRUE in
 		// the dated-default state, so AutoProvisioner no-ops and the bug ships.
-		update_option( 'scolta_settings', array( 'ai_model' => self::DATED_DEFAULT ) );
+		update_option( 'scolta_settings', array( 'amazee_model' => self::DATED_DEFAULT ) );
 		$storage = new Scolta_Amazee_Config_Storage();
 		$storage->store( 'stored-token', 'https://llm.test.amazee.ai', 'eu' );
 
@@ -111,27 +149,57 @@ class ModelResolutionSelfHealTest extends TestCase {
 			hasExplicitApiKey: false,
 			onModelsResolved: 'scolta_amazee_persist_resolved_models',
 			client: $client,
-			hasResolvedModels: static fn (): bool => ! empty( get_option( 'scolta_settings', array() )['ai_model'] ),
+			hasResolvedModels: static fn (): bool => ! empty( get_option( 'scolta_settings', array() )['amazee_model'] ),
 		);
 
 		$this->assertSame(
 			self::DATED_DEFAULT,
-			get_option( 'scolta_settings', array() )['ai_model'],
+			get_option( 'scolta_settings', array() )['amazee_model'],
 			'A naive non-empty predicate leaves the dated default in place (the bug)'
 		);
 	}
 
-	public function test_persist_does_not_clobber_user_configured_model(): void {
-		// An explicit admin model choice must survive auto-resolution.
-		update_option( 'scolta_settings', array( 'ai_model' => 'my-custom-model' ) );
-
-		scolta_amazee_persist_resolved_models( 'claude-sonnet-4-5', 'claude-haiku-4-5' );
-
-		$this->assertSame(
-			'my-custom-model',
-			get_option( 'scolta_settings', array() )['ai_model'],
-			'A user-configured model must never be overwritten by resolved defaults'
+	public function test_persist_never_writes_the_operator_facing_keys(): void {
+		// Stronger than the guard it replaces: an explicit admin choice used to
+		// survive because the callback checked for the dated default first.
+		// Now resolution cannot reach these keys at all, so nothing an operator
+		// sets there is at risk and no gateway alias can be left behind for a
+		// later provider switch to pick up.
+		update_option(
+			'scolta_settings',
+			array(
+				'ai_model'           => 'my-custom-model',
+				'ai_expansion_model' => 'my-custom-expansion-model',
+			)
 		);
+
+		scolta_amazee_persist_resolved_models( 'claude-4-5-sonnet', 'claude-4-5-haiku' );
+
+		$settings = get_option( 'scolta_settings', array() );
+		$this->assertSame( 'my-custom-model', $settings['ai_model'] );
+		$this->assertSame( 'my-custom-expansion-model', $settings['ai_expansion_model'] );
+		$this->assertSame( 'claude-4-5-sonnet', $settings['amazee_model'] );
+		$this->assertSame( 'claude-4-5-haiku', $settings['amazee_expansion_model'] );
+	}
+
+	public function test_persist_overwrites_a_stale_gateway_alias(): void {
+		// The dated-default guard is gone with the shared key it protected: a
+		// re-resolution must be able to replace a superseded alias.
+		update_option( 'scolta_settings', array( 'amazee_model' => 'claude-3-5-sonnet' ) );
+
+		scolta_amazee_persist_resolved_models( 'claude-4-5-sonnet', '' );
+
+		$this->assertSame( 'claude-4-5-sonnet', get_option( 'scolta_settings', array() )['amazee_model'] );
+	}
+
+	public function test_persist_ignores_an_empty_resolved_name(): void {
+		// Empty means "the gateway did not report one", which must not blank a
+		// name a previous successful pass resolved.
+		update_option( 'scolta_settings', array( 'amazee_model' => 'claude-4-5-sonnet' ) );
+
+		scolta_amazee_persist_resolved_models( '', '' );
+
+		$this->assertSame( 'claude-4-5-sonnet', get_option( 'scolta_settings', array() )['amazee_model'] );
 	}
 
 	// -------------------------------------------------------------------
@@ -143,7 +211,13 @@ class ModelResolutionSelfHealTest extends TestCase {
 		if ( defined( 'SCOLTA_API_KEY' ) && constant( 'SCOLTA_API_KEY' ) !== '' ) {
 			$this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test; cannot exercise the Amazee degrade path.' );
 		}
-		update_option( 'scolta_settings', array( 'ai_model' => self::DATED_DEFAULT ) );
+		update_option(
+			'scolta_settings',
+			array(
+				'ai_model'     => self::DATED_DEFAULT,
+				'amazee_model' => '',
+			)
+		);
 		$storage = new Scolta_Amazee_Config_Storage();
 		$storage->store( 'litellm-token', 'https://llm.test.amazee.ai', 'eu' );
 

@@ -19,17 +19,33 @@ class QualityCleanupRegressionTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------
-	// Amazee trial start must not clobber a customized ai_model.
-	// `$a['x'] ?? $d === $d` binds as `$a['x'] ?? ($d === $d)` — always
-	// truthy — so provisioning overwrote ANY configured model.
+	// Amazee trial start must not write the operator-facing model key.
+	//
+	// This replaces a test that pinned the `=== $default_model` guard on
+	// that write. The guard is gone because the write is: it spared an
+	// explicit administrator choice, but still parked a gateway alias in
+	// the shared key, where it survived a later provider switch just the
+	// same. The bug class the old test really protected against —
+	// `$a['x'] ?? $d === $d` binding as `$a['x'] ?? ($d === $d)` — is
+	// still covered, repo-wide, by the next test.
 	// -------------------------------------------------------------------
 
-	public function test_amazee_model_guard_is_parenthesized(): void {
+	public function test_amazee_trial_start_writes_only_the_gateway_key(): void {
 		$source = self::source( 'admin/class-scolta-amazee-admin-page.php' );
-		$this->assertMatchesRegularExpression(
-			"/\(\s*\\\$scolta_settings\['ai_model'\]\s*\?\?\s*\\\$default_model\s*\)\s*===\s*\\\$default_model/",
+		$this->assertStringContainsString(
+			"\$scolta_settings['amazee_model']",
 			$source,
-			'the ai_model default check must parenthesize the null-coalesce before comparing'
+			'the trial flow must persist the resolved model to the gateway-scoped key'
+		);
+		$this->assertStringNotContainsString(
+			"\$scolta_settings['ai_model'] =",
+			$source,
+			'the trial flow must never assign the operator-facing ai_model'
+		);
+		$this->assertStringNotContainsString(
+			"\$scolta_settings['ai_expansion_model'] =",
+			$source,
+			'the trial flow must never assign the operator-facing ai_expansion_model'
 		);
 	}
 

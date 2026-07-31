@@ -65,6 +65,20 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 				$settings['ai_provider'] = 'openai';
 				$settings['ai_api_key']  = $creds['litellm_token'];
 				$settings['ai_base_url'] = $creds['litellm_api_url'];
+				// Substitute the gateway-scoped model names, which is the only
+				// place they are ever read. ai_model / ai_expansion_model keep
+				// whatever provider-native IDs the administrator chose, so
+				// flipping back to a direct key restores them untouched — and
+				// flipping back to Amazee restores the alias without
+				// re-provisioning.
+				// Non-empty by construction: scolta_amazee_models_resolved()
+				// returned true, which is exactly the assertion that it is set.
+				$settings['ai_model'] = (string) ( $settings['amazee_model'] ?? '' );
+				// An operator's native expansion model must not leak to the
+				// gateway, which would reject it, so an unresolved expansion
+				// model falls back to the gateway's primary rather than theirs.
+				$gateway_expansion              = $settings['amazee_expansion_model'] ?? '';
+				$settings['ai_expansion_model'] = (string) $gateway_expansion;
 			} else {
 				// Half-provisioned: credentials are stored but model resolution
 				// never succeeded, so settings still carry the shipped dated

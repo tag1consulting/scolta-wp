@@ -152,14 +152,17 @@ class Scolta_Amazee_Admin_Page {
 			$result       = $provisioner->provision( $email );
 
 			if ( $result->aiModel !== null ) {
-				$default_model   = 'claude-sonnet-4-5-20250929';
+				// The second binding site in this plugin. The names the
+				// provisioner returns are Amazee LiteLLM gateway aliases, so
+				// they land in the gateway-scoped keys here too — the old
+				// `=== DEFAULT_MODEL` guard spared an explicit administrator
+				// choice but still parked an alias in the shared key, where it
+				// survived a provider switch just the same.
 				$scolta_settings = get_option( 'scolta_settings', array() );
 
-				if ( ( $scolta_settings['ai_model'] ?? $default_model ) === $default_model ) {
-					$scolta_settings['ai_model'] = $result->aiModel;
-				}
-				if ( ( $scolta_settings['ai_expansion_model'] ?? '' ) === '' && $result->aiExpansionModel !== null ) {
-					$scolta_settings['ai_expansion_model'] = $result->aiExpansionModel;
+				$scolta_settings['amazee_model'] = $result->aiModel;
+				if ( $result->aiExpansionModel !== null ) {
+					$scolta_settings['amazee_expansion_model'] = $result->aiExpansionModel;
 				}
 				update_option( 'scolta_settings', $scolta_settings );
 
