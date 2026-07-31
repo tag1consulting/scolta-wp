@@ -7,11 +7,18 @@
  *   - WP 7.0+: Detects and uses the WordPress AI Client SDK (native, multi-provider)
  *   - WP 6.x:  Falls back to scolta-php's built-in AiClient (Anthropic + OpenAI)
  *
- * API key resolution (in priority order):
- *   1. Amazee.ai stored credentials (litellm token via OpenAI-compatible endpoint)
- *   2. SCOLTA_API_KEY environment variable (production-safe)
- *   3. SCOLTA_API_KEY constant in wp-config.php
- *   4. Legacy: scolta_settings option in database (migration warning shown)
+ * API key resolution (in priority order), applied by
+ * Tag1\Scolta\Config\ApiKeyResolver:
+ *   1. SCOLTA_API_KEY environment variable (production-safe)
+ *   2. SCOLTA_API_KEY constant in wp-config.php
+ *   3. Legacy: scolta_settings option in database (migration warning shown)
+ *   4. Amazee.ai stored credentials (litellm token via OpenAI-compatible endpoint)
+ *
+ * An explicit key beating stored Amazee credentials is deliberate: a site
+ * that configured its own provider is never silently rerouted through the
+ * managed gateway. This docblock used to list Amazee first, which is the
+ * order the old get_api_key_source() applied and the opposite of the order
+ * from_options() actually used.
  *
  * Controllers call message() and conversation() — they never touch
  * AiClient directly. The dual-path fallback is invisible to callers.
@@ -24,6 +31,9 @@ defined( 'ABSPATH' ) || exit;
 use Tag1\Scolta\AiProvider\Amazee\AmazeeBudgetExceededException;
 use Tag1\Scolta\AiProvider\Amazee\BudgetAwareProviderDecorator;
 use Tag1\Scolta\AiProvider\Amazee\KeyExpiryRecovery;
+use Tag1\Scolta\Config\AmazeeCredentials;
+use Tag1\Scolta\Config\ApiKeyResolver;
+use Tag1\Scolta\Config\ResolvedApiKey;
 use Tag1\Scolta\Config\ScoltaConfig;
 use Tag1\Scolta\Service\AiServiceAdapter;
 
@@ -48,31 +58,30 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	 * rerouted to the Amazee LiteLLM proxy.
 	 */
 	public static function from_options(): self {
-		$settings     = get_option( 'scolta_settings', array() );
-		$explicit_key = self::get_api_key();
+		$settings = get_option( 'scolta_settings', array() );
 
-		if ( $explicit_key !== '' ) {
-			// User has their own key — use it, never touch Amazee credentials.
-			$settings['ai_api_key'] = $explicit_key;
-			return new self( ScoltaConfig::fromArray( $settings ) );
-		}
+		// One resolution, shared with every surface that reports on it. The
+		// key, its source and the provider that goes with it arrive together,
+		// so the admin screens, /health and WP-CLI cannot describe this
+		// differently from the client that is about to send it
+		// (tag1consulting/scolta-php#252).
+		$resolved = self::resolve_api_key();
 
-		$storage = new Scolta_Amazee_Config_Storage();
-		$creds   = $storage->load();
-		if ( $creds !== null ) {
-			if ( scolta_amazee_models_resolved() ) {
-				// A resolved model is persisted — drive the LiteLLM gateway.
-				$settings['ai_provider'] = 'openai';
-				$settings['ai_api_key']  = $creds['litellm_token'];
-				$settings['ai_base_url'] = $creds['litellm_api_url'];
+		if ( $resolved->isAmazee() ) {
+			$settings['ai_provider'] = $resolved->provider;
+			$settings['ai_base_url'] = $resolved->baseUrl;
+
+			if ( $resolved->isConfigured() ) {
+				$settings['ai_api_key'] = $resolved->key;
 				// Substitute the gateway-scoped model names, which is the only
 				// place they are ever read. ai_model / ai_expansion_model keep
 				// whatever provider-native IDs the administrator chose, so
 				// flipping back to a direct key restores them untouched — and
 				// flipping back to Amazee restores the alias without
 				// re-provisioning.
-				// Non-empty by construction: scolta_amazee_models_resolved()
-				// returned true, which is exactly the assertion that it is set.
+				// Non-empty by construction: the resolution only carries a key
+				// when model resolution has succeeded, which is exactly the
+				// assertion that this is set.
 				$settings['ai_model'] = (string) ( $settings['amazee_model'] ?? '' );
 				// An operator's native expansion model must not leak to the
 				// gateway, which would reject it, so an unresolved expansion
@@ -83,21 +92,25 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 				// Half-provisioned: credentials are stored but model resolution
 				// never succeeded, so settings still carry the shipped dated
 				// default — which the Amazee LiteLLM gateway rejects with HTTP
-				// 400, breaking AI permanently and silently. Do NOT inject the
-				// Amazee key here: a key-less client throws ApiKeyMissingException,
-				// which the REST controllers degrade to an unexpanded/no-summary
-				// HTTP 200 (the same path as a wholly unconfigured site), never a
-				// 400. The state self-heals when provisioning next re-resolves
-				// against the stored key (scolta_amazee_models_resolved() /
-				// scolta_auto_provision_amazee()). Mirrors scolta-node's
-				// AmazeeAiService::buildClient().
+				// 400, breaking AI permanently and silently. The resolver
+				// withholds the key for exactly this state: a key-less client
+				// throws ApiKeyMissingException, which the REST controllers
+				// degrade to an unexpanded/no-summary HTTP 200 (the same path
+				// as a wholly unconfigured site), never a 400. It self-heals
+				// when provisioning next re-resolves against the stored key.
 				unset( $settings['ai_api_key'] );
 			}
+		} elseif ( $resolved->isConfigured() ) {
+			// The operator's own key. Amazee credentials, if any are stored,
+			// are left untouched — and are reported as overridden rather than
+			// silently ignored.
+			$settings['ai_api_key'] = $resolved->key;
 		}
 
 		$config  = ScoltaConfig::fromArray( $settings );
 		$service = new self( $config );
-		if ( $creds !== null ) {
+		if ( $resolved->isAmazee() ) {
+			$storage                 = new Scolta_Amazee_Config_Storage();
 			$service->budget_handler = new Scolta_Amazee_Budget_Handler();
 			// Amazee.ai path only. Policy: when the stored credentials are no
 			// longer accepted, KeyExpiryRecovery records the failure so /health
@@ -105,9 +118,10 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 			// reads to route the operator to reconnect/upgrade
 			// (Scolta_Amazee_Reauth_Handler). It never requests fresh
 			// credentials on this path and never retries — the request degrades
-			// gracefully. The explicit-key path returned above never reaches
-			// here, so a user's own key is never touched; budget-exhaustion is
-			// excluded by KeyExpiryRecovery and follows the budget path instead.
+			// gracefully. The gate is the resolution rather than the presence
+			// of credentials, so a user's own key is never touched even when
+			// credentials are also stored; budget-exhaustion is excluded by
+			// KeyExpiryRecovery and follows the budget path instead.
 			$service->setKeyExpiryRecovery(
 				new KeyExpiryRecovery(
 					storage: $storage,
@@ -193,62 +207,99 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	 * fallback exists solely for backward compatibility with existing installs.
 	 */
 	public static function get_api_key(): string {
-		// Primary: environment variable.
+		// Passing no credentials is what makes this the explicit-only
+		// accessor; the ordering itself is the resolver's, applied over the
+		// same candidate list resolve_api_key() uses, so "which explicit key
+		// wins" is answered in one place rather than in two that can drift.
+		return ApiKeyResolver::resolve( self::explicit_key_candidates() )->key;
+	}
+
+	/**
+	 * The explicit key candidates, in this platform's precedence order.
+	 *
+	 * @return array<string, string> Candidate keys, keyed by ApiKeySource backing value.
+	 */
+	private static function explicit_key_candidates(): array {
+		// Primary: environment variable. Some hosts populate $_ENV/$_SERVER
+		// instead, so all three spellings feed the one 'env' candidate.
 		$env = getenv( 'SCOLTA_API_KEY' );
-		if ( $env !== false && $env !== '' ) {
-			return $env;
+		if ( $env === false || $env === '' ) {
+			if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) ) {
+				$env = sanitize_text_field( wp_unslash( $_ENV['SCOLTA_API_KEY'] ) );
+			} elseif ( ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
+				$env = sanitize_text_field( wp_unslash( $_SERVER['SCOLTA_API_KEY'] ) );
+			} else {
+				$env = '';
+			}
 		}
 
-		// Also check $_ENV and $_SERVER (some hosts populate these differently).
-		if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) ) {
-			return sanitize_text_field( wp_unslash( $_ENV['SCOLTA_API_KEY'] ) );
-		}
-		if ( ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
-			return sanitize_text_field( wp_unslash( $_SERVER['SCOLTA_API_KEY'] ) );
-		}
-
-		// wp-config.php constant (better than database, not as good as env var).
-		if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
-			return SCOLTA_API_KEY;
-		}
-
-		// Legacy: database option (backward compatibility only).
 		$settings = get_option( 'scolta_settings', array() );
-		return $settings['ai_api_key'] ?? '';
+
+		// wp-config.php constant: better than the database, not as good as an
+		// environment variable.
+		$constant = ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) ? SCOLTA_API_KEY : '';
+
+		return array(
+			'env'      => $env,
+			'constant' => $constant,
+			// Legacy: database option, backward compatibility only.
+			'database' => $settings['ai_api_key'] ?? '',
+		);
+	}
+
+	/**
+	 * Resolve the effective API key, its source and its provider.
+	 *
+	 * The single derivation. Everything that reports on the API key — the
+	 * admin screens, /health, WP-CLI, and from_options() itself — takes its
+	 * answer from here rather than working it out again.
+	 *
+	 * That is the fix for tag1consulting/scolta-php#252: from_options() gave
+	 * an explicit key priority over stored Amazee.ai credentials while
+	 * get_api_key_source() checked the credential store first, so a site
+	 * running on a perfectly valid SCOLTA_API_KEY was reported as connected
+	 * to Amazee.ai on every surface it has.
+	 */
+	public static function resolve_api_key(): ResolvedApiKey {
+		$settings = get_option( 'scolta_settings', array() );
+		$provider = $settings['ai_provider'] ?? '';
+		$provider = ( is_string( $provider ) && $provider !== '' ) ? $provider : 'anthropic';
+
+		return ApiKeyResolver::resolve(
+			self::explicit_key_candidates(),
+			AmazeeCredentials::fromStorage(
+				new Scolta_Amazee_Config_Storage(),
+				operatorChosen: $provider === 'amazee',
+				// A half-provisioned install — credentials stored, model
+				// resolution never completed — reports Amazee as its source
+				// but hands back no key.
+				modelResolved: scolta_amazee_models_resolved()
+			),
+			$provider
+		);
 	}
 
 	/**
 	 * Detect where the API key is coming from, for status display.
 	 *
-	 * @return string One of 'amazee', 'env', 'constant', 'database', or 'none'.
+	 * @return string The resolved source: 'env', 'constant', 'database',
+	 *   'amazee:operator', 'amazee:auto', or 'none'. The two Amazee cases
+	 *   replace the former single 'amazee' — a provider the operator selected
+	 *   and a free trial that provisioned itself mean different things to
+	 *   somebody reading a status line.
 	 */
 	public static function get_api_key_source(): string {
-		$storage = new Scolta_Amazee_Config_Storage();
-		if ( $storage->load() !== null ) {
-			return 'amazee';
-		}
-		$env = getenv( 'SCOLTA_API_KEY' );
-		if ( $env !== false && $env !== '' ) {
-			return 'env';
-		}
-		if ( ! empty( $_ENV['SCOLTA_API_KEY'] ) || ! empty( $_SERVER['SCOLTA_API_KEY'] ) ) {
-			return 'env';
-		}
-		if ( defined( 'SCOLTA_API_KEY' ) && SCOLTA_API_KEY !== '' ) {
-			return 'constant';
-		}
-		$settings = get_option( 'scolta_settings', array() );
-		if ( ! empty( $settings['ai_api_key'] ) ) {
-			return 'database';
-		}
-		return 'none';
+		return self::resolve_api_key()->source->value;
 	}
 
 	/**
 	 * Check whether Amazee.ai credentials are stored and active.
+	 *
+	 * Derived from the shared resolution, never from the credential store:
+	 * credentials that lost to an explicit key are stored, not active.
 	 */
 	public function is_amazee_active(): bool {
-		return $this->budget_handler !== null;
+		return self::resolve_api_key()->isAmazee();
 	}
 
 	/**
