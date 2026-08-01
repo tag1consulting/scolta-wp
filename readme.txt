@@ -83,11 +83,13 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 
 == Changelog ==
 
-= Unreleased =
+= 1.1.0 =
 * AI features are enabled explicitly by the administrator instead of being configured automatically on activation, on every build. Activation contacts no remote service and stores no credentials; AI query expansion and summaries stay off until you click "Enable AI features" in Settings > Scolta or configure your own API key. Configuring your own key, or switching the AI provider away from Amazee.ai, now clears the stored Amazee.ai connection and its reconnect prompt.
 * Search as you type: typing now populates a suggestions dropdown under the search box, with the visitor's own recent searches above the content suggestions. The full search still runs only on Enter, on the search button, or when a suggestion is picked. On by default, no index rebuild needed; ten settings under Settings > Scolta > Search as you type, and sayt_enabled = false restores the previous search box exactly.
 * Filter group descriptions set in the admin now reach the search widget. The setting was saved and used for AI query expansion, but was never passed to the browser, so the labels never appeared.
 * Six new scoring settings for specificity-weighted and co-occurrence ranking: specificity_weighting (on by default), specificity_floor (0.15), specificity_strong_match (0.55), specificity_cooccurrence (0.9), specificity_agreement_gate (0.45), specificity_agreement_decay (1.0). The search widget already used these values; they are now configurable. Defaults match the previous built-in values, so ranking does not change on upgrade.
+* The distributed plugin bundled an older scolta-php than the plugin code required, so AI features could fail with a fatal error on a fresh install of the released archive. The bundled library is now scolta-php 1.1.0.
+* Known limitation: once AI query expansion has run, facet counts do not exactly match the filtered result list. They are closer than in previous releases but not yet exact; unexpanded queries are exact. Targeted for 1.1.1.
 
 = 1.0.7 =
 * On the WordPress.org distribution, all remote AI functionality is opt-in: activation contacts no remote service and AI features default off.
