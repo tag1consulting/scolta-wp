@@ -11,7 +11,7 @@
     ],
     "require": {
         "php": ">=8.1",
-        "tag1/scolta-php": "^1.0.5"
+        "tag1/scolta-php": "^1.1.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0|^11.0",
@@ -72,7 +72,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "1.0.x-dev"
+            "dev-main": "1.1.x-dev"
         },
         "installer-name": "scolta"
     }
