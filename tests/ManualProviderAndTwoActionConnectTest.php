@@ -248,7 +248,9 @@ class ManualProviderAndTwoActionConnectTest extends TestCase {
 	public function test_no_operator_facing_wording_claims_an_automatic_trial(): void {
 		$offenders = array();
 		foreach ( $this->operator_facing_files() as $relative => $contents ) {
-			foreach ( array( 'auto-provisioned', 'auto provisioned' ) as $banned ) {
+			// The prefix, so 'auto-provisioning' is caught as well as
+			// 'auto-provisioned'.
+			foreach ( array( 'auto-provision', 'auto provision' ) as $banned ) {
 				if ( stripos( $contents, $banned ) !== false ) {
 					$offenders[] = "{$relative}: {$banned}";
 				}

@@ -46,10 +46,11 @@ class Scolta_Admin {
 		// Show rebuild result notices.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_rebuild_notice' ) );
 
-		// AI features opt-in flow (builds with auto-provisioning disabled,
-		// e.g. the WordPress.org distribution): availability notice, the
-		// explicit enable action, its result notice, and server-side
-		// notice dismissal.
+		// AI features opt-in flow: availability notice, the explicit enable
+		// action, its result notice, and server-side notice dismissal.
+		// Nothing here connects anything on its own — the enable action is a
+		// deliberate administrator click, and it is the only path that
+		// establishes the Amazee.ai demo connection.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_result_notice' ) );
 		add_action( 'admin_post_scolta_enable_ai', array( self::class, 'handle_enable_ai' ) );
