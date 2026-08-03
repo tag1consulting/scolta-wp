@@ -80,17 +80,59 @@ class AmazeeAdminPageTest extends TestCase {
         $this->assertNull( $storage->load() );
     }
 
-    public function test_ajax_start_trial_rejects_invalid_email(): void {
-        $_POST = array( 'email' => 'not-an-email' );
-        try {
-            Scolta_Amazee_Admin_Page::ajax_start_trial();
-        } catch ( \RuntimeException $e ) {
-            // wp_send_json_error exits via RuntimeException in test stub.
+    public function test_ajax_start_trial_needs_no_email(): void {
+        // Replaces a test that asserted the opposite — that the demo rejected a
+        // request without a valid email. Trying the demo must cost an operator
+        // no input at all; an address is what the account path collects, because
+        // amazee.ai needs one to issue a real account. Rejecting here put the
+        // account path's cost on the cheapest way to evaluate Scolta's AI.
+        // Bounded to this one handler's body: "Invalid email" and $_POST reads
+        // are correct in the sign-in handler further down the same file, and a
+        // whole-file match would find them there.
+        $body = $this->methodBody( 'ajax_start_trial' );
+
+        $this->assertStringContainsString(
+            'provision()',
+            $body,
+            'The demo must call provision() with no email.'
+        );
+        $this->assertStringNotContainsString(
+            'Invalid email',
+            $body,
+            'The demo must not reject a request for want of an email.'
+        );
+        $this->assertStringNotContainsString(
+            "\$_POST['email']",
+            $body,
+            'The demo must not read an email from the request at all.'
+        );
+    }
+
+    /**
+     * The source of one method of the Amazee admin page, brace-matched.
+     */
+    private function methodBody( string $name ): string {
+        $source = (string) file_get_contents(
+            dirname( __DIR__ ) . '/admin/class-scolta-amazee-admin-page.php'
+        );
+
+        $start = strpos( $source, "function {$name}(" );
+        $this->assertNotFalse( $start, "method {$name}() not found" );
+
+        $open = strpos( $source, '{', $start );
+        $depth = 0;
+        for ( $i = $open; $i < strlen( $source ); $i++ ) {
+            if ( $source[ $i ] === '{' ) {
+                $depth++;
+            } elseif ( $source[ $i ] === '}' ) {
+                $depth--;
+                if ( $depth === 0 ) {
+                    return substr( $source, $open, $i - $open + 1 );
+                }
+            }
         }
 
-        $response = $GLOBALS['test_json_response'];
-        $this->assertFalse( $response['success'] );
-        $this->assertStringContainsString( 'Invalid email', $response['data']['message'] );
+        $this->fail( "unbalanced braces in {$name}()" );
     }
 
     public function test_ajax_request_code_rejects_invalid_email(): void {

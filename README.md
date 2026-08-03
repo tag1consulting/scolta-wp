@@ -164,9 +164,18 @@ The base search tier — Pagefind index lookup and Scolta WASM scoring — runs 
 
 Configure at **Settings > Scolta > AI Provider**, or via `wp-config.php` constants.
 
+**Selecting a provider is always manual.** Scolta ships with none selected: the field opens on *- Select a provider -*, and while nothing is selected AI features are off, no provider is assumed, and Anthropic in particular is not silently assumed. This is going-forward only — a site that already saved a provider keeps it and keeps working, and nothing rewrites an existing value.
+
+**Amazee.ai is never enabled on its own.** Selecting it in the list connects nothing. On the Amazee.ai settings screen you choose one of two actions:
+
+- **Try the demo** — one click. No email, no account, no card. AI is on immediately and runs until the demo's included credit is used up. The demo is one-time per site; it stays available on a fresh install or after using another provider, and once it has been used the page points you at the account path instead.
+- **Enter your Amazee credentials** — sign in with the email address on your amazee.ai account. Amazee emails a verification code, you pick a region, and your account's credentials are stored for you. If you do not have an account yet, this creates one. You never generate or paste an API key: this mirrors amazee.ai's own `ai_provider_amazeeio` module, so there is deliberately no bring-your-own-key form.
+
+When a connection stops being accepted, AI degrades cleanly, `/health` reports it, and the settings page points at the account path. The settings notice and `wp scolta status` state which of the two actions established the current connection, because that is recorded when it happens rather than inferred afterwards; a connection made before Scolta recorded it says only "Connected to Amazee.ai".
+
 | Setting | Option key | Default | Description |
 | ------- | ---------- | ------- | ----------- |
-| Provider | `ai_provider` | `anthropic` | `anthropic` or `openai` |
+| Provider | `ai_provider` | *(none)* | `anthropic`, `openai` or `amazee`. No default: while none is selected, AI features are off and search works exactly as it does now. |
 | API key | env/constant only | — | `SCOLTA_API_KEY` env var or `define('SCOLTA_API_KEY', '...')` in wp-config.php |
 | Model | `ai_model` | `claude-sonnet-4-5-20250929` | LLM model identifier |
 | Base URL | `ai_base_url` | provider default | Custom endpoint for proxies or Azure OpenAI |

@@ -144,7 +144,11 @@ function scolta_activate(): void {
 	$upload_dir = wp_upload_dir();
 
 	$defaults = array(
-		'ai_provider'                  => 'anthropic',
+		// No default provider. Activation must not select one: an install
+		// nobody has configured has AI off, search works, and Anthropic in
+		// particular is not silently assumed. Existing sites keep whatever
+		// they already saved — this seeds new installs only.
+		'ai_provider'                  => '',
 		'ai_model'                     => 'claude-sonnet-4-5-20250929',
 		'ai_expansion_model'           => '',
 		// Gateway-scoped model names, written only by Amazee model resolution
@@ -282,15 +286,29 @@ function scolta_activate(): void {
 register_activation_hook( __FILE__, 'scolta_activate' );
 
 /**
- * Establish the Amazee.ai connection.
+ * Establish the Amazee.ai demo connection, on an explicit administrator click.
  *
- * Reachable from exactly one place: the administrator's "Enable AI features"
- * action (Scolta_Admin::handle_enable_ai()). No request path and no scheduled
- * action calls it, so nothing here runs without an explicit click. No-op when
- * the user has an explicit API key configured, or when credentials are already
- * stored. Failures are silenced — the caller decides how to surface them.
+ * Reachable from exactly one place: the administrator's "Try the demo" action
+ * (Scolta_Admin::handle_enable_ai()). No request path, no activation hook and
+ * no scheduled action calls it, so nothing here runs without that click. No-op
+ * when the user has an explicit API key configured, or when credentials are
+ * already stored. Failures are silenced — the caller decides how to surface
+ * them.
  *
- * @return bool True when provisioning succeeded; false when skipped or failed.
+ * **This calls AmazeeTrialProvisioner::provision() directly**, with no email.
+ * It used to delegate to AutoProvisioner::ensureAiAvailable(), which minted a
+ * demo whenever it found an empty credential store — a contract that has been
+ * removed, because anything else reaching that helper would have enrolled a
+ * site that never opted in. `ensureAiAvailable()` now self-heals stored
+ * credentials and establishes nothing, so routing this click through it would
+ * leave the button silently doing nothing at all. Establishing a connection is
+ * an explicit call, made here, and nowhere else in this plugin.
+ *
+ * The demo takes no email on purpose: an administrator evaluating Scolta's AI
+ * should not have to hand over an address first. An operator with an amazee.ai
+ * account attaches it on the Amazee.ai settings page instead, by signing in.
+ *
+ * @return bool True when the demo was established; false when skipped or failed.
  */
 function scolta_auto_provision_amazee(): bool {
 	/**
@@ -310,21 +328,55 @@ function scolta_auto_provision_amazee(): bool {
 
 	$storage = new Scolta_Amazee_Config_Storage();
 
-	return \Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
-		$storage,
-		hasExplicitApiKey: scolta_has_explicit_api_key(),
-		// Persist the resolved model names so the LiteLLM gateway is driven with
-		// a real model rather than the shipped dated default (which it rejects
-		// with HTTP 400). They land in the gateway-scoped keys, never in the
-		// operator-facing ai_model — see scolta_amazee_persist_resolved_models().
-		onModelsResolved: 'scolta_amazee_persist_resolved_models',
-		// Report whether models are already resolved. When credentials are
-		// stored but resolution previously failed (only the dated default is
-		// persisted), this returns false and ensureAiAvailable() re-resolves
-		// against the ALREADY-STORED key — self-healing the half-provisioned
-		// state — instead of no-opping forever on the stored credentials.
-		hasResolvedModels: 'scolta_amazee_models_resolved',
-	);
+	// An administrator who already configured their own key is not asking for a
+	// managed gateway, and credentials already stored need no second connection.
+	// Both were previously the helper's guards; they are stated here now that
+	// the establishing call is made here.
+	if ( scolta_has_explicit_api_key() || null !== $storage->load() ) {
+		// Already usable — but a half-provisioned store still needs its model
+		// names. That is the one automatic Amazee activity there is, it runs
+		// only against the key already on disk, and it never mints.
+		\Tag1\Scolta\AiProvider\Amazee\AutoProvisioner::ensureAiAvailable(
+			$storage,
+			hasExplicitApiKey: scolta_has_explicit_api_key(),
+			onModelsResolved: 'scolta_amazee_persist_resolved_models',
+			hasResolvedModels: 'scolta_amazee_models_resolved',
+		);
+
+		return null !== $storage->load();
+	}
+
+	$client = new \Tag1\Scolta\AiProvider\Amazee\AmazeeClient();
+
+	try {
+		$result = ( new \Tag1\Scolta\AiProvider\Amazee\AmazeeTrialProvisioner(
+			$client,
+			$storage,
+			null,
+			new \Tag1\Scolta\AiProvider\Amazee\AmazeeModelResolver( $client ),
+		) )->provision();
+	} catch ( \Tag1\Scolta\AiProvider\Amazee\AmazeeApiException $e ) {
+		// The demo is one-time per site; a refusal here is most often "already
+		// used". The caller surfaces it and points at the account path.
+		return false;
+	}
+
+	if ( ! $result->success ) {
+		return false;
+	}
+
+	// Persist the resolved model names so the LiteLLM gateway is driven with a
+	// real model rather than the shipped dated default (which it rejects with
+	// HTTP 400). They land in the gateway-scoped keys, never in the
+	// operator-facing ai_model — see scolta_amazee_persist_resolved_models().
+	if ( null !== $result->aiModel || null !== $result->aiExpansionModel ) {
+		scolta_amazee_persist_resolved_models(
+			$result->aiModel ?? '',
+			$result->aiExpansionModel ?? ''
+		);
+	}
+
+	return true;
 }
 
 /**

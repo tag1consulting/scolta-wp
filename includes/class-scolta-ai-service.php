@@ -263,19 +263,21 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	public static function resolve_api_key(): ResolvedApiKey {
 		$settings = get_option( 'scolta_settings', array() );
 		$provider = $settings['ai_provider'] ?? '';
-		$provider = ( is_string( $provider ) && $provider !== '' ) ? $provider : 'anthropic';
+		// No coalescing. An empty provider means AI is off, not that it is
+		// Anthropic; substituting one here would put the assumption back a
+		// layer down, where every reporting surface reads it.
+		$provider = is_string( $provider ) ? $provider : '';
 
 		return ApiKeyResolver::resolve(
 			self::explicit_key_candidates(),
 			AmazeeCredentials::fromStorage(
 				new Scolta_Amazee_Config_Storage(),
-				// No operatorChosen: the resolver reports one Amazee source
-				// now. Nothing records whether a stored token came from a
-				// licensed connection or an auto-provisioned trial, and on
-				// WordPress this argument was permanently false, because
-				// nothing ever writes 'amazee' to ai_provider — so every
-				// deliberately connected account was announced as a free
-				// trial (scolta-php#273).
+				// No operatorChosen: which action established the connection
+				// is now a recorded fact, read from the credential store by
+				// fromStorage() rather than derived from a local expression
+				// that merely correlated with it. On WordPress that expression
+				// was permanently false, so every deliberately connected
+				// account was announced as a free trial (scolta-php#273).
 				//
 				// A half-provisioned install — credentials stored, model
 				// resolution never completed — reports Amazee as its source

@@ -55,7 +55,9 @@ class AdminProviderFieldTest extends TestCase {
      * Assert which <option> carries the selected attribute.
      */
     private function assertSelectedOption(string $expected, string $html): void {
-        if (!preg_match('/<option value="([^"]+)"[^>]*\sselected="selected"/', $html, $m)) {
+        // The placeholder carries value="", so the pattern has to allow it —
+        // "nothing selected" is a real state here, not a missing one.
+        if (!preg_match('/<option value="([^"]*)"[^>]*\sselected="selected"/', $html, $m)) {
             $this->fail("No <option> was marked selected. HTML:\n{$html}");
         }
         $this->assertSame(
@@ -98,21 +100,29 @@ class AdminProviderFieldTest extends TestCase {
     }
 
     // -------------------------------------------------------------------
-    // Empty state — fall back to auto-detection
+    // Empty state — the placeholder, never an inferred selection
     // -------------------------------------------------------------------
 
-    public function test_empty_state_falls_back_to_amazee_when_credentials_present(): void {
-        // No ai_provider ever saved, but an Amazee trial was auto-provisioned.
+    public function test_empty_state_selects_the_placeholder_even_with_credentials_stored(): void {
+        // Stored credentials used to preselect Amazee for a site that had never
+        // chosen it. Inferring a selection from a side effect is what made the
+        // form indistinguishable from one somebody had filled in: the connect
+        // flow now writes ai_provider itself, so an unset value genuinely means
+        // nobody has chosen.
         $this->storeAmazeeCredentials();
         update_option('scolta_settings', []);
 
-        $this->assertSelectedOption('amazee', $this->renderField());
+        $this->assertSelectedOption('', $this->renderField());
     }
 
-    public function test_empty_state_defaults_to_anthropic_without_credentials(): void {
-        // No saved provider and no Amazee credentials.
+    public function test_empty_state_selects_the_placeholder_without_credentials(): void {
+        // No default provider. An untouched install shows "- Select a provider -"
+        // and AI stays off; it is not Anthropic.
         update_option('scolta_settings', []);
 
-        $this->assertSelectedOption('anthropic', $this->renderField());
+        $markup = $this->renderField();
+        $this->assertSelectedOption('', $markup);
+        $this->assertStringContainsString('- Select a provider -', $markup);
+        $this->assertStringContainsString('AI features are off', $markup);
     }
 }

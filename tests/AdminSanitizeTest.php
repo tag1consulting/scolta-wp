@@ -287,10 +287,22 @@ class AdminSanitizeTest extends TestCase {
     // -------------------------------------------------------------------
 
     public function test_rejects_invalid_provider(): void {
+        // Fails closed to "no provider selected" rather than to Anthropic:
+        // correcting an unrecognised value into a working vendor would enable
+        // AI against a provider nobody chose.
         $input = $this->defaultInput();
         $input['ai_provider'] = 'evil-provider';
         $result = Scolta_Admin::sanitize_settings($input);
-        $this->assertEquals('anthropic', $result['ai_provider']);
+        $this->assertSame('', $result['ai_provider']);
+    }
+
+    public function test_accepts_the_empty_provider_as_a_real_choice(): void {
+        // Clearing the select back to "- Select a provider -" turns AI off and
+        // must survive a save.
+        $input = $this->defaultInput();
+        $input['ai_provider'] = '';
+        $result = Scolta_Admin::sanitize_settings($input);
+        $this->assertSame('', $result['ai_provider']);
     }
 
     public function test_accepts_valid_provider_openai(): void {

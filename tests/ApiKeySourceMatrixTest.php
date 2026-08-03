@@ -69,7 +69,11 @@ class ApiKeySourceMatrixTest extends TestCase {
 			$this->markTestSkipped( 'SCOLTA_API_KEY constant defined by a prior test in this process.' );
 		}
 
-		$settings = array();
+		// Every row in this matrix is about which key wins and how each surface
+		// reports it, not about provider selection — so each fixture selects a
+		// provider. Without one, AI is off whatever key is present, which is
+		// asserted separately in ManualProviderAndTwoActionConnectTest.
+		$settings = array( 'ai_provider' => $amazeeStored ? 'amazee' : 'anthropic' );
 		if ( $databaseKey !== '' ) {
 			$settings['ai_api_key'] = $databaseKey;
 		}

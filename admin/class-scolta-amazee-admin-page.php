@@ -3,8 +3,11 @@
  * Admin page for Amazee.ai configuration.
  *
  * Multi-step connection flow for Amazee.ai:
- *  - Trial path:   email → POST trial → connected.
+ *  - Demo path:    one click, no email → POST demo → connected. One-time per
+ *                  site; when its credit is gone the operator continues below.
  *  - Sign-in path: email → OTP email → enter code → select region → connected.
+ *                  Email-only, mirroring amazee.ai's own ai_provider_amazeeio
+ *                  module; there is no paste-your-API-key path.
  *
  * In-flight flow state (email, session token) is stored in user meta and
  * cleared on completion or back navigation.
@@ -129,16 +132,21 @@ class Scolta_Amazee_Admin_Page {
 	// -----------------------------------------------------------------
 
 	/**
-	 * AJAX: Provision a free trial account.
+	 * AJAX: establish the free demo connection, on one click and no other input.
+	 *
+	 * Deliberately takes no email. Trying the demo must cost an operator
+	 * nothing — an address is what the account path collects, because amazee.ai
+	 * needs one to issue a real account. This handler used to reject the request
+	 * unless an email was supplied, which put the account path's cost on the
+	 * cheapest possible way to evaluate Scolta's AI.
+	 *
+	 * The demo is one-time per site and reachable at any time — a fresh install,
+	 * or a site that has been running on another provider. When its credit is
+	 * gone the control plane refuses, and the error path points at the account
+	 * flow instead of failing opaquely.
 	 */
 	public static function ajax_start_trial(): void {
 		self::check_nonce_and_caps();
-
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
-		$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
-		if ( ! is_email( $email ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid email address.', 'scolta-ai-search' ) ) );
-		}
 
 		try {
 			$storage      = new Scolta_Amazee_Config_Storage();
@@ -149,7 +157,7 @@ class Scolta_Amazee_Admin_Page {
 				null,
 				new AmazeeModelResolver( $amazeeClient ),
 			);
-			$result       = $provisioner->provision( $email );
+			$result       = $provisioner->provision();
 
 			if ( $result->aiModel !== null ) {
 				// The second binding site in this plugin. The names the
@@ -389,19 +397,32 @@ class Scolta_Amazee_Admin_Page {
 	}
 
 	/**
-	 * Render the initial step with email input and action buttons.
+	 * Render the initial step: two labelled actions, neither taken for you.
+	 *
+	 * The demo takes no input. The email field belongs to the account path
+	 * alone, which is why it sits inside that section rather than above both
+	 * buttons — where it used to make the cheapest way to evaluate Scolta's AI
+	 * cost an operator their address first.
 	 */
 	private static function render_start_step(): void {
 		?>
-		<p><?php esc_html_e( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.', 'scolta-ai-search' ); ?></p>
+		<p><?php esc_html_e( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search. Nothing is connected until you choose one of the two actions below.', 'scolta-ai-search' ); ?></p>
+
+		<h3><?php esc_html_e( 'Try the demo', 'scolta-ai-search' ); ?></h3>
+		<p><?php esc_html_e( 'Turn on AI search right now with a free demo. No email address, no account, no card. The demo runs until its included credit is used up; after that you continue by signing in with your email below.', 'scolta-ai-search' ); ?></p>
+		<p>
+			<button type="button" id="scolta-amazee-trial" class="button button-primary">
+				<?php esc_html_e( 'Try the demo', 'scolta-ai-search' ); ?>
+			</button>
+		</p>
+
+		<h3><?php esc_html_e( 'Enter your Amazee credentials', 'scolta-ai-search' ); ?></h3>
+		<p><?php esc_html_e( 'Sign in with the email address on your amazee.ai account. We will email you a verification code, you pick a region, and your account credentials are stored here. If you do not have an account yet, this creates one. You never generate or paste an API key.', 'scolta-ai-search' ); ?></p>
 		<label for="scolta-amazee-email"><?php esc_html_e( 'Email address', 'scolta-ai-search' ); ?></label>
 		<input type="email" id="scolta-amazee-email" class="regular-text" />
 		<p>
-			<button type="button" id="scolta-amazee-trial" class="button button-primary">
-				<?php esc_html_e( 'Start free trial', 'scolta-ai-search' ); ?>
-			</button>
 			<button type="button" id="scolta-amazee-signin" class="button button-secondary">
-				<?php esc_html_e( 'Sign in to existing account', 'scolta-ai-search' ); ?>
+				<?php esc_html_e( 'Send verification code', 'scolta-ai-search' ); ?>
 			</button>
 		</p>
 		<?php

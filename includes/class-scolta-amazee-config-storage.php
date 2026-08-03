@@ -13,14 +13,20 @@
 
 defined( 'ABSPATH' ) || exit;
 
-use Tag1\Scolta\AiProvider\Amazee\ConfigStorageInterface;
+use Tag1\Scolta\AiProvider\Amazee\AmazeeConnectionSource;
+use Tag1\Scolta\AiProvider\Amazee\ProvenanceAwareConfigStorageInterface;
 use Tag1\Scolta\Exception\CryptoException;
 use Tag1\Scolta\Util\AuthenticatedCipher;
 
 /**
- * Implements ConfigStorageInterface using the WordPress options API.
+ * Implements the credential store using the WordPress options API.
+ *
+ * Provenance-aware: it also records which operator action established the
+ * connection, so no surface has to guess between the free demo and an
+ * operator's own amazee.ai account. That guess is what made every deliberately
+ * connected WordPress account read as a trial it never was (scolta-php#273).
  */
-class Scolta_Amazee_Config_Storage implements ConfigStorageInterface {
+class Scolta_Amazee_Config_Storage implements ProvenanceAwareConfigStorageInterface {
 
 	/**
 	 * WordPress option key for stored credentials.
@@ -28,6 +34,17 @@ class Scolta_Amazee_Config_Storage implements ConfigStorageInterface {
 	 * @var string
 	 */
 	private const OPTION_KEY = 'scolta_amazee_credentials';
+
+	/**
+	 * WordPress option key for the recorded connection source.
+	 *
+	 * Kept beside the credentials rather than inside them so an existing
+	 * credential blob does not change shape, and so a connection made before
+	 * this option existed reads as "not recorded" rather than as a default.
+	 *
+	 * @var string
+	 */
+	private const SOURCE_OPTION_KEY = 'scolta_amazee_connection_source';
 
 	/**
 	 * Transient marking a credential decrypt failure notice as pending.
@@ -114,6 +131,33 @@ class Scolta_Amazee_Config_Storage implements ConfigStorageInterface {
 	 */
 	public function clear(): void {
 		delete_option( self::OPTION_KEY );
+		// The provenance goes with the credentials it describes. Left behind, it
+		// would be paired with whatever connection comes next, which is a guess
+		// wearing a recorded fact's clothes.
+		delete_option( self::SOURCE_OPTION_KEY );
+	}
+
+	/**
+	 * Record which operator action produced the credentials just stored.
+	 *
+	 * @param AmazeeConnectionSource $source The action that established the connection.
+	 */
+	public function storeConnectionSource( AmazeeConnectionSource $source ): void {
+		update_option( self::SOURCE_OPTION_KEY, $source->value, false );
+	}
+
+	/**
+	 * The recorded connection source, or null when none was recorded.
+	 *
+	 * Null is the right answer for a connection made before provenance was
+	 * recorded. It must read as "not recorded", never as a default.
+	 */
+	public function loadConnectionSource(): ?AmazeeConnectionSource {
+		$stored = get_option( self::SOURCE_OPTION_KEY, '' );
+
+		return is_string( $stored ) && '' !== $stored
+			? AmazeeConnectionSource::tryFrom( $stored )
+			: null;
 	}
 
 	/**

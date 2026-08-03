@@ -67,15 +67,24 @@
 		bindDisconnect();
 	}
 
+	// Two labelled actions, and nothing happens until one is chosen. The demo
+	// takes no input at all; the email belongs to the account path alone, which
+	// is why it lives inside that section rather than above both buttons.
 	function renderStart() {
 		clearError();
 		app.html(
-			'<p>' + escText( __( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search.', 'scolta-ai-search' ) ) + '</p>' +
+			'<p>' + escText( __( 'Connect Scolta to Amazee.ai for privacy-respecting, budget-aware AI search. Nothing is connected until you choose one of the two actions below.', 'scolta-ai-search' ) ) + '</p>' +
+			'<h3>' + escText( __( 'Try the demo', 'scolta-ai-search' ) ) + '</h3>' +
+			'<p>' + escText( __( 'Turn on AI search right now with a free demo. No email address, no account, no card. The demo runs until its included credit is used up; after that you continue by signing in with your email below.', 'scolta-ai-search' ) ) + '</p>' +
+			'<p>' +
+			'<button type="button" id="scolta-amazee-trial" class="button button-primary">' + escText( __( 'Try the demo', 'scolta-ai-search' ) ) + '</button>' +
+			'</p>' +
+			'<h3>' + escText( __( 'Enter your Amazee credentials', 'scolta-ai-search' ) ) + '</h3>' +
+			'<p>' + escText( __( 'Sign in with the email address on your amazee.ai account. We will email you a verification code, you pick a region, and your account credentials are stored here. If you do not have an account yet, this creates one. You never generate or paste an API key.', 'scolta-ai-search' ) ) + '</p>' +
 			'<label for="scolta-amazee-email">' + escText( __( 'Email address', 'scolta-ai-search' ) ) + '</label>' +
 			'<input type="email" id="scolta-amazee-email" class="regular-text" />' +
 			'<p>' +
-			'<button type="button" id="scolta-amazee-trial" class="button button-primary">' + escText( __( 'Start free trial', 'scolta-ai-search' ) ) + '</button>' +
-			' <button type="button" id="scolta-amazee-signin" class="button button-secondary">' + escText( __( 'Sign in to existing account', 'scolta-ai-search' ) ) + '</button>' +
+			'<button type="button" id="scolta-amazee-signin" class="button button-secondary">' + escText( __( 'Send verification code', 'scolta-ai-search' ) ) + '</button>' +
 			'</p>'
 		);
 		bindStart();
@@ -130,9 +139,9 @@
 
 	function bindStart() {
 		$( '#scolta-amazee-trial' ).on( 'click', function () {
-			var email = $( '#scolta-amazee-email' ).val().trim();
+			// No email is read or sent. Trying the demo costs no input at all.
 			$( this ).prop( 'disabled', true );
-			post( 'scolta_amazee_start_trial', { email: email }, function ( data ) {
+			post( 'scolta_amazee_start_trial', {}, function ( data ) {
 				if ( data.step === 'connected' ) {
 					location.reload();
 				}
