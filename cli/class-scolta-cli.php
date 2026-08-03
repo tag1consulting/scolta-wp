@@ -928,8 +928,7 @@ class Scolta_CLI {
 				ApiKeySource::Env => 'environment variable',
 				ApiKeySource::Constant => 'wp-config.php constant',
 				ApiKeySource::Database => 'database (INSECURE — migrate to env var)',
-				ApiKeySource::AmazeeAuto => 'Amazee.ai (auto-provisioned free trial)',
-				ApiKeySource::AmazeeOperator => 'Amazee.ai',
+				ApiKeySource::Amazee => 'Amazee.ai',
 				default => 'NOT SET',
 			};
 			\WP_CLI::log( "  API key:  {$source_label}" );

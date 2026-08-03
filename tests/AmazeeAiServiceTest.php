@@ -95,9 +95,9 @@ class AmazeeAiServiceTest extends TestCase {
         $storage = new Scolta_Amazee_Config_Storage();
         $storage->store( 'tok', 'https://api.amazee.test', 'ap-southeast-1' );
 
-        // 'amazee:auto' rather than 'amazee': an auto-provisioned trial and a
-        // provider the operator selected are different states to report.
-        $this->assertSame( 'amazee:auto', Scolta_Ai_Service::get_api_key_source() );
+        // One 'amazee' source: nothing records whether a stored token came
+        // from a licensed connection or a self-provisioned trial.
+        $this->assertSame( 'amazee', Scolta_Ai_Service::get_api_key_source() );
         $this->assertTrue( Scolta_Ai_Service::resolve_api_key()->isAmazee() );
     }
 

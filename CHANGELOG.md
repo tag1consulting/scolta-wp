@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Changed
+- **Amazee.ai is reported as one API key source, and a deliberately connected account is no longer called a free trial (`includes/class-scolta-ai-service.php`, `admin/class-scolta-admin.php`, `cli/class-scolta-cli.php`, [scolta-php#273](https://github.com/tag1consulting/scolta-php/pull/273)).** 1.1.0 split the source into `amazee:operator` and `amazee:auto` to separate a licensed connection from an auto-provisioned trial, but nothing records which one produced a token: the trial provisioner and the account upgrader persist the same three fields. Each adapter therefore substituted a local fact, and this one had none to substitute — `operatorChosen` was `$provider === 'amazee'`, and **nothing in this plugin ever writes `'amazee'` to `ai_provider`**, so it was permanently false and `amazee:operator` was unreachable. Every WordPress site with stored credentials, however deliberately it had connected them, was told on its settings screen that it was "Connected to Amazee.ai (auto-provisioned free trial)" and got the same wording from `wp scolta status`. Upstream has collapsed the pair back to a single `ApiKeySource::Amazee`; `get_api_key_source()` now returns `'amazee'`, and both surfaces say "Amazee.ai (managed gateway)" — the wording that describes what the connection is rather than guessing where it came from. `env`, `constant`, `database` and `none` are unchanged, as is `is_amazee_active()`, which reads the same single resolution it already did.
+
 ### Fixed
 - **Re-vendored the browser bundle (`assets/js/scolta.js`) from scolta-php: the AI summary's "Show more" control now follows the viewport width, and a summarize failure can no longer strand the loading skeleton**
   ([tag1consulting/scolta-php#269](https://github.com/tag1consulting/scolta-php/pull/269)).

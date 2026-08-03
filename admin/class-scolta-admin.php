@@ -561,13 +561,15 @@ class Scolta_Admin {
 		$source   = $resolved->source->value;
 
 		switch ( $resolved->source ) {
-			case ApiKeySource::AmazeeAuto:
-			case ApiKeySource::AmazeeOperator:
+			// One Amazee case. The "auto-provisioned free trial" wording was
+			// shown to every WordPress site with stored credentials, because
+			// operatorChosen could never be true here — nothing writes
+			// 'amazee' to ai_provider — so a deliberately connected account
+			// was always announced as a trial (scolta-php#273).
+			case ApiKeySource::Amazee:
 				$notice = $resolved->awaitingAmazeeModelResolution ? 'notice-warning' : 'notice-success';
 				echo '<div class="notice ' . esc_attr( $notice ) . ' inline"><p>';
-				echo $resolved->source === ApiKeySource::AmazeeAuto
-					? esc_html__( 'Connected to Amazee.ai (auto-provisioned free trial).', 'scolta-ai-search' )
-					: esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
+				echo esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
 				echo ' <a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta-ai-search' ) . '</a>';
 				if ( $resolved->awaitingAmazeeModelResolution ) {
 					echo '</p><p class="description">';

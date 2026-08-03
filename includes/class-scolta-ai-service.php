@@ -269,7 +269,14 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 			self::explicit_key_candidates(),
 			AmazeeCredentials::fromStorage(
 				new Scolta_Amazee_Config_Storage(),
-				operatorChosen: $provider === 'amazee',
+				// No operatorChosen: the resolver reports one Amazee source
+				// now. Nothing records whether a stored token came from a
+				// licensed connection or an auto-provisioned trial, and on
+				// WordPress this argument was permanently false, because
+				// nothing ever writes 'amazee' to ai_provider — so every
+				// deliberately connected account was announced as a free
+				// trial (scolta-php#273).
+				//
 				// A half-provisioned install — credentials stored, model
 				// resolution never completed — reports Amazee as its source
 				// but hands back no key.
@@ -283,10 +290,12 @@ class Scolta_Ai_Service extends AiServiceAdapter {
 	 * Detect where the API key is coming from, for status display.
 	 *
 	 * @return string The resolved source: 'env', 'constant', 'database',
-	 *   'amazee:operator', 'amazee:auto', or 'none'. The two Amazee cases
-	 *   replace the former single 'amazee' — a provider the operator selected
-	 *   and a free trial that provisioned itself mean different things to
-	 *   somebody reading a status line.
+	 *   'amazee', or 'none'. One Amazee case, not the 'amazee:operator' /
+	 *   'amazee:auto' pair it briefly had: a selected provider and a
+	 *   self-provisioned trial would mean different things to somebody
+	 *   reading a status line, but nothing records which one produced a
+	 *   stored token, so the distinction was invented rather than reported
+	 *   (scolta-php#273).
 	 */
 	public static function get_api_key_source(): string {
 		return self::resolve_api_key()->source->value;
