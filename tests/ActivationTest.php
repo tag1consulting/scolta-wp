@@ -24,7 +24,9 @@ class ActivationTest extends TestCase {
         scolta_activate();
 
         $settings = get_option('scolta_settings');
-        $this->assertEquals('anthropic', $settings['ai_provider']);
+        // Activation selects no provider. A fresh install has AI off; search
+        // works, and Anthropic is not assumed.
+        $this->assertSame('', $settings['ai_provider']);
         $this->assertEquals('claude-sonnet-4-5-20250929', $settings['ai_model']);
         $this->assertEquals('', $settings['ai_base_url']);
         $this->assertEquals('website', $settings['site_description']);

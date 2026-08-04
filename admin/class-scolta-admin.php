@@ -46,10 +46,11 @@ class Scolta_Admin {
 		// Show rebuild result notices.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_rebuild_notice' ) );
 
-		// AI features opt-in flow (builds with auto-provisioning disabled,
-		// e.g. the WordPress.org distribution): availability notice, the
-		// explicit enable action, its result notice, and server-side
-		// notice dismissal.
+		// AI features opt-in flow: availability notice, the explicit enable
+		// action, its result notice, and server-side notice dismissal.
+		// Nothing here connects anything on its own — the enable action is a
+		// deliberate administrator click, and it is the only path that
+		// establishes the Amazee.ai demo connection.
 		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'maybe_show_ai_optin_result_notice' ) );
 		add_action( 'admin_post_scolta_enable_ai', array( self::class, 'handle_enable_ai' ) );
@@ -493,33 +494,32 @@ class Scolta_Admin {
 	 * Render the AI provider select field.
 	 */
 	public static function render_ai_provider_field(): void {
-		// The explicitly-saved provider always wins for the displayed selection.
-		// API-key source auto-detection (e.g. an auto-provisioned Amazee trial)
-		// is only a fallback for the empty state — when no provider was ever
-		// saved. Activation seeds ai_provider='anthropic', so in practice the
-		// fallback only applies to uninitialized/legacy settings (#123).
-		$saved = self::get_setting( 'ai_provider', '' );
-		if ( '' !== $saved ) {
-			$value = $saved;
-		} else {
-			// "Is Amazee active" comes from the shared resolution, so stored
-			// credentials that lost to an explicit key cannot preselect Amazee
-			// (tag1consulting/scolta-php#252).
-			$value = Scolta_Ai_Service::resolve_api_key()->isAmazee() ? 'amazee' : 'anthropic';
-		}
+		// Only an explicitly-saved provider selects an option. There is no
+		// default and no inference: activation seeds no provider, and the empty
+		// state renders the placeholder, because a preselected option is
+		// indistinguishable — to the operator reading the form — from a choice
+		// somebody made. The old fallback derived a selection from the API-key
+		// source, which meant a site that had never chosen anything displayed
+		// "Anthropic (Claude)" as though it had.
+		$value = self::get_setting( 'ai_provider', '' );
 		?>
 		<select name="scolta_settings[ai_provider]" id="scolta_ai_provider">
+			<option value="" <?php selected( $value, '' ); ?>><?php esc_html_e( '- Select a provider -', 'scolta-ai-search' ); ?></option>
 			<option value="anthropic" <?php selected( $value, 'anthropic' ); ?>><?php esc_html_e( 'Anthropic (Claude)', 'scolta-ai-search' ); ?></option>
 			<option value="openai" <?php selected( $value, 'openai' ); ?>><?php esc_html_e( 'OpenAI', 'scolta-ai-search' ); ?></option>
 			<option value="amazee" <?php selected( $value, 'amazee' ); ?>><?php esc_html_e( 'Amazee.ai (managed gateway)', 'scolta-ai-search' ); ?></option>
 		</select>
-		<?php if ( 'amazee' === $value ) : ?>
+		<?php if ( '' === $value ) : ?>
+		<p class="description">
+			<?php esc_html_e( 'No provider is selected by default. While none is selected, AI features are off and search works exactly as it does now.', 'scolta-ai-search' ); ?>
+		</p>
+		<?php elseif ( 'amazee' === $value ) : ?>
 		<p class="description">
 			<?php
 			printf(
 				/* translators: %s: link to Amazee.ai settings page */
-				esc_html__( 'Amazee.ai provides a managed AI gateway with a free trial. %s', 'scolta-ai-search' ),
-				'<a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Configure Amazee.ai settings', 'scolta-ai-search' ) . '</a>'
+				esc_html__( 'Selecting Amazee.ai does not connect anything on its own. Save, then go to %s and either try the free demo (no email, no account) or sign in to your amazee.ai account. Until you take one of those actions, AI stays off.', 'scolta-ai-search' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta-ai-search' ) . '</a>'
 			);
 			?>
 		</p>
@@ -561,15 +561,26 @@ class Scolta_Admin {
 		$source   = $resolved->source->value;
 
 		switch ( $resolved->source ) {
-			// One Amazee case. The "auto-provisioned free trial" wording was
-			// shown to every WordPress site with stored credentials, because
-			// operatorChosen could never be true here — nothing writes
-			// 'amazee' to ai_provider — so a deliberately connected account
-			// was always announced as a trial (scolta-php#273).
+			// Three Amazee cases, each stating only what the credential store
+			// recorded when the connection was made. The free-trial wording
+			// used to be shown to every WordPress site with stored
+			// credentials, because nothing recorded which action produced a
+			// token, so a deliberately connected account was always announced
+			// as a trial (scolta-php#273). Provenance is now written at
+			// connect time; the origin-free case below covers connections made
+			// before that and claims nothing.
+			case ApiKeySource::AmazeeDemo:
+			case ApiKeySource::AmazeeAccount:
 			case ApiKeySource::Amazee:
 				$notice = $resolved->awaitingAmazeeModelResolution ? 'notice-warning' : 'notice-success';
 				echo '<div class="notice ' . esc_attr( $notice ) . ' inline"><p>';
-				echo esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
+				if ( ApiKeySource::AmazeeDemo === $resolved->source ) {
+					echo esc_html__( 'Connected to Amazee.ai using the free demo.', 'scolta-ai-search' );
+				} elseif ( ApiKeySource::AmazeeAccount === $resolved->source ) {
+					echo esc_html__( 'Connected to Amazee.ai with your account.', 'scolta-ai-search' );
+				} else {
+					echo esc_html__( 'Connected to Amazee.ai (managed gateway).', 'scolta-ai-search' );
+				}
 				echo ' <a href="' . esc_url( admin_url( 'admin.php?page=scolta-amazee' ) ) . '">' . esc_html__( 'Amazee.ai settings', 'scolta-ai-search' ) . '</a>';
 				if ( $resolved->awaitingAmazeeModelResolution ) {
 					echo '</p><p class="description">';
@@ -1687,10 +1698,13 @@ class Scolta_Admin {
 			}
 		}
 
-		// AI provider.
-		$clean['ai_provider'] = in_array( $input['ai_provider'] ?? '', array( 'anthropic', 'openai', 'amazee' ), true )
+		// AI provider. '' is a valid, meaningful value — no provider selected,
+		// AI off — so it is in the allowlist rather than being corrected to a
+		// vendor nobody chose. An unrecognised value also falls back to '',
+		// which fails closed instead of quietly enabling Anthropic.
+		$clean['ai_provider'] = in_array( $input['ai_provider'] ?? '', array( '', 'anthropic', 'openai', 'amazee' ), true )
 			? $input['ai_provider']
-			: 'anthropic';
+			: '';
 
 		// Model.
 		$clean['ai_model']           = sanitize_text_field( $input['ai_model'] ?? 'claude-sonnet-4-5-20250929' );
@@ -2359,7 +2373,7 @@ class Scolta_Admin {
 		echo wp_kses_post(
 			sprintf(
 				/* translators: %s: URL of the Scolta settings page */
-				__( '<strong>Scolta AI Search:</strong> enable Amazee.ai to add AI-powered search (query expansion and result summaries) with a free trial — <a href="%s">enable it in Scolta settings</a>. If it works well for you, sign up with Amazee to keep it running when the trial ends. Scolta makes no remote requests until you enable it.', 'scolta-ai-search' ),
+				__( '<strong>Scolta AI Search:</strong> try Amazee.ai to add AI-powered search (query expansion and result summaries) with a free demo — no email, no account — <a href="%s">turn it on in Scolta settings</a>. If it works well for you, sign in with your email to set up an amazee.ai account and keep it running when the demo credit runs out. Scolta makes no remote requests until you turn it on.', 'scolta-ai-search' ),
 				esc_url( admin_url( 'options-general.php?page=scolta' ) )
 			)
 		);
@@ -2383,7 +2397,7 @@ class Scolta_Admin {
 			echo '</p></div>';
 		} else {
 			echo '<div class="notice notice-error is-dismissible"><p>';
-			echo esc_html__( 'Scolta could not start the Amazee.ai free trial — AI features remain off. Check your site’s outbound connectivity and try again, or configure your own API key.', 'scolta-ai-search' );
+			echo esc_html__( 'Scolta could not start the Amazee.ai demo — AI features remain off. The demo can only be used once per site: if this site has already used it, open the Amazee.ai settings page and sign in with your email address to set up an account. Otherwise check your site’s outbound connectivity and try again, or configure your own API key.', 'scolta-ai-search' );
 			echo '</p></div>';
 		}
 	}
@@ -2392,9 +2406,9 @@ class Scolta_Admin {
 	 * Render the explicit "Enable AI features" opt-in control.
 	 *
 	 * Shown above the settings form while the opt-in recorded at activation
-	 * is pending. States exactly what enabling does — connecting a free
-	 * Amazee.ai trial sends the site admin email address to api.amazee.ai —
-	 * with links to Amazee.ai's terms and privacy policy.
+	 * is pending. States exactly what enabling does — establishing the free
+	 * Amazee.ai demo contacts api.amazee.ai, with no email address sent — with
+	 * links to Amazee.ai's terms and privacy policy.
 	 */
 	private static function render_ai_optin_box(): void {
 		if ( ! self::ai_optin_pending() ) {
@@ -2403,7 +2417,7 @@ class Scolta_Admin {
 		?>
 		<div class="notice notice-info inline" style="margin: 1em 0 1.5em; padding: 0.5em 1em 1em;">
 			<h2><?php esc_html_e( 'Enable AI features?', 'scolta-ai-search' ); ?></h2>
-			<p><?php esc_html_e( 'Enable Amazee.ai to add AI-powered search with a free trial. If it works well for you, sign up with Amazee to keep it running when the trial ends.', 'scolta-ai-search' ); ?></p>
+			<p><?php esc_html_e( 'Try Amazee.ai to add AI-powered search with a free demo — no email, no account, no card. If it works well for you, sign in with your email to set up an amazee.ai account and keep it running when the demo credit runs out.', 'scolta-ai-search' ); ?></p>
 			<p><?php esc_html_e( 'AI query expansion and result summaries are currently OFF, and Scolta makes no remote requests of any kind.', 'scolta-ai-search' ); ?></p>
 			<p>
 				<?php

@@ -125,7 +125,9 @@ class PluginFileTest extends TestCase {
         scolta_activate();
         $settings = get_option('scolta_settings');
         $this->assertArrayHasKey('ai_provider', $settings);
-        $this->assertEquals('anthropic', $settings['ai_provider']);
+        // Seeded, and seeded empty: the key exists so the setting is
+        // addressable, and its value selects nothing.
+        $this->assertSame('', $settings['ai_provider']);
     }
 
     public function test_default_options_include_ai_model(): void {

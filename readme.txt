@@ -57,7 +57,7 @@ No. The base search tier works without any API key. AI features are enabled expl
 
 = What AI providers are supported? =
 
-Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). If no API key is configured, an administrator can enable Amazee.ai in Settings > Scolta to add AI-powered search with a free trial. If it works well for you, sign up with Amazee to keep it running when the trial ends. Enabling is always an explicit administrator action.
+Anthropic (Claude), OpenAI, and any OpenAI-compatible endpoint (including self-hosted Ollama). No provider is selected by default: until an administrator picks one in Settings > Scolta, AI features are off and search works exactly as it does now. An administrator can also try Amazee.ai from that screen, either with a free demo (one click, no email and no account) or by signing in with the email address on an amazee.ai account. Connecting is always an explicit administrator action, and nothing is provisioned until one of those two is chosen.
 
 = What happens when I enable AI features? =
 

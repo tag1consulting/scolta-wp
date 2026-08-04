@@ -922,12 +922,20 @@ class Scolta_CLI {
 			// its API key was NOT SET.
 			$resolved   = \Scolta_Ai_Service::resolve_api_key();
 			$key_source = $resolved->source->value;
-			$provider   = $resolved->isAmazee() ? 'Amazee.ai (managed gateway)' : $resolved->provider . ' (built-in)';
+			$provider   = $resolved->isAmazee()
+				? 'Amazee.ai (managed gateway)'
+				: ( $resolved->providerSelected() ? $resolved->provider . ' (built-in)' : 'none selected — AI features are off' );
 			\WP_CLI::log( "  Provider: {$provider}" );
 			$source_label = match ( $resolved->source ) {
 				ApiKeySource::Env => 'environment variable',
 				ApiKeySource::Constant => 'wp-config.php constant',
 				ApiKeySource::Database => 'database (INSECURE — migrate to env var)',
+				// Each Amazee case names only what the credential store
+				// recorded when the connection was made. The origin-free case
+				// covers connections made before that was recorded, and says
+				// nothing about which action produced them.
+				ApiKeySource::AmazeeDemo => 'Amazee.ai demo',
+				ApiKeySource::AmazeeAccount => 'Amazee.ai account',
 				ApiKeySource::Amazee => 'Amazee.ai',
 				default => 'NOT SET',
 			};

@@ -105,7 +105,11 @@ class ActivationNetworkTest extends TestCase {
         $this->assertFalse( $report['credentials'], 'No credentials may be stored when the site has its own key' );
         $this->assertTrue( $report['ai_expand_query'], 'Enabling must still turn on AI query expansion' );
         $this->assertTrue( $report['ai_summarize'], 'Enabling must still turn on AI summarization' );
-        $this->assertSame( 'anthropic', $report['ai_provider'], 'The operator’s provider choice must be left alone' );
+        // Activation seeds no provider, and enabling AI with the operator's own
+        // key must not pick one for them: this branch turns the AI features on,
+        // nothing more. (The Amazee branch does write 'amazee', because that is
+        // what the click connected.)
+        $this->assertSame( '', $report['ai_provider'], 'Enabling with an explicit key must not choose a provider' );
         $this->assertFalse( $report['optin_pending'], 'Enabling must clear the pending flag' );
     }
 }
