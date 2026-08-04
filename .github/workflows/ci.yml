@@ -374,10 +374,17 @@ jobs:
           echo "My version: $MY_VERSION (major: $MY_MAJOR)"
           echo "scolta-php constraint: $PHP_CONSTRAINT"
 
-          if [ "$PHP_CONSTRAINT" = "@dev" ]; then
-            echo "SKIP: Development mode (@dev constraint)"
-            exit 0
-          fi
+          # Development-mode constraints carry no major to compare. "@dev" is
+          # one shape; tracking the core's branch during a coordinated cycle
+          # ("dev-main") is the other, and it is how this plugin consumes
+          # unreleased core work — the released constraint goes back to "^1.x"
+          # when the cycle closes.
+          case "$PHP_CONSTRAINT" in
+            "@dev"|dev-*)
+              echo "SKIP: Development mode ($PHP_CONSTRAINT constraint)"
+              exit 0
+              ;;
+          esac
 
           PHP_MAJOR=$(echo "$PHP_CONSTRAINT" | sed 's/[\^~>=<]//g' | cut -d. -f1)
           if [ "$MY_MAJOR" != "$PHP_MAJOR" ]; then
@@ -391,7 +398,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check scolta-php is stable and from Packagist
+      - name: Check scolta-php is resolved from a real repository
         run: |
           python3 - <<'PY'
           import json,sys,re
@@ -402,8 +409,19 @@ jobs:
           dist=(p.get("dist") or {}).get("type")
           ver=p.get("version","")
           bad=[]
+          # The load-bearing rule. A path-resolved lock records the filesystem
+          # of whoever ran composer, so it installs nowhere else and the
+          # shipped zip vendors whatever happened to be on that disk.
           if dist=="path": bad.append(f"dist.type=path ({(p.get('dist') or {}).get('url')})")
-          if not re.fullmatch(r"\d+\.\d+\.\d+", ver): bad.append(f"non-stable version {ver}")
+          # A tagged release, or the core's branch during a coordinated cycle.
+          # This plugin vendors scolta-php into the zip it ships, so the lock is
+          # the only thing that decides which core the artifact actually
+          # carries: pinning a stale release while the code calls newer API is
+          # what produced a fatal on plugin activation. Tracking "dev-main"
+          # during the cycle keeps the artifact and the code in step; the
+          # constraint returns to a release version when the cycle closes.
+          if not (re.fullmatch(r"\d+\.\d+\.\d+", ver) or re.fullmatch(r"dev-[\w./-]+", ver)):
+              bad.append(f"version {ver} is neither a release nor a tracked dev branch")
           if bad: sys.exit("LOCK GUARD FAILED for tag1/scolta-php: "+"; ".join(bad))
           print(f"Lock guard OK: tag1/scolta-php {ver} via {dist}")
           PY

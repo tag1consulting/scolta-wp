@@ -11,7 +11,7 @@
     ],
     "require": {
         "php": ">=8.1",
-        "tag1/scolta-php": "^1.1.0"
+        "tag1/scolta-php": "dev-main"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0|^11.0",
@@ -34,16 +34,12 @@
             "cp vendor/tag1/scolta-php/assets/wasm/scolta_core_bg.wasm assets/wasm/scolta_core_bg.wasm"
         ]
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories": [
         {
-            "name": "scolta-php-local",
-            "type": "path",
-            "url": "../scolta-php",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "https://github.com/tag1consulting/scolta-php.git"
         }
     ],
     "autoload": {
