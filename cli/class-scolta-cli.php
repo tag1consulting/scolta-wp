@@ -922,7 +922,7 @@ class Scolta_CLI {
 			// its API key was NOT SET.
 			$resolved   = \Scolta_Ai_Service::resolve_api_key();
 			$key_source = $resolved->source->value;
-			$provider = $resolved->isAmazee()
+			$provider   = $resolved->isAmazee()
 				? 'Amazee.ai (managed gateway)'
 				: ( $resolved->providerSelected() ? $resolved->provider . ' (built-in)' : 'none selected — AI features are off' );
 			\WP_CLI::log( "  Provider: {$provider}" );
