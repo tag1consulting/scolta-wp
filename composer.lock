@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e6d2aca14f26b7f264a5049263375d0d",
+    "content-hash": "cca6ebd147324f58a89c584a917dfbc5",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -748,16 +748,16 @@
         },
         {
             "name": "tag1/scolta-php",
-            "version": "dev-main",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
-                "url": "git@github.com:tag1consulting/scolta-php.git",
-                "reference": "7205f4c344e6b8d46f1059ad0276e79e7cdbcaea"
+                "url": "https://github.com/tag1consulting/scolta-php.git",
+                "reference": "9f221eebf2c3a38cfc3d4d9c4a130bc0dd0ffca1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tag1consulting/scolta-php/zipball/7205f4c344e6b8d46f1059ad0276e79e7cdbcaea",
-                "reference": "7205f4c344e6b8d46f1059ad0276e79e7cdbcaea",
+                "url": "https://api.github.com/repos/tag1consulting/scolta-php/zipball/9f221eebf2c3a38cfc3d4d9c4a130bc0dd0ffca1",
+                "reference": "9f221eebf2c3a38cfc3d4d9c4a130bc0dd0ffca1",
                 "shasum": ""
             },
             "require": {
@@ -775,11 +775,10 @@
             "suggest": {
                 "ext-intl": "Improves Unicode diacritic normalization quality. Falls back to strtr() mapping without it."
             },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "1.1.x-dev"
+                    "dev-main": "1.2.x-dev"
                 }
             },
             "autoload": {
@@ -787,59 +786,7 @@
                     "Tag1\\Scolta\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Tag1\\Scolta\\Tests\\": "tests/"
-                }
-            },
-            "archive": {
-                "exclude": [
-                    "vendor/",
-                    "tests/",
-                    "scripts/",
-                    "benchmarks/",
-                    ".github/",
-                    "phpunit.xml",
-                    ".php-cs-fixer.dist.php",
-                    "phpstan.neon",
-                    "phpstan-baseline.neon",
-                    "CLAUDE.md",
-                    ".editorconfig",
-                    "docs/BENCHMARKS-LATEST.md",
-                    "docs/LANGUAGE_PARITY.md"
-                ]
-            },
-            "scripts": {
-                "test": [
-                    "phpunit --no-coverage"
-                ],
-                "lint": [
-                    "php-cs-fixer fix --dry-run --diff"
-                ],
-                "format": [
-                    "php-cs-fixer fix"
-                ],
-                "analyse": [
-                    "phpstan analyse --no-progress --memory-limit=512M"
-                ],
-                "update-browser-wasm": [
-                    "cp ../scolta-core/pkg/scolta_core_bg.wasm assets/wasm/ && cp ../scolta-core/pkg/scolta_core.js assets/wasm/",
-                    "@update-js-checksum"
-                ],
-                "update-asset-manifest": [
-                    "cd assets && sha256sum js/scolta.js css/scolta.css wasm/scolta_core.js wasm/scolta_core_bg.wasm > ASSETS.sha256"
-                ],
-                "update-js-checksum": [
-                    "@update-asset-manifest",
-                    "awk '$2==\"js/scolta.js\"{print $1}' assets/ASSETS.sha256 > assets/js/scolta.js.sha256"
-                ],
-                "validate-release": [
-                    "php scripts/validate-release.php"
-                ],
-                "check-version-sync": [
-                    "php scripts/check-version-sync.php"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -862,7 +809,7 @@
                 "issues": "https://github.com/tag1consulting/scolta-php/issues",
                 "source": "https://github.com/tag1consulting/scolta-php"
             },
-            "time": "2026-08-04T06:10:18+00:00"
+            "time": "2026-08-07T09:47:23+00:00"
         }
     ],
     "packages-dev": [
@@ -3307,10 +3254,8 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "dev",
-    "stability-flags": {
-        "tag1/scolta-php": 20
-    },
+    "minimum-stability": "stable",
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
