@@ -265,6 +265,7 @@ class Scolta_Admin {
 		add_settings_field( 'filter_fields', __( 'Filter Fields', 'scolta-ai-search' ), array( self::class, 'render_filter_fields_field' ), 'scolta', 'scolta_search_customization_section' );
 		add_settings_field( 'filter_field_descriptions', __( 'Filter Field Descriptions', 'scolta-ai-search' ), array( self::class, 'render_filter_field_descriptions_field' ), 'scolta', 'scolta_search_customization_section' );
 		add_settings_field( 'hide_empty_facets', __( 'Hide Empty Facets', 'scolta-ai-search' ), array( self::class, 'render_hide_empty_facets_field' ), 'scolta', 'scolta_search_customization_section' );
+		add_settings_field( 'facet_mode', __( 'Facet Index Loading', 'scolta-ai-search' ), array( self::class, 'render_facet_mode_field' ), 'scolta', 'scolta_search_customization_section' );
 
 		// --- Section: Search as you type ---
 		add_settings_section( 'scolta_sayt_section', __( 'Search as you type', 'scolta-ai-search' ), array( self::class, 'render_sayt_section' ), 'scolta' );
@@ -864,6 +865,26 @@ class Scolta_Admin {
 			<?php esc_html_e( 'Hide facet values with zero results for the current query', 'scolta-ai-search' ); ?>
 		</label>
 		<p class="description"><?php esc_html_e( 'Enabled by default: a zero-count facet value is hidden and a filter group whose values are all zero is dropped; an active (checked) value stays visible so it can be unchecked. Disable to show every value, rendering a zero-count one as a disabled "(0)" option.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the "Facet Index Loading" mode selector.
+	 *
+	 * @since 1.2.1
+	 */
+	public static function render_facet_mode_field(): void {
+		$value = self::get_setting( 'facet_mode', 'eager' );
+		if ( ! in_array( $value, array( 'eager', 'deferred', 'disabled' ), true ) ) {
+			$value = 'eager';
+		}
+		?>
+		<select name="scolta_settings[facet_mode]">
+			<option value="eager" <?php selected( $value, 'eager' ); ?>><?php esc_html_e( 'Eager — load with the search page (default)', 'scolta-ai-search' ); ?></option>
+			<option value="deferred" <?php selected( $value, 'deferred' ); ?>><?php esc_html_e( 'Deferred — load on the first facet interaction', 'scolta-ai-search' ); ?></option>
+			<option value="disabled" <?php selected( $value, 'disabled' ); ?>><?php esc_html_e( 'Disabled — never load, and show no filters', 'scolta-ai-search' ); ?></option>
+		</select>
+		<p class="description"><?php esc_html_e( 'Controls when the browser downloads the facet index, which on a large site can reach a megabyte or more. Eager loads it with the search page, so the filter sidebar is populated before the first results appear. Deferred skips that download and takes it the first time a visitor actually uses a filter, which suits a theme that renders its own facets; the Scolta filter sidebar then stays empty until that first interaction, because it is built from the index. Disabled never downloads it: no filter sidebar, no facet filtering, and the per-query count pass is skipped as well. Filtering stays correct and fast under Deferred, because the index finishes loading before the filter is applied.', 'scolta-ai-search' ); ?></p>
 		<?php
 	}
 
@@ -1729,7 +1750,15 @@ class Scolta_Admin {
 		$clean['ai_expand_query']   = ! empty( $input['ai_expand_query'] );
 		$clean['ai_summarize']      = ! empty( $input['ai_summarize'] );
 		$clean['hide_empty_facets'] = ! empty( $input['hide_empty_facets'] );
-		$clean['max_follow_ups']    = max( 0, min( 10, (int) ( $input['max_follow_ups'] ?? 3 ) ) );
+		// Fail closed to the default: an unrecognized mode must never be stored,
+		// so a tampered form post cannot turn a site's facets off. Resolved into
+		// a local first — testing the coalesced value but storing $input[...]
+		// would write null back whenever the key is simply absent.
+		$facet_mode              = $input['facet_mode'] ?? 'eager';
+		$clean['facet_mode']     = in_array( $facet_mode, array( 'eager', 'deferred', 'disabled' ), true )
+			? $facet_mode
+			: 'eager';
+		$clean['max_follow_ups'] = max( 0, min( 10, (int) ( $input['max_follow_ups'] ?? 3 ) ) );
 
 		// AI languages.
 		$languages_raw = $input['ai_languages'] ?? 'en';

@@ -137,6 +137,17 @@ class Scolta_Shortcode {
 			);
 		}
 
+		// Read from the stored settings and clamped here rather than through
+		// ScoltaConfig, so the setting works against any scolta-php in the
+		// supported ^1.2 range: the property landed in 1.2.1, but the behaviour
+		// lives entirely in the assets/js/scolta.js this plugin vendors and ships
+		// itself. Resolved into a local before the membership test, so a site
+		// whose stored settings predate the key gets 'eager' rather than null.
+		$facet_mode = $settings['facet_mode'] ?? 'eager';
+		if ( ! in_array( $facet_mode, array( 'eager', 'deferred', 'disabled' ), true ) ) {
+			$facet_mode = 'eager';
+		}
+
 		// Pass config to JS via wp_localize_script.
 		// This sets window.scolta before scolta.js runs.
 		wp_localize_script(
@@ -155,6 +166,7 @@ class Scolta_Shortcode {
 					? $config->siteName
 					: get_bloginfo( 'name' ),
 				'hideEmptyFacets'         => $config->hideEmptyFacets,
+				'facetMode'               => $facet_mode,
 				'filterFieldDescriptions' => $config->filterFieldDescriptions,
 				// Search as you type. Ten top-level keys, not scoring keys:
 				// scolta.js reads each as instanceConfig.<camelCase>, the same

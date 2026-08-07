@@ -194,6 +194,67 @@ class ShortcodeTest extends TestCase {
         // expansion prompt all consumed this setting already; only the browser
         // bridge was missing, so the feature was dead client-side.
         $this->assertArrayHasKey('filterFieldDescriptions', $config);
+        // facetMode is bridged top-level so scolta.js knows when to load the
+        // facet index. Defaults to 'eager', the behaviour every existing site
+        // already has.
+        $this->assertArrayHasKey('facetMode', $config);
+        $this->assertSame('eager', $config['facetMode']);
+    }
+
+    /**
+     * Each supported facet mode must survive the round trip to the browser.
+     *
+     * The bridge is the whole feature: the behaviour lives in the vendored
+     * bundle, so a setting that saves but never reaches window.scolta looks
+     * correct in wp-admin and changes nothing on the site.
+     */
+    public function test_facet_mode_round_trips_into_localized_config(): void {
+        foreach (['eager', 'deferred', 'disabled'] as $mode) {
+            $settings = get_option('scolta_settings', []);
+            $settings['facet_mode'] = $mode;
+            update_option('scolta_settings', $settings);
+
+            Scolta_Shortcode::render();
+
+            $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+            $this->assertSame($mode, $config['facetMode'], "facet_mode '{$mode}' must reach the browser");
+        }
+    }
+
+    /**
+     * A stored value that is not one of the three modes must clamp to 'eager'.
+     *
+     * The bundle clamps too, but a value the plugin will not vouch for should
+     * not be put in the page payload at all.
+     */
+    public function test_unrecognized_facet_mode_clamps_to_eager(): void {
+        $settings = get_option('scolta_settings', []);
+        $settings['facet_mode'] = 'defered';
+        update_option('scolta_settings', $settings);
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertSame('eager', $config['facetMode']);
+    }
+
+    /**
+     * Settings saved before this key existed must still yield 'eager'.
+     *
+     * The upgrade path: activation seeds the default, but an existing install
+     * carries a settings array with no facet_mode until it is saved again. The
+     * bridge has to supply the string itself rather than emit null, which
+     * scolta.js would clamp anyway but which puts a wrong value on the page.
+     */
+    public function test_absent_facet_mode_bridges_as_eager(): void {
+        $settings = get_option('scolta_settings', []);
+        unset($settings['facet_mode']);
+        update_option('scolta_settings', $settings);
+
+        Scolta_Shortcode::render();
+
+        $config = $GLOBALS['scolta_localized_scripts']['scolta-search'];
+        $this->assertSame('eager', $config['facetMode']);
     }
 
     /**
