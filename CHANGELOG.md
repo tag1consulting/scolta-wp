@@ -6,6 +6,12 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 
 ## [Unreleased]
 
+### Added
+- **"Facet Index Loading" setting, controlling when the browser downloads the facet index or whether it downloads it at all (`admin/class-scolta-admin.php`, `includes/class-scolta-shortcode.php`, `scolta.php`).** Three modes under Search Customization, defaulting to `eager`, which is what every existing site already does. `eager` downloads the index with the search page, so the filter sidebar is populated before the first results appear. `deferred` skips that download and takes it the first time a visitor uses a filter: on a large site the index runs to a megabyte or more, and a theme that renders its own facets was paying for it on every search-page load to display nothing from it, in sessions that mostly never filter at all. The Scolta filter sidebar stays empty until that first interaction under `deferred`, because it is built from the index. `disabled` never downloads it, renders no filter sidebar, runs no facet filtering, and skips the per-query facet count pass. Deferring does **not** degrade filtering: the bundle finishes the load before applying the selection, so it never falls back to Pagefind's own per-search filtering, which would cost every later search on the page. The value is read from the stored settings and clamped in the shortcode rather than through `ScoltaConfig`, so the setting works against any scolta-php in the supported `^1.2` range even though the property landed in 1.2.1 — the behaviour is entirely in the vendored bundle this plugin ships. `sanitize_settings()` fails closed to `eager`, so a tampered form post cannot turn a site's facets off.
+
+### Changed
+- **Re-vendored the browser bundle from scolta-php `1.2.1-dev` (`assets/js/scolta.js`).** Carries the `facetMode` implementation the setting above drives. `assets/css/scolta.css` and both WASM files are unchanged.
+
 ## [1.2.0] - 2026-08-07
 
 ### Added
