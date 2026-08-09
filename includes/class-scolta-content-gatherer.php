@@ -94,13 +94,19 @@ class Scolta_Content_Gatherer {
 	 * ContentItem objects; the manifest is updated with the new timestamp and
 	 * content hash.
 	 *
+	 * $force suppresses the cached-reference path only. Every post is
+	 * reloaded, but the manifest is still recorded with each post's real
+	 * modification time, so a forced build primes the manifest instead of
+	 * emptying it. (The orchestrator prunes every entry not re-recorded
+	 * during the run, so a build that records nothing wipes the cache.)
+	 *
 	 * Callers must NOT convert the generator to an array — that would defeat
 	 * the purpose and restore the pre-0.3.2 eager-load behaviour. Pass the
 	 * generator directly to IndexBuildOrchestrator::build() or
 	 * ContentExporter::filterItems().
 	 *
 	 * @param TimestampManifest|null $manifest Unchanged posts yield cached references if provided.
-	 * @param bool                   $force    When true, ignore the manifest and load every post.
+	 * @param bool                   $force    When true, reload every post; still records.
 	 *
 	 * @return \Generator<ContentItem|CachedContentReference>
 	 *
@@ -141,30 +147,37 @@ class Scolta_Content_Gatherer {
 			$timestamps  = array();
 			$ids_to_load = $batch_ids;
 
-			if ( $manifest !== null && ! $force ) {
-				$timestamps  = self::get_post_timestamps( $batch_ids );
-				$ids_to_load = array();
+			// Timestamps are needed whenever there is a manifest to write into,
+			// forced or not: a forced build re-records every entry with its real
+			// modification time so the NEXT build can trust the cache. Only the
+			// skip decision below is suppressed under force.
+			if ( $manifest !== null ) {
+				$timestamps = self::get_post_timestamps( $batch_ids );
 
-				foreach ( $batch_ids as $post_id ) {
-					$entity_key = (string) $post_id;
-					$entry      = $manifest->get( $entity_key );
+				if ( ! $force ) {
+					$ids_to_load = array();
 
-					$stored_ts = (int) ( $timestamps[ $post_id ] ?? 0 );
-					if ( $entry !== null && $stored_ts === $entry['ts'] ) {
-						foreach ( $entry['items'] as $item_data ) {
-							yield new CachedContentReference(
-								entityKey:   $entity_key,
-								contentHash: $item_data['hash'],
-								id:          $item_data['id'],
-								url:         $item_data['url'],
-								date:        $item_data['date'],
-								siteName:    $item_data['siteName'],
-								language:    $item_data['language'],
-								filters:     $item_data['filters'] ?? array(),
-							);
+					foreach ( $batch_ids as $post_id ) {
+						$entity_key = (string) $post_id;
+						$entry      = $manifest->get( $entity_key );
+
+						$stored_ts = (int) ( $timestamps[ $post_id ] ?? 0 );
+						if ( $entry !== null && $stored_ts === $entry['ts'] ) {
+							foreach ( $entry['items'] as $item_data ) {
+								yield new CachedContentReference(
+									entityKey:   $entity_key,
+									contentHash: $item_data['hash'],
+									id:          $item_data['id'],
+									url:         $item_data['url'],
+									date:        $item_data['date'],
+									siteName:    $item_data['siteName'],
+									language:    $item_data['language'],
+									filters:     $item_data['filters'] ?? array(),
+								);
+							}
+						} else {
+							$ids_to_load[] = $post_id;
 						}
-					} else {
-						$ids_to_load[] = $post_id;
 					}
 				}
 			}
@@ -184,7 +197,7 @@ class Scolta_Content_Gatherer {
 				foreach ( $query->posts as $post ) {
 					$item = self::to_content_item( $post, $site_name );
 					if ( $item !== null ) {
-						if ( $manifest !== null && ! $force ) {
+						if ( $manifest !== null ) {
 							$ts   = (int) ( $timestamps[ $post->ID ] ?? 0 );
 							$hash = PhpIndexer::contentHash( $item );
 							$manifest->put(

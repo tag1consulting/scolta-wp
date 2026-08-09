@@ -201,7 +201,11 @@ class Scolta_Rebuild_Scheduler {
 
 		// Expose the timestamp manifest to the gatherer so unchanged posts
 		// are yielded as CachedContentReferences without loading content.
-		$ts_manifest = $force ? null : $orchestrator->getTimestampManifest();
+		// The manifest goes in on a forced build too: the gatherer suppresses
+		// the cached-reference path from $force by itself, and still records
+		// every post it loads. Withholding it here left nothing re-recorded,
+		// and the orchestrator's end-of-build prune then emptied the manifest.
+		$ts_manifest = $orchestrator->getTimestampManifest();
 
 		// Stream content one post at a time — no full pre-load into RAM.
 		$exporter = new ContentExporter( $output_dir );

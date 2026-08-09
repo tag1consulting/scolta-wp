@@ -12,6 +12,12 @@ This project uses [Semantic Versioning](https://semver.org/). Major versions are
 ### Changed
 - **Re-vendored the browser bundle from scolta-php `1.2.1-dev` (`assets/js/scolta.js`).** Carries the `facetMode` implementation the setting above drives. `assets/css/scolta.css` and both WASM files are unchanged.
 
+### Fixed
+- **A forced rebuild now re-primes the timestamp manifest instead of emptying it, so the next incremental build hits the cache correctly (`includes/class-scolta-content-gatherer.php`, `includes/class-scolta-rebuild-scheduler.php`, `cli/class-scolta-cli.php`).** Two halves of the same run. Both build callers passed `null` for the manifest whenever `force` was set, and `gather()` gated its `TimestampManifest::put()` write on `force` as well, so a forced build recorded nothing at all. `IndexBuildOrchestrator` prunes at the end of every build, deleting each entry not re-recorded during the run, so the forced build did not bypass the cache: it deleted it, and the build after a forced one reloaded the entire corpus. Ungating the write alone would not have fixed it, because `$timestamps` was populated inside the same `force` gate: every entry would have been stored with timestamp `0`, which never matches a post's real `post_modified_gmt`, so the corpus would have re-gathered on every build from then on. The timestamp lookup and the manifest write are now gated on the presence of a manifest and nothing else; `force` gates only the cached-reference skip decision, which is the one thing it should mean. A forced build is now a priming run: it reloads every post and re-records every entry with a correct timestamp, so the rollout for a site operator is "force once, then stable". Both the background scheduler and `wp scolta build --force` carried the identical null-manifest defect and both are fixed.
+
+### Added
+- **`tests/ForceBuildManifestPrimingTest.php`** pins the fix at both layers. Against the real `TimestampManifest` and its filesystem driver it asserts the invariant the whole thing rests on: recorded entries survive a prune and a reload, and a run that records nothing empties the manifest on prune. Against the sources it asserts that neither build caller withholds the manifest under `force`, that the manifest write and the timestamp lookup are guarded only by the presence of a manifest, that the cached-reference skip path stays guarded by `force`, and that `gather()` tests `force` exactly once, so a second gate cannot reappear.
+
 ## [1.2.0] - 2026-08-07
 
 ### Added

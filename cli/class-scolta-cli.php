@@ -195,7 +195,9 @@ class Scolta_CLI {
 
 		// Expose the timestamp manifest to the gatherer so unchanged posts are
 		// yielded as CachedContentReferences without loading post_content.
-		$ts_manifest = $force ? null : $orchestrator->getTimestampManifest();
+		// Passed on --force too, so the forced build re-primes the manifest
+		// rather than leaving it empty for the orchestrator's prune to clear.
+		$ts_manifest = $orchestrator->getTimestampManifest();
 
 		// Stream content one post at a time — no full pre-load into RAM.
 		$exporter = new ContentExporter( $output_dir );
