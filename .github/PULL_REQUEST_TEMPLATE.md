@@ -17,6 +17,7 @@
 - [ ] I have added tests that prove my fix/feature works
 - [ ] All existing tests pass (`./vendor/bin/phpunit`)
 - [ ] I have updated CHANGELOG.md with a summary of my changes
+- [ ] If this changes how the package is versioned, built, or published, it changes MAINTAINING.md in the same pull request
 - [ ] Version is consistent across `composer.json`, `scolta.php` header, and `SCOLTA_VERSION` constant
 - [ ] REST endpoints use `register_rest_route()` with validation callbacks
 - [ ] No scoring/HTML/prompt logic was reimplemented (belongs in scolta-core)
