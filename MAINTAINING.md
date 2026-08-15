@@ -1,4 +1,4 @@
-# MAINTAINING — scolta-wp
+# Maintaining scolta-wp
 
 The WordPress plugin over scolta-php. Publishes to Packagist and to wordpress.org.
 
@@ -7,15 +7,15 @@ Everything true of more than one Scolta repo lives in
 the version rules, the release order, the fleet checks, the rules every repo shares. How the bundle is
 copied and checked is in
 [scolta-core/ASSETS.md](https://github.com/tag1consulting/scolta-core/blob/main/ASSETS.md). Build steps
-are in `BUILDING.md` here.
+are in [BUILDING.md](BUILDING.md) here.
 
 **What it is.** A WordPress plugin, glue only. It depends on `scolta-php` and never on `scolta-core`
 directly.
 
 **Where the version lives.** In three places that must match: the plugin header `Version:` in
 `scolta.php` (the source), the `SCOLTA_VERSION` constant, and `readme.txt` `Stable Tag`. Everything in
-CI that needs the version reads it through `scripts/plugin-version.sh`. **Never add a `version` key to
-`composer.json`**: `version-consistency` hard-fails if one appears, and there used to be one, making a
+CI that needs the version reads it through `scripts/plugin-version.sh`. Never add a `version` key to
+`composer.json`: `version-consistency` hard-fails if one appears. There used to be one, which made a
 fourth location.
 
 **Where it publishes.** Packagist as `tag1/scolta-wp`, and wordpress.org over SVN as the slug
@@ -44,6 +44,6 @@ wp.org rejects a non-numeric version, so never publish from a `-dev` or `-rc` co
   `composer copy-assets`, never by editing a copy here. When `assets-in-sync` is red because the matching
   scolta-php PR hasn't merged, do not run `composer copy-assets` to green it.
 - `assets/css/amazee-admin.css` and `assets/js/amazee-admin.js` are this plugin's own, not vendored.
-- **Do not commit a `.sha256` sidecar.** There used to be an `assets/js/scolta.js.sha256`; nothing
+- Do not commit a `.sha256` sidecar. There used to be an `assets/js/scolta.js.sha256`; nothing
   generated it and nothing read it, so it drifted for two revisions. scolta-php owns that record, and
   `assets-in-sync` compares the asset bytes rather than a claim about them.
