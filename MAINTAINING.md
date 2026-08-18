@@ -22,7 +22,7 @@ fourth location.
 `scolta-ai-search`. Confirm both: `composer show` resolves it, and the wp.org plugin page shows it.
 
 **CI checks.** phpunit (`test`, `coverage`), `assets-in-sync`, `Static analysis (PHPStan)`,
-`docs-check`, `version-consistency`, `version-sync`, `lock-guard`,
+`docs-check`, `version-consistency`, `lock-guard`,
 `Distribution archive build + validate`, `WordPress.org Plugin Check (built zip)` (run against the
 unpacked dist zip with `--slug=scolta-ai-search`, where warnings are fatal on purpose),
 `antipatterns`, and `Version coherence`. `upstream-preview` is informational and not a merge gate.
