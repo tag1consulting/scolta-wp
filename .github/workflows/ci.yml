@@ -348,51 +348,6 @@ jobs:
         run: |
           php scripts/validate-release.php || echo "Note: -dev versions expected in development"
 
-  version-sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-
-      - name: Check version alignment with scolta-php
-        run: |
-          # The plugin header, not composer.json: this plugin declares no
-          # "version" in composer.json (Composer derives it from the branch or
-          # tag), and the header is what WordPress itself reads.
-          MY_VERSION=$(grep -m1 -E '^[[:space:]]*\*[[:space:]]*Version:' scolta.php | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
-          if [ -z "$MY_VERSION" ]; then
-            echo "FAIL: no Version header found in scolta.php"
-            exit 1
-          fi
-          MY_MAJOR=$(echo "$MY_VERSION" | cut -d. -f1)
-          PHP_CONSTRAINT=$(php -r "echo json_decode(file_get_contents('composer.json'))->require->{'tag1/scolta-php'};")
-
-          echo "My version: $MY_VERSION (major: $MY_MAJOR)"
-          echo "scolta-php constraint: $PHP_CONSTRAINT"
-
-          # Development-mode constraints carry no major to compare. "@dev" is
-          # one shape; tracking the core's branch during a coordinated cycle
-          # ("dev-main") is the other, and it is how this plugin consumes
-          # unreleased core work — the released constraint goes back to "^1.x"
-          # when the cycle closes.
-          case "$PHP_CONSTRAINT" in
-            "@dev"|dev-*)
-              echo "SKIP: Development mode ($PHP_CONSTRAINT constraint)"
-              exit 0
-              ;;
-          esac
-
-          PHP_MAJOR=$(echo "$PHP_CONSTRAINT" | sed 's/[\^~>=<]//g' | cut -d. -f1)
-          if [ "$MY_MAJOR" != "$PHP_MAJOR" ]; then
-            echo "FAIL: Major version mismatch"
-            exit 1
-          fi
-          echo "PASS: Major versions aligned"
-
   lock-guard:
     runs-on: ubuntu-latest
     steps:
@@ -560,8 +515,9 @@ jobs:
       # said two different things about which line it was. Nothing stopped it:
       # the retired check-version-sync.php compared only MAJOR numbers, which
       # were equal on both sides of that break, and it was wired into no
-      # workflow anywhere. version-sync here also compares majors. This
-      # compares the development LINE, which is where the break was.
+      # workflow anywhere. The version-sync job that once ran here compared
+      # majors too, and has since been removed. This compares the development
+      # LINE, which is where the break was.
       #
       # It cost four demos their installs: they pinned the alias line directly
       # as 1.1.x-dev, and once the alias moved to 1.2 there was nothing left to
