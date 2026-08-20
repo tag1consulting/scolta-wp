@@ -4,6 +4,11 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Each Scolta package versions independently; compatibility with scolta-php is expressed by the caret constraint in `composer.json` rather than by matching version numbers.
 
+## [Unreleased]
+
+### Changed
+- **Opened the `1.3.1-dev` cycle (`scolta.php`, `readme.txt`).** `v1.3.0` is tagged, but all three version locations still declared `1.3.0` — the version already shipped — so commits landing after the release would accumulate against a bare release version instead of a dev pre-release. The plugin header, the `SCOLTA_VERSION` constant and the `readme.txt` Stable Tag move together because `scripts/validate-release.php` asserts they match. The `tag1/scolta-php` constraint stays `^1.3.0`, which already allows `1.3.1`, and `composer.lock` is untouched.
+
 ## [1.3.0] - 2026-08-19
 
 ### Added
