@@ -5,7 +5,7 @@ Tags: search, ai, pagefind, artificial intelligence, semantic search
 Requires at least: 6.1
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable Tag: 1.3.1-dev
+Stable Tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -82,6 +82,15 @@ Scolta defaults to a conservative search breadth so generic words don't flood yo
 3. WP-CLI status output showing tracker and index state
 
 == Changelog ==
+
+= 1.4.0 =
+* Visitors can turn AI query expansion off for themselves. A switch in the results header lets a reader search on exactly the words they typed, and the choice is remembered in their own browser. It only ever narrows: it cannot turn expansion on where you have switched it off, and no switch is shown in that case.
+* An empty search box now browses the whole catalogue instead of showing nothing. Selecting a filter without typing anything returns results rather than leaving the previous screen in place, and the resulting link carries the filter selection so it can be shared.
+* Filter values are escaped in the results count header, so a term containing markup renders as text.
+* "No results found." appears in the results column instead of far below the fold.
+* A link that carries filter state now runs its search on load.
+* The follow up question field is no longer rendered on a site that has follow up questions turned off.
+* The bundled library is now scolta-php 1.4.0, which also brings substantially faster incremental index updates on large sites.
 
 = 1.3.0 =
 * A new "Facet Index Loading" setting controls when the browser downloads the facet index, or whether it downloads it at all. Leave it on the default to keep the behaviour you have today; defer it so the index is fetched on the first search that uses a filter instead of on page load; or turn it off entirely on a site that does not use the filter panel. On a large catalogue the index can run to a megabyte or more, so deferring or disabling it removes that from the initial page load.
