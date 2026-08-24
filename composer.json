@@ -62,7 +62,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-main": "1.3.x-dev"
+            "dev-main": "1.4.x-dev"
         },
         "installer-name": "scolta"
     }

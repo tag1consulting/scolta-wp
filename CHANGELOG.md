@@ -4,9 +4,12 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Each Scolta package versions independently; compatibility with scolta-php is expressed by the caret constraint in `composer.json` rather than by matching version numbers.
 
-## [Unreleased]
+## [1.4.0] - 2026-08-24
 
 ### Changed
+- **Re-locked `tag1/scolta-php` to the published 1.4.0 and re-vendored the browser bundle from it (`composer.json`, `composer.lock`, `assets/js/scolta.js`, `assets/css/scolta.css`).** This plugin commits a copy of the bundle and vendors scolta-php into the zip it ships, so the lock is what decides which engine the artifact actually carries and the committed copy is what the browser runs — neither moves without a release here. The bundle brings the 1.4.0 front-end work: the visitor-facing expansion toggle, browsing the corpus with an empty search box, facet values escaped in the results header, and the no-results and follow-up rendering fixes. All four committed assets are byte-identical to `vendor/tag1/scolta-php/assets/`, which is what the `assets-in-sync` job compares. The WASM pair is unchanged from the previously vendored copy, so only the JS and CSS move.
+- **Opened the 1.4.0 line rather than 1.3.1 (`scolta.php`, `readme.txt`, `composer.json`).** The re-vendored bundle adds visitor-facing functionality, which [VERSIONING.md](https://github.com/tag1consulting/scolta-core/blob/main/VERSIONING.md) puts in a minor rather than the patch the cycle was opened as. The plugin header, `SCOLTA_VERSION` and the `readme.txt` Stable Tag move together because `scripts/validate-release.php` asserts they match, and `extra.branch-alias.dev-main` moves to `1.4.x-dev` so the coherence check still sees one development line. The `tag1/scolta-php` floor stays `^1.3.0`, which already admits 1.4.0; the lock is what pins what ships.
+- **Repaired the compare-link block at the foot of this file.** `[Unreleased]` still compared from `v1.1.0` and the `[1.2.0]` and `[1.3.0]` definitions were never added, so two released headings rendered as plain text rather than links.
 - **Opened the `1.3.1-dev` cycle (`scolta.php`, `readme.txt`).** `v1.3.0` is tagged, but all three version locations still declared `1.3.0` — the version already shipped — so commits landing after the release would accumulate against a bare release version instead of a dev pre-release. The plugin header, the `SCOLTA_VERSION` constant and the `readme.txt` Stable Tag move together because `scripts/validate-release.php` asserts they match. The `tag1/scolta-php` constraint stays `^1.3.0`, which already allows `1.3.1`, and `composer.lock` is untouched.
 
 ## [1.3.0] - 2026-08-19
@@ -555,7 +558,9 @@ Coordinated release. Fixes memory and CLI visibility regressions surfaced by a 4
 - Settings stored as a single serialized option (`scolta_settings`)
 - Asset enqueueing via `wp_enqueue_script` and `wp_enqueue_style` from scolta-php vendor path
 
-[Unreleased]: https://github.com/tag1consulting/scolta-wp/compare/v1.1.0...HEAD
+[1.4.0]: https://github.com/tag1consulting/scolta-wp/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/tag1consulting/scolta-wp/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/tag1consulting/scolta-wp/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.7...v1.1.0
 [1.0.7]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.6...v1.0.7
 [1.0.4]: https://github.com/tag1consulting/scolta-wp/compare/v1.0.3...v1.0.4
