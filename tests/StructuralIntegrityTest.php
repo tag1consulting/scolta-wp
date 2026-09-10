@@ -548,10 +548,10 @@ class StructuralIntegrityTest extends TestCase {
             "The plugin's own admin assets are not vendored and must not be compared.");
 
         // The failure message has to tell a reviewer which of the two causes
-        // they are looking at. The coordinated-change case is the common one,
-        // and "fix it with composer copy-assets" is the wrong advice for it.
+        // they are looking at. When the bundle is ahead of the lock, "fix it
+        // with composer copy-assets" is the wrong advice: it reverts the bundle.
         $this->assertStringContainsString('STALE COMMITTED COPY', $step);
-        $this->assertStringContainsString('UPSTREAM HAS NOT MERGED YET', $step);
+        $this->assertStringContainsString('BUNDLE AHEAD OF THE LOCK', $step);
     }
 
     /**
