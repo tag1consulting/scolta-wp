@@ -4,6 +4,11 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Each Scolta package versions independently; compatibility with scolta-php is expressed by the caret constraint in `composer.json` rather than by matching version numbers.
 
+## [Unreleased]
+
+### Changed
+- **CI now resolves `tag1/scolta-php` from the `1.x` branch instead of `main` (`.github/workflows/ci.yml`).** This plugin stays on scolta-php 1.x, and scolta-php `main` has opened its 2.x line, so a job pinned to `dev-main@dev` would install a major this plugin does not target and fail on API it still calls. The `test`, `assets-in-sync`, `coverage` and `static-analysis` jobs now pin `1.x-dev@dev` (Composer's name for the `1.x` branch; a version-like branch name carries no `dev-` prefix); the informational upstream-preview job still follows whatever ref `.github/upstream-preview` names. `composer.json` is unchanged: the shipped `^1.3.0` constraint is correct and `composer.lock` still pins the 1.4.0 tag.
+
 ## [1.4.0] - 2026-08-24
 
 ### Changed

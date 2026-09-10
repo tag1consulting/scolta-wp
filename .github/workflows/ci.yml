@@ -1,5 +1,11 @@
 name: CI
 
+# scolta-wp stays on scolta-php 1.x, whose development branch is `1.x`; scolta-php
+# `main` is 2.x. Every job below therefore resolves tag1/scolta-php from that
+# branch rather than from main. Composer names it `1.x-dev`, not `dev-1.x`: a
+# branch whose name already looks like a version becomes that version with a
+# -dev suffix, and only a non-version branch name gets the `dev-` prefix.
+
 on:
   push:
     branches: [main]
@@ -43,7 +49,7 @@ jobs:
           php -r '
             $j = json_decode(file_get_contents("composer.json"), true);
             $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "dev-main@dev";
+            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
             file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
           '
 
@@ -86,7 +92,7 @@ jobs:
           php -r '
             $j = json_decode(file_get_contents("composer.json"), true);
             $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "dev-main@dev";
+            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
             file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
           '
 
@@ -136,8 +142,8 @@ jobs:
           ------------------------------------------------------------------
           The committed browser assets do not match scolta-php.
 
-          This job resolves tag1/scolta-php from dev-main, so it compares what
-          this branch would ship against the current tip of scolta-php main.
+          This job resolves tag1/scolta-php from the 1.x branch, so it compares what
+          this branch would ship against the current tip of scolta-php 1.x.
           Two things cause a mismatch, and the second is the common one:
 
             1. A STALE COMMITTED COPY. A re-vendor was forgotten or partial.
@@ -159,9 +165,9 @@ jobs:
           echo "All committed assets are byte-identical to the vendored scolta-php."
 
   # Informational coverage, never a merge gate. `assets-in-sync` and the test
-  # suites pin scolta-php to dev-main, which is correct — an adapter must not
-  # merge ahead of its upstream — but it also means this repo's own suite never
-  # exercises an unmerged upstream change before merge.
+  # suites pin scolta-php to 1.x-dev, which is correct — an adapter must not
+  # merge ahead of the upstream line it tracks — but it also means this repo's
+  # own suite never exercises an unmerged upstream change before merge.
   #
   # Commit a git ref into .github/upstream-preview to run the suite against it.
   # A committed file rather than a branch-name convention: it is visible in the
@@ -250,7 +256,7 @@ jobs:
           php -r '
             $j = json_decode(file_get_contents("composer.json"), true);
             $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "dev-main@dev";
+            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
             file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
           '
 
@@ -278,7 +284,7 @@ jobs:
           php -r '
             $j = json_decode(file_get_contents("composer.json"), true);
             $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "dev-main@dev";
+            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
             file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
           '
 
