@@ -1,10 +1,10 @@
 name: CI
 
-# scolta-wp stays on scolta-php 1.x, whose development branch is `1.x`; scolta-php
-# `main` is 2.x. Every job below therefore resolves tag1/scolta-php from that
-# branch rather than from main. Composer names it `1.x-dev`, not `dev-1.x`: a
-# branch whose name already looks like a version becomes that version with a
-# -dev suffix, and only a non-version branch name gets the `dev-` prefix.
+# Every job installs tag1/scolta-php exactly as composer.lock pins it, from
+# Packagist. No job rewrites composer.json: the lock is what the plugin zip
+# vendors, so testing anything else tests a plugin nobody ships. The one
+# exception is the informational upstream-preview job, which exists to run the
+# suite against a ref that is not released yet.
 
 on:
   push:
@@ -12,8 +12,8 @@ on:
   pull_request:
     branches: [main]
 
-# Composer resolves the tag1consulting/scolta-php VCS repo and every packagist
-# dist through api.github.com. Unauthenticated that is 60 req/hour/IP, and when
+# Composer downloads every packagist dist hosted on GitHub through
+# api.github.com. Unauthenticated that is 60 req/hour/IP, and when
 # it runs dry composer cannot prompt under no-interaction and dies with
 # "Could not authenticate against github.com" (AuthHelper.php:152, exit 100).
 # The run's own token raises it to 1,000 req/hour/repo. Read-only is enough:
@@ -44,17 +44,8 @@ jobs:
           extensions: intl
           coverage: none
 
-      - name: Replace path repo with GitHub VCS repo
-        run: |
-          php -r '
-            $j = json_decode(file_get_contents("composer.json"), true);
-            $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
-            file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-          '
-
       - name: Install dependencies
-        run: composer update --no-interaction --prefer-dist --ignore-platform-req=php
+        run: composer install --no-interaction --prefer-dist --ignore-platform-req=php
 
       - name: Lint (WordPress coding standards)
         if: matrix.lint
@@ -87,17 +78,8 @@ jobs:
           extensions: intl
           coverage: none
 
-      - name: Replace path repo with GitHub VCS repo
-        run: |
-          php -r '
-            $j = json_decode(file_get_contents("composer.json"), true);
-            $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
-            file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-          '
-
       - name: Install dependencies
-        run: composer update --no-interaction --prefer-dist --ignore-platform-req=php
+        run: composer install --no-interaction --prefer-dist --ignore-platform-req=php
 
       - name: Compare committed assets against the vendored canonical
         run: |
@@ -142,22 +124,20 @@ jobs:
           ------------------------------------------------------------------
           The committed browser assets do not match scolta-php.
 
-          This job resolves tag1/scolta-php from the 1.x branch, so it compares what
-          this branch would ship against the current tip of scolta-php 1.x.
-          Two things cause a mismatch, and the second is the common one:
+          This job installs tag1/scolta-php as composer.lock pins it, so it
+          compares the committed bundle against the scolta-php this plugin
+          actually vendors into its zip. Two things cause a mismatch:
 
-            1. A STALE COMMITTED COPY. A re-vendor was forgotten or partial.
-               Fix it here: run `composer copy-assets`, then commit the result.
+            1. A STALE COMMITTED COPY. The lock moved but the re-vendor was
+               forgotten or partial. Fix it here: run `composer copy-assets`,
+               then commit the result.
 
-            2. A COORDINATED CHANGE WHOSE UPSTREAM HAS NOT MERGED YET. The
-               bundle on this branch is newer than scolta-php main, because
-               the matching scolta-php pull request is still open. Nothing is
-               wrong with this branch. Merge scolta-php first; this job goes
-               green once main carries the same bundle.
-
-               Do NOT run `composer copy-assets` to silence this case. That
-               overwrites the new bundle with the old one and is exactly the
-               failure this check exists to catch.
+            2. A BUNDLE AHEAD OF THE LOCK. The committed assets came from a
+               scolta-php newer than the one composer.lock pins, so the zip
+               would ship a core that does not match its own front end. Move
+               the lock to the scolta-php that produced the bundle (a release
+               tag, or its dev-main commit during a coordinated cycle; the
+               lock-guard job accepts both) rather than reverting the assets.
           ------------------------------------------------------------------
           MSG
             exit 1
@@ -165,9 +145,9 @@ jobs:
           echo "All committed assets are byte-identical to the vendored scolta-php."
 
   # Informational coverage, never a merge gate. `assets-in-sync` and the test
-  # suites pin scolta-php to 1.x-dev, which is correct — an adapter must not
-  # merge ahead of the upstream line it tracks — but it also means this repo's
-  # own suite never exercises an unmerged upstream change before merge.
+  # suites install the scolta-php that composer.lock pins, which is correct —
+  # the zip vendors that exact version — but it also means this repo's own
+  # suite never exercises an unmerged upstream change before merge.
   #
   # Commit a git ref into .github/upstream-preview to run the suite against it.
   # A committed file rather than a branch-name convention: it is visible in the
@@ -251,17 +231,8 @@ jobs:
           extensions: intl
           coverage: xdebug
 
-      - name: Replace path repo with GitHub VCS repo
-        run: |
-          php -r '
-            $j = json_decode(file_get_contents("composer.json"), true);
-            $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
-            file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-          '
-
       - name: Install dependencies
-        run: composer update --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist
 
       - name: Run tests with coverage
         run: ./vendor/bin/phpunit --coverage-text --colors=never 2>&1 | tail -20
@@ -279,17 +250,8 @@ jobs:
           extensions: intl
           coverage: none
 
-      - name: Replace path repo with GitHub VCS repo
-        run: |
-          php -r '
-            $j = json_decode(file_get_contents("composer.json"), true);
-            $j["repositories"] = [["type" => "vcs", "url" => "https://github.com/tag1consulting/scolta-php.git"]];
-            $j["require"]["tag1/scolta-php"] = "1.x-dev@dev";
-            file_put_contents("composer.json", json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-          '
-
       - name: Install dependencies
-        run: composer update --no-interaction --prefer-dist --ignore-platform-req=php
+        run: composer install --no-interaction --prefer-dist --ignore-platform-req=php
 
       - name: PHPStan
         run: composer analyse

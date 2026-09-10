@@ -7,7 +7,7 @@ This project uses [Semantic Versioning](https://semver.org/). Each Scolta packag
 ## [Unreleased]
 
 ### Changed
-- **CI now resolves `tag1/scolta-php` from the `1.x` branch instead of `main` (`.github/workflows/ci.yml`).** This plugin stays on scolta-php 1.x, and scolta-php `main` has opened its 2.x line, so a job pinned to `dev-main@dev` would install a major this plugin does not target and fail on API it still calls. The `test`, `assets-in-sync`, `coverage` and `static-analysis` jobs now pin `1.x-dev@dev` (Composer's name for the `1.x` branch; a version-like branch name carries no `dev-` prefix); the informational upstream-preview job still follows whatever ref `.github/upstream-preview` names. `composer.json` is unchanged: the shipped `^1.3.0` constraint is correct and `composer.lock` still pins the 1.4.0 tag.
+- **CI installs `tag1/scolta-php` from `composer.lock` instead of rewriting `composer.json` (`.github/workflows/ci.yml`, `CLAUDE.md`).** The `test`, `assets-in-sync`, `coverage` and `static-analysis` jobs each replaced the repositories list with a GitHub VCS repo and overwrote the constraint with `dev-main@dev`, which will install scolta-php 2.x once `main` opens that line while this plugin stays on 1.x. All four now run `composer install`, the same lock-driven install `dist-build` and `plugin-check` already use, so CI tests the scolta-php the zip vendors. `assets-in-sync` therefore compares the committed bundle against the locked scolta-php rather than the tip of `main`; its failure message and the re-vendoring notes in `CLAUDE.md` describe the new meaning. The informational upstream-preview job still follows whatever ref `.github/upstream-preview` names. `composer.json` and `composer.lock` are unchanged.
 
 ## [1.4.0] - 2026-08-24
 
