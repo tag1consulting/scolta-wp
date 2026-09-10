@@ -57,7 +57,7 @@ Four files are copies of canonical sources in `scolta-php/assets/`:
 3. Commit the result, with a CHANGELOG entry describing what changed in the bundle.
 4. The `assets-in-sync` CI job byte-compares each committed file against the vendored canonical and fails if any differs.
 
-On a coordinated change, `assets-in-sync` goes red until the matching scolta-php pull request merges, because it resolves scolta-php from `dev-main`. That is correct signal, not a problem to work around: an adapter must not merge ahead of its upstream. **Do not run `composer copy-assets` to make it green** — that overwrites the new bundle with the old one.
+`assets-in-sync` installs the scolta-php that `composer.lock` pins, so it checks that the committed bundle matches the core this plugin vendors into its zip. On a coordinated change, re-vendor from a lock that points at the scolta-php producing the new bundle (a release tag, or its `dev-main` commit mid-cycle; `lock-guard` accepts both). **Do not run `composer copy-assets` against a stale lock to make it green** — that overwrites the new bundle with the old one.
 
 **Do not commit a `.sha256` sidecar.** There used to be an `assets/js/scolta.js.sha256`; nothing generated it and nothing read it, so it drifted for two revisions. scolta-php owns the canonical record in its own `assets/ASSETS.sha256`. `assets-in-sync` compares the asset bytes, which is the artifact rather than a claim about it.
 

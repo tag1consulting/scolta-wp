@@ -4,6 +4,11 @@ All notable changes to scolta-wp will be documented in this file.
 
 This project uses [Semantic Versioning](https://semver.org/). Each Scolta package versions independently; compatibility with scolta-php is expressed by the caret constraint in `composer.json` rather than by matching version numbers.
 
+## [Unreleased]
+
+### Changed
+- **CI installs `tag1/scolta-php` from `composer.lock` instead of rewriting `composer.json` (`.github/workflows/ci.yml`, `CLAUDE.md`).** The `test`, `assets-in-sync`, `coverage` and `static-analysis` jobs each replaced the repositories list with a GitHub VCS repo and overwrote the constraint with `dev-main@dev`, which will install scolta-php 2.x once `main` opens that line while this plugin stays on 1.x. All four now run `composer install`, the same lock-driven install `dist-build` and `plugin-check` already use, so CI tests the scolta-php the zip vendors. `assets-in-sync` therefore compares the committed bundle against the locked scolta-php rather than the tip of `main`; its failure message and the re-vendoring notes in `CLAUDE.md` describe the new meaning. The informational upstream-preview job still follows whatever ref `.github/upstream-preview` names. `composer.json` and `composer.lock` are unchanged.
+
 ## [1.4.0] - 2026-08-24
 
 ### Changed
