@@ -6,6 +6,9 @@ This project uses [Semantic Versioning](https://semver.org/). Each Scolta packag
 
 ## [Unreleased]
 
+### Added
+- **`title_dedup` scoring setting, off by default (`admin/class-scolta-admin.php`, `scolta.php`, `README.md`).** scolta-php now gates the browser's near-duplicate title collapse behind `ScoltaConfig::$titleDedup` (tag1consulting/scolta-php#362); before, the collapse ran on every result set, so distinct pages with similar titles vanished. A checkbox in the Scoring section, a sanitizer line and an activation default. Off, so upgrading shows those pages again; turn on only when the same content is reachable at several URLs. Against a scolta-php that predates #362 the key is ignored.
+
 ### Changed
 - **CI installs `tag1/scolta-php` from `composer.lock` instead of rewriting `composer.json` (`.github/workflows/ci.yml`, `CLAUDE.md`).** The `test`, `assets-in-sync`, `coverage` and `static-analysis` jobs each replaced the repositories list with a GitHub VCS repo and overwrote the constraint with `dev-main@dev`, which will install scolta-php 2.x once `main` opens that line while this plugin stays on 1.x. All four now run `composer install`, the same lock-driven install `dist-build` and `plugin-check` already use, so CI tests the scolta-php the zip vendors. `assets-in-sync` therefore compares the committed bundle against the locked scolta-php rather than the tip of `main`; its failure message and the re-vendoring notes in `CLAUDE.md` describe the new meaning. The informational upstream-preview job still follows whatever ref `.github/upstream-preview` names. `composer.json` and `composer.lock` are unchanged.
 

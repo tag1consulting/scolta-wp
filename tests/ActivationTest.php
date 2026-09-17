@@ -47,6 +47,7 @@ class ActivationTest extends TestCase {
         $this->assertEquals(2.0, $settings['title_match_boost']);
         $this->assertEquals(1.5, $settings['title_all_terms_multiplier']);
         $this->assertEquals(0.4, $settings['content_match_boost']);
+        $this->assertFalse($settings['title_dedup']);
         $this->assertEquals(0.25, $settings['recency_boost_max']);
         $this->assertEquals(365, $settings['recency_half_life_days']);
         $this->assertEquals(1825, $settings['recency_penalty_after_days']);
