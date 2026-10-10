@@ -220,7 +220,7 @@ if (!function_exists('add_options_page')) {
 if (!function_exists('register_rest_route')) {
     function register_rest_route(string $namespace, string $route, array $args = [], bool $override = false): bool {
         if (isset($GLOBALS['scolta_registered_routes'])) {
-            $GLOBALS['scolta_registered_routes'][] = ['namespace' => $namespace, 'route' => $route];
+            $GLOBALS['scolta_registered_routes'][] = ['namespace' => $namespace, 'route' => $route, 'definition' => $args];
         }
         return true;
     }
