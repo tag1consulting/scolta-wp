@@ -1,0 +1,1 @@
+{"ts": "2026-10-12T21:40:18Z", "command": "false-positive", "reason": "", "source": "phpstan", "file": "tests/RestApiHandlerTest.php", "rule_id": "", "finding_id": 24, "judge_verdict": "downrank", "corroborated": false, "confidence": 70}
