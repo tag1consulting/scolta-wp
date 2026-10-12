@@ -1,1 +1,2 @@
 {"ts": "2026-10-12T21:40:18Z", "command": "false-positive", "reason": "", "source": "phpstan", "file": "tests/RestApiHandlerTest.php", "rule_id": "", "finding_id": 24, "judge_verdict": "downrank", "corroborated": false, "confidence": 70}
+{"ts": "2026-10-12T21:40:22Z", "command": "false-positive", "reason": "", "source": "phpcs", "file": "tests/RestApiHandlerTest.php", "rule_id": "", "finding_id": 25, "judge_verdict": "keep", "corroborated": false, "confidence": 90}
