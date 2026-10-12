@@ -181,6 +181,7 @@ class PluginFileTest extends TestCase {
             'title_match_boost',
             'title_all_terms_multiplier',
             'content_match_boost',
+            'title_dedup',
             'recency_boost_max',
             'recency_half_life_days',
             'recency_penalty_after_days',
