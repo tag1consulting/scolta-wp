@@ -243,4 +243,127 @@ class RestApiHandlerTest extends TestCase {
             'Health endpoint should use GET method'
         );
     }
+
+    // -------------------------------------------------------------------
+    // /followup messages validation contract
+    // -------------------------------------------------------------------
+
+    /**
+     * Fetch the registered /followup argument definitions.
+     *
+     * @return array<string, array> Argument specs keyed by parameter name.
+     */
+    private function followup_args(): array {
+        $GLOBALS['scolta_registered_routes'] = [];
+        Scolta_Rest_Api::register_routes();
+
+        foreach ($GLOBALS['scolta_registered_routes'] as $route) {
+            if ($route['route'] === '/followup') {
+                // The stub retains the third register_rest_route() argument —
+                // the route definition — whose 'args' key holds the specs.
+                return $route['definition']['args'] ?? [];
+            }
+        }
+
+        $this->fail('/followup route was not registered');
+    }
+
+    /**
+     * Run a raw messages payload through the real sanitize + validate
+     * callbacks registered for the /followup endpoint, the same order the
+     * REST server applies them.
+     *
+     * @param mixed $raw Raw messages as a client would send them.
+     * @return bool Whether validation passes.
+     */
+    private function followup_messages_passes(mixed $raw): bool {
+        $arg = $this->followup_args()['messages'] ?? [];
+        $sanitized = $arg['sanitize_callback']($raw);
+        return $arg['validate_callback']($sanitized);
+    }
+
+    public function test_followup_accepts_literal_zero_content(): void {
+        // Regression: empty() treats '0' as falsy, but the scolta-php
+        // handler explicitly accepts the literal message "0".
+        $this->assertTrue(
+            $this->followup_messages_passes([
+                ['role' => 'user', 'content' => '0'],
+            ]),
+            "A user message whose content is exactly '0' must pass validation"
+        );
+    }
+
+    public function test_followup_accepts_valid_conversation(): void {
+        $this->assertTrue(
+            $this->followup_messages_passes([
+                ['role' => 'assistant', 'content' => 'You asked about Pagefind.'],
+                ['role' => 'user', 'content' => 'What about caching then?'],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_empty_content(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => 'user', 'content' => ''],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_missing_content(): void {
+        // Sanitize fills a missing content with '' — still rejected.
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => 'user'],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_null_content(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => 'user', 'content' => null],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_empty_role(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => '', 'content' => 'hello'],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_invalid_role(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => 'system', 'content' => 'hello'],
+            ])
+        );
+    }
+
+    public function test_followup_rejects_non_array_message(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                'user: hello',
+            ])
+        );
+    }
+
+    public function test_followup_rejects_empty_messages(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([])
+        );
+    }
+
+    public function test_followup_rejects_last_message_from_assistant(): void {
+        $this->assertFalse(
+            $this->followup_messages_passes([
+                ['role' => 'user', 'content' => 'hello'],
+                ['role' => 'assistant', 'content' => 'hi'],
+            ]),
+            'The last message must be from the user'
+        );
+    }
 }

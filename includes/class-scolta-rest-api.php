@@ -113,7 +113,14 @@ class Scolta_Rest_Api {
 								return false;
 							}
 							foreach ( $value as $msg ) {
-								if ( empty( $msg['role'] ) || empty( $msg['content'] ) ) {
+								// Explicit null / empty-string checks, not empty(),
+								// so a literal message content of '0' is accepted,
+								// matching the scolta-php handler's contract.
+								if ( ! is_array( $msg ) ) {
+									return false;
+								}
+								if ( null === $msg['role'] || '' === $msg['role']
+									|| null === $msg['content'] || '' === $msg['content'] ) {
 									return false;
 								}
 								$valid_roles = array( 'user', 'assistant' );
