@@ -300,6 +300,7 @@ class Scolta_Admin {
 		add_settings_field( 'title_match_boost', __( 'Title Match Boost', 'scolta-ai-search' ), array( self::class, 'render_title_boost_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'title_all_terms_multiplier', __( 'Title All-Terms Multiplier', 'scolta-ai-search' ), array( self::class, 'render_title_all_terms_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'content_match_boost', __( 'Content Match Boost', 'scolta-ai-search' ), array( self::class, 'render_content_boost_field' ), 'scolta', 'scolta_scoring_section' );
+		add_settings_field( 'title_dedup', __( 'Title Dedup', 'scolta-ai-search' ), array( self::class, 'render_title_dedup_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_boost_max', __( 'Recency Boost', 'scolta-ai-search' ), array( self::class, 'render_recency_boost_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_half_life_days', __( 'Recency Half-life (days)', 'scolta-ai-search' ), array( self::class, 'render_recency_halflife_field' ), 'scolta', 'scolta_scoring_section' );
 		add_settings_field( 'recency_penalty_after_days', __( 'Recency Penalty After (days)', 'scolta-ai-search' ), array( self::class, 'render_recency_penalty_days_field' ), 'scolta', 'scolta_scoring_section' );
@@ -1213,6 +1214,22 @@ class Scolta_Admin {
 	}
 
 	/**
+	 * Render the title dedup toggle.
+	 *
+	 * @since 1.5.0
+	 */
+	public static function render_title_dedup_field(): void {
+		$value = self::get_setting( 'title_dedup', false );
+		?>
+		<label>
+			<input type="checkbox" name="scolta_settings[title_dedup]" value="1" <?php checked( $value ); ?> />
+			<?php esc_html_e( 'Hide results whose title nearly matches a higher-ranked one', 'scolta-ai-search' ); ?>
+		</label>
+		<p class="description"><?php esc_html_e( 'Off by default. Turn on only when the same content is reachable at several URLs; otherwise distinct pages with similar titles disappear from results.', 'scolta-ai-search' ); ?></p>
+		<?php
+	}
+
+	/**
 	 * Render the recency boost field.
 	 */
 	public static function render_recency_boost_field(): void {
@@ -1841,6 +1858,7 @@ class Scolta_Admin {
 		$clean['title_match_boost']            = max( 0.0, min( 10.0, (float) ( $input['title_match_boost'] ?? 2.0 ) ) );
 		$clean['title_all_terms_multiplier']   = max( 0.0, min( 10.0, (float) ( $input['title_all_terms_multiplier'] ?? 1.5 ) ) );
 		$clean['content_match_boost']          = max( 0.0, min( 10.0, (float) ( $input['content_match_boost'] ?? 0.4 ) ) );
+		$clean['title_dedup']                  = ! empty( $input['title_dedup'] );
 		$clean['recency_boost_max']            = max( 0.0, min( 5.0, (float) ( $input['recency_boost_max'] ?? 0.25 ) ) );
 		$clean['recency_half_life_days']       = max( 1, min( 3650, (int) ( $input['recency_half_life_days'] ?? 365 ) ) );
 		$clean['recency_penalty_after_days']   = max( 0, min( 7300, (int) ( $input['recency_penalty_after_days'] ?? 1825 ) ) );

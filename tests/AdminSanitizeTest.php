@@ -476,6 +476,12 @@ class AdminSanitizeTest extends TestCase {
         $this->assertTrue($result['show_attribution']);
     }
 
+    public function test_title_dedup_checkbox_round_trips(): void {
+        // An unchecked checkbox posts nothing at all.
+        $this->assertFalse(Scolta_Admin::sanitize_settings(array())['title_dedup']);
+        $this->assertTrue(Scolta_Admin::sanitize_settings(array('title_dedup' => '1'))['title_dedup']);
+    }
+
     public function test_show_attribution_field_registered_in_settings(): void {
         $file = file_get_contents(dirname(__DIR__) . '/admin/class-scolta-admin.php');
         $this->assertStringContainsString(

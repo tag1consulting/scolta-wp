@@ -224,6 +224,7 @@ Configure at **Settings > Scolta > Scoring**.
 | Title match boost | `title_match_boost` | Boost when query terms appear in the title |
 | Title all-terms multiplier | `title_all_terms_multiplier` | Extra multiplier when ALL terms match the title |
 | Content match boost | `content_match_boost` | Boost for query term matches in body/excerpt |
+| Title dedup | `title_dedup` | Off by default. Hide results whose title nearly matches a higher-ranked one. Turn on only when the same content is reachable at several URLs; otherwise distinct pages with similar titles disappear. |
 | Expand primary weight | `expand_primary_weight` | Weight for original query results vs AI-expanded results (higher = original query dominates; raise to 0.7+ if you want literal keyword matches to win) |
 | Recency strategy | `recency_strategy` | Decay function: `exponential`, `linear`, `step`, `none`, or `custom` |
 | Recency boost max | `recency_boost_max` | Maximum positive boost for very recent content |
